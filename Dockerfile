@@ -9,5 +9,4 @@ WORKDIR /data
 RUN curl -L https://npmjs.com/install.sh | sh
 
 # Define default command.
-ENTRYPOINT npm run build
 CMD npm start
