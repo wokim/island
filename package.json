@@ -1,7 +1,7 @@
 ﻿{
   "name": "island",
   "version": "0.0.4",
-  "description": "Package suite to build microservice using TypeScript",
+  "description": "A package suite for building microservice using TypeScript.",
   "main": "index.js",
   "author": {
     "name": "wokim",
