@@ -1,0 +1,45 @@
+{
+  "version": "v4",
+  "repo": "wokim/DefinitelyTyped",
+  "ref": "master",
+  "path": "typings",
+  "bundle": "typings/tsd.d.ts",
+  "installed": {
+    "jsonwebtoken/jsonwebtoken.d.ts": {
+      "commit": "0c6544d9eec7e8d7642f9717646f9b9e24ebd67b"
+    },
+    "bunyan/bunyan.d.ts": {
+      "commit": "0c6544d9eec7e8d7642f9717646f9b9e24ebd67b"
+    },
+    "node/node.d.ts": {
+      "commit": "0c6544d9eec7e8d7642f9717646f9b9e24ebd67b"
+    },
+    "redis/redis.d.ts": {
+      "commit": "0c6544d9eec7e8d7642f9717646f9b9e24ebd67b"
+    },
+    "socket.io/socket.io.d.ts": {
+      "commit": "0c6544d9eec7e8d7642f9717646f9b9e24ebd67b"
+    },
+    "mongoose/mongoose.d.ts": {
+      "commit": "0c6544d9eec7e8d7642f9717646f9b9e24ebd67b"
+    },
+    "bluebird/bluebird.d.ts": {
+      "commit": "0c6544d9eec7e8d7642f9717646f9b9e24ebd67b"
+    },
+    "when/when.d.ts": {
+      "commit": "0c6544d9eec7e8d7642f9717646f9b9e24ebd67b"
+    },
+    "lodash/lodash.d.ts": {
+      "commit": "0c6544d9eec7e8d7642f9717646f9b9e24ebd67b"
+    },
+    "restify/restify.d.ts": {
+      "commit": "0c6544d9eec7e8d7642f9717646f9b9e24ebd67b"
+    },
+    "amqplib/amqplib.d.ts": {
+      "commit": "0c6544d9eec7e8d7642f9717646f9b9e24ebd67b"
+    },
+    "island/island.d.ts": {
+      "commit": "0c6544d9eec7e8d7642f9717646f9b9e24ebd67b"
+    }
+  }
+}

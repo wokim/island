@@ -1,0 +1,33 @@
+﻿{
+  "name": "island",
+  "version": "0.0.4",
+  "description": "Package suite to build microservice using TypeScript",
+  "main": "index.js",
+  "author": {
+    "name": "wokim",
+    "email": "wokim@ea.com"
+  },
+  "scripts": {
+    "test": "jest",
+    "clean": "bash ./scripts/clean.sh",
+    "build": "bash ./scripts/build.sh"
+  },
+  "dependencies": {
+    "amqplib": "^0.3.0",
+    "bluebird": "^2.3.11",
+    "jsonwebtoken": "^3.2.2",
+    "lodash": "^2.4.1",
+    "mongoose": "^3.8.20",
+    "redis": "^0.12.1",
+    "restify": "^2.8.3",
+    "socket.io": "^1.2.1"
+  },
+  "devDependencies": {
+    "event-stream": "^3.1.7",
+    "gulp": "^3.8.10",
+    "gulp-p4": "0.0.5",
+    "gulp-sourcemaps": "^1.3.0",
+    "gulp-typescript": "^2.3.0",
+    "jest-cli": "^0.2.1"
+  }
+}
