@@ -1,12 +1,15 @@
-# Base on https://github.com/wokim/nodejs-bower-gulp-tsd
-
 # Pull base image.
-FROM wokim/nodejs-bower-gulp-tsd
+FROM dockerfile/nodejs-bower-gulp
+
+# Install TypeScript Definition manager for DefinitelyTyped
+RUN npm install tsd@next -g
+
+# Install supervisor
+RUN npm install supervisor -g
+
+# Install forever
+RUN npm install forever -g
 
 WORKDIR /data
 
-# Update npm
-RUN curl -L https://npmjs.com/install.sh | sh
-
-# Define default command.
-CMD npm start
+ENTRYPOINT ["bash", "./run.sh"]

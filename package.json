@@ -1,6 +1,6 @@
 {
   "name": "island",
-  "version": "0.0.6",
+  "version": "0.0.9",
   "description": "A package suite for building microservice using TypeScript.",
   "main": "index.js",
   "author": {
@@ -8,13 +8,17 @@
     "email": "wokim@ea.com"
   },
   "scripts": {
-    "test": "jest",
-    "clean": "bash ./scripts/clean.sh",
-    "build": "bash ./scripts/build.sh"
+    "clean": "bash ./scripts/run.sh clean",
+    "build": "bash ./scripts/run.sh build",
+    "debug": "bash ./scripts/run.sh debug",
+    "start": "bash ./scripts/run.sh start",
+    "deploy": "bash ./scripts/run.sh deploy"
   },
   "dependencies": {
     "amqplib": "^0.3.0",
     "bluebird": "^2.3.11",
+    "commander": "^2.6.0",
+    "debug": "^2.1.1",
     "jsonwebtoken": "^3.2.2",
     "lodash": "^2.4.1",
     "mongoose": "^3.8.20",

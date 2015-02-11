@@ -2,7 +2,6 @@
 import _ = require('lodash');
 import fs = require('fs');
 import Promise = require('bluebird');
-import ServiceOptions = require('./options/service-options');
 import IAbstractAdapter = require('./adapters/interfaces/abstract-adapter-interface');
 import ListenableAdapter = require('./adapters/listenable-adapter');
 
@@ -40,19 +39,30 @@ class Islet {
    * @param {Microservice} Class
    * @static
    */
-  public static run(Class: typeof Islet) {
+  public static run(Class: typeof Islet): Promise<any[]>;
+  public static run(config: Promise<any>, Class: typeof Islet): Promise<any[]>;
+  public static run(): Promise<any[]> {
     if (this.islet) return;
 
-    // Load config.yaml
-    //var options = yaml.safeLoad(fs.readFileSync(__dirname + '/config.yaml', 'utf8'));
+    var Class: typeof Islet;
+    var config: Promise<any>;
+    var args: any[] = Array.prototype.slice.call(arguments);
+
+    if (args.length === 1) {
+      Class = args[0];
+      config = Promise.resolve();
+    } else if (args.length > 1) {
+      Class = args[1];
+      config = args[0];
+    }
 
     // Create such a micro-service instance.
     var islet = new Class();
     this.registerIslet(islet);
 
-    islet.main({});
-    return islet.initialize().then(() => {
-      return islet.start();
+    return config.then(configure => {
+      islet.main(configure);
+      return islet.initialize().then(() => { return islet.start(); });
     });
   }
 
@@ -82,9 +92,9 @@ class Islet {
 
   /**
    * @abstract
-   * @param {ServiceOptions} options
+   * @param {any} config
    */
-  public main(options: ServiceOptions) {
+  public main(config: any) {
     throw new Error('Not implemented exception.');
   }
 
