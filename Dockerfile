@@ -1,14 +1,19 @@
 # Pull base image.
 FROM dockerfile/nodejs-bower-gulp
 
-# Install TypeScript Definition manager for DefinitelyTyped
-RUN npm install tsd@next -g
+RUN apt-get update && apt-get install -y openssh-server
+RUN mkdir /var/run/sshd
+RUN echo 'root:root' | chpasswd
+RUN sed -i 's/PermitRootLogin without-password/PermitRootLogin yes/' /etc/ssh/sshd_config
 
-# Install supervisor
-RUN npm install supervisor -g
+# SSH login fix. Otherwise user is kicked off after login
+RUN sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' -i /etc/pam.d/sshd
 
-# Install forever
-RUN npm install forever -g
+ENV NOTVISIBLE "in users profile"
+RUN echo "export VISIBLE=now" >> /etc/profile
+
+# Install tsd, supervisor and forever
+RUN npm install tsd@next supervisor forever -g
 
 WORKDIR /data
 
