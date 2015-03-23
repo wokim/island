@@ -13,7 +13,7 @@ ENV NOTVISIBLE "in users profile"
 RUN echo "export VISIBLE=now" >> /etc/profile
 
 # Install tsd, supervisor and forever
-RUN npm install tsd@next supervisor forever -g
+RUN npm install tsd@next supervisor forever typescript node-inspector -g
 
 WORKDIR /data
 
