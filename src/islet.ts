@@ -1,16 +1,17 @@
-/// <reference path="../typings/tsd.d.ts" />
 import _ = require('lodash');
 import fs = require('fs');
 import Promise = require('bluebird');
-import IAbstractAdapter = require('./adapters/interfaces/abstract-adapter-interface');
-import ListenableAdapter = require('./adapters/listenable-adapter');
+import { IAbstractAdapter } from './adapters/abstract-adapter';
+import ListenableAdapter from './adapters/listenable-adapter';
+
+var debug = require('debug')('ISLAND:ISLET');
 
 /**
  * Create a new Islet.
  * @abstract
  * @class
  */
-class Islet {
+export default class Islet {
   private static islet: Islet;
 
   /**
@@ -39,31 +40,18 @@ class Islet {
    * @param {Microservice} Class
    * @static
    */
-  public static run(Class: typeof Islet): Promise<any[]>;
-  public static run(config: Promise<any>, Class: typeof Islet): Promise<any[]>;
-  public static run(): Promise<any[]> {
+  public static run(Class: typeof Islet): Promise<any[]> {
     if (this.islet) return;
 
     var Class: typeof Islet;
     var config: Promise<any>;
-    var args: any[] = Array.prototype.slice.call(arguments);
-
-    if (args.length === 1) {
-      Class = args[0];
-      config = Promise.resolve();
-    } else if (args.length > 1) {
-      Class = args[1];
-      config = args[0];
-    }
 
     // Create such a micro-service instance.
     var islet = new Class();
     this.registerIslet(islet);
 
-    return config.then(configure => {
-      islet.main(configure);
-      return islet.initialize().then(() => { return islet.start(); });
-    });
+    islet.main();
+    return islet.initialize().then(() => islet.start());
   }
 
   /** @type {Object.<string, IAbstractAdapter>} [adapters={}] */
@@ -92,9 +80,8 @@ class Islet {
 
   /**
    * @abstract
-   * @param {any} config
    */
-  public main(config: any) {
+  public main() {
     throw new Error('Not implemented exception.');
   }
 
@@ -102,27 +89,31 @@ class Islet {
    * @returns {Promise<void>}
    */
   public initialize() {
-    var adapters: IAbstractAdapter[] = _.values(this.adapters);
-    return Promise.all<any>(adapters.map(adapter => { return adapter.initialize(); }));
+    return Promise.all(_.values<IAbstractAdapter>(this.adapters).map(adapter => adapter.initialize())).then(() => {
+      // 모든 adapter가 초기화되면 onInitialize() 를 호출해준다
+      return Promise.resolve(this.onInitialized());
+    });
   }
+
+  protected onInitialized() {}
+  protected onDestroy() {}
 
   /**
    * @returns {Promise<void>}
    */
   public start() {
-    var adapters: ListenableAdapter<any, any>[] = _.values(this.adapters).filter(adapter => {
+    var adapters: any/*ListenableAdapter<any, any>*/[] = _.values(this.adapters).filter(adapter => {
       return adapter instanceof ListenableAdapter;
     });
 
     // Initialize all of the adapters to register resource into routing table.
-    adapters.forEach(adapter => {
-      adapter.postInitialize();
-    });
+    return Promise.all<void>(adapters.map(adapter => adapter.postInitialize()))
+      .then(() => Promise.all<void>(adapters.map(adapter => adapter.listen())));
+  }
 
-    return Promise.all<any>(adapters.map(adapter => {
-      return adapter.listen();
-    }))
+  public destroy() {
+    // TODO: 각 adapter의 destroy 호출해준다
+    let adapters: any[] = _.values(this.adapters).filter(adapter => (adapter instanceof ListenableAdapter));
+    return Promise.all(adapters.map(adapter => adapter.close().then(() => adapter.destroy()))).then(() => this.onDestroy())
   }
 }
-
-export = Islet;

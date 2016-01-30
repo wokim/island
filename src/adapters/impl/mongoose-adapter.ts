@@ -1,16 +1,18 @@
-/// <reference path="../../../typings/tsd.d.ts" />
 import mongoose = require('mongoose');
 import Promise = require('bluebird');
-import AbstractAdapter = require('../abstract-adapter');
-import MongooseAdapterType = require('./mongoose-adapter-type');
-import MongooseAdapterOptions = require('../../options/mongoose-adapter-options');
+import AbstractAdapter from '../abstract-adapter';
+
+export interface MongooseAdapterOptions {
+  uri: string;
+  connectionOptions?: mongoose.ConnectionOptions;
+}
 
 /**
  * MongooseAdapter
  * @class
  * @extends AbstractAdapter
  */
-class MongooseAdapter extends AbstractAdapter<MongooseAdapterType, MongooseAdapterOptions> {
+export default class MongooseAdapter extends AbstractAdapter<mongoose.Connection, MongooseAdapterOptions> {
   /**
    * Initialize the mongoose connection.
    * @returns {Promise<void>}
@@ -22,9 +24,9 @@ class MongooseAdapter extends AbstractAdapter<MongooseAdapterType, MongooseAdapt
 
     // Mongoose buffers all the commands until it's connected to the database.
     // But make sure to the case of using a external mongodb connector
-    var connection = mongoose.createConnection(options.uri, options.connectionOption);
+    var connection = mongoose.createConnection(options.uri, options.connectionOptions);
     connection.once('open', () => {
-      this._adaptee = { connection: connection, schemaClass: mongoose.Schema };
+      this._adaptee = connection;
       connection.removeAllListeners();
       deferred.resolve();
     });
@@ -34,5 +36,3 @@ class MongooseAdapter extends AbstractAdapter<MongooseAdapterType, MongooseAdapt
     return deferred.promise;
   }
 }
-
-export = MongooseAdapter;

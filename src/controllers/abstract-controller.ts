@@ -1,9 +1,12 @@
+import * as Promise from 'bluebird';
+import * as _ from 'lodash';
+
 /**
  * AbstractController<T>
  * @abstract
  * @class
  */
-class AbstractController<T> {
+export default class AbstractController<T> {
   private _server: T;
 
   /**
@@ -13,7 +16,6 @@ class AbstractController<T> {
    */
   constructor(server: T) {
     this._server = server;
-    this.initialize();
   }
 
   /**
@@ -23,10 +25,12 @@ class AbstractController<T> {
 
   /**
    * @abstract
+   * @returns {Promise<void>}
    */
-  protected initialize() {
-    throw new Error('Not implemented exception.');
-  }
-}
+  public initialize(): any | Promise<any> {}
 
-export = AbstractController;
+  public onInitialized(): any | Promise<any> {}
+
+  public onDestroy(): any | Promise<any> {}
+
+}

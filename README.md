@@ -1,5 +1,5 @@
 # island
-A package suite for building microservice using TypeScript.
+A package suite for building microservice.
 
 ## Table of Contents
 - [Build](#build)

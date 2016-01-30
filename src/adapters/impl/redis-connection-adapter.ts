@@ -1,15 +1,19 @@
-/// <reference path="../../../typings/tsd.d.ts" />
 import redis = require('redis');
 import Promise = require('bluebird');
-import AbstractAdapter = require('../abstract-adapter');
-import RedisAdapterOptions = require('../../options/redis-adapter-options');
+import AbstractAdapter from '../abstract-adapter';
+
+export interface RedisAdapterOptions {
+  port: number;
+  host: string;
+  clientOpts?: redis.ClientOpts;
+}
 
 /**
  * RedisConnectionAdapter
  * @class
  * @extends AbstractAdapter
  */
-class RedisConnectionAdapter extends AbstractAdapter<redis.RedisClient, RedisAdapterOptions> {
+export default class RedisConnectionAdapter extends AbstractAdapter<redis.RedisClient, RedisAdapterOptions> {
   /**
    * Initialize the redis connection.
    * @returns {Promise<void>}
@@ -22,7 +26,7 @@ class RedisConnectionAdapter extends AbstractAdapter<redis.RedisClient, RedisAda
 
     // Although all commands before the connection are accumulated in the queue,
     // Make sure for the case of using a external redis connector.
-    client.once('connect', () => {
+    client.once('ready', () => {
       this._adaptee = client;
       client.removeAllListeners();
       deferred.resolve();
@@ -33,5 +37,3 @@ class RedisConnectionAdapter extends AbstractAdapter<redis.RedisClient, RedisAda
     return deferred.promise;
   }
 }
-
-export = RedisConnectionAdapter;

@@ -1,29 +1,35 @@
 'use strict';
 
 var gulp = require('gulp');
-var ts = require('gulp-typescript');
-var sourcemaps = require('gulp-sourcemaps');
-var eventStream = require('event-stream');
 
-var sources = ['./src/**/*(*.ts|!(*.d.ts))'];
+var sources = ['./src/**/*.ts'];
+
 function compileTypescript() {
-  var tsResult = gulp.src(sources)
-    .pipe(sourcemaps.init())
-    .pipe(ts({
-      target: 'ES5',
-      module: 'commonjs',
-      declarationFiles: true
-    }));
-  return eventStream.merge(
-    // Merge the two output streams, so this task is finished when the IO of both operations are done.
-    tsResult.dts.pipe(gulp.dest('./dist')),
-    tsResult.js.pipe(sourcemaps.write()).pipe(gulp.dest('./dist'))
-  );
+  require('child_process').exec('tsc -p ' + process.cwd(), function (err, stdout, stderr) {
+    err && console.error(err);
+    console.log(stdout.toString());
+    console.error(stderr.toString());
+  });
+}
+
+function compileTypescriptIgnoreError() {
+  require('child_process').exec('tsc -p ' + process.cwd() + ' --noEmitOnError', function (err, stdout, stderr) {
+    err && console.error(err);
+    console.log(stdout.toString());
+    console.error(stderr.toString());
+  });
 }
 
 function watch() {
-  gulp.watch(sources, ['ts']);
+  gulp.watch(sources, {interval: 2000}, ['buildIgnoreError']);
 }
 
-gulp.task('ts', compileTypescript);
+function clean(done) {
+  var del = require('del');
+  del(['./dist', './node_modules', './typings'], done);
+}
+
+gulp.task('build',            compileTypescript);
+gulp.task('buildIgnoreError', compileTypescriptIgnoreError);
 gulp.task('watch', watch);
+gulp.task('clean', clean);

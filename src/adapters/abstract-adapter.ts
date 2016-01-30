@@ -1,6 +1,13 @@
-/// <reference path="../../typings/tsd.d.ts" />
 import Promise = require('bluebird');
-import IAbstractAdapter = require('./interfaces/abstract-adapter-interface');
+
+/**
+ * IAbstractAdapter
+ * @interface
+ */
+export interface IAbstractAdapter {
+  adaptee: any;
+  initialize(): Promise<void>;
+}
 
 /**
  * Abstract adapter class for back-end service.
@@ -8,7 +15,7 @@ import IAbstractAdapter = require('./interfaces/abstract-adapter-interface');
  * @class
  * @implements IAbstractAdapter
  */
-class AbstractAdapter<T, U> implements IAbstractAdapter {
+export default class AbstractAdapter<T, U> implements IAbstractAdapter {
   protected _adaptee: T;
   protected _options: U;
 
@@ -28,5 +35,3 @@ class AbstractAdapter<T, U> implements IAbstractAdapter {
     return Promise.resolve();
   }
 }
-
-export = AbstractAdapter;

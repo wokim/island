@@ -2,7 +2,7 @@
  * ModelFactory
  * @class
  */
-class ModelFactory {
+export default class ModelFactory {
   private static models: { [name: string]: any } = {};
 
   /**
@@ -22,5 +22,3 @@ class ModelFactory {
     return instance;
   }
 }
-
-export = ModelFactory;

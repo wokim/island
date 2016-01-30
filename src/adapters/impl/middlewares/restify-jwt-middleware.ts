@@ -1,13 +1,19 @@
-/// <reference path="../../../../typings/tsd.d.ts" />
 import restify = require('restify');
 import jwt = require('jsonwebtoken');
+
+export interface IToken {
+  sid: string;
+  aid?: string;
+  aname?: string;
+  publisher: string;
+}
 
 /**
  * Check the HTTP authorization header, then parse only if the header is a bearer JWT token.
  * @param {{secret: string}} options
  * @return {RequestHandler}
  */
-function jwtParser(options: { secret: string }): restify.RequestHandler {
+export default function jwtParser(options: { secret: string }): restify.RequestHandler {
   return function (req: restify.Request, res: restify.Response, next: restify.Next) {
     /**
      * Authorization field of the request header examples
@@ -21,6 +27,7 @@ function jwtParser(options: { secret: string }): restify.RequestHandler {
 
     var parts = header.split(' ');
     if (!parts || parts.length !== 2) {
+      console.log('[RESTIFY] invalid auth header', parts);
       return next(new restify.InvalidHeaderError('Invalid Authorization header'));
     }
 
@@ -28,8 +35,8 @@ function jwtParser(options: { secret: string }): restify.RequestHandler {
     var credentials = parts[1];
     if (/^Bearer$/i.test(scheme)) {
       jwt.verify(credentials, options.secret,(err, decode) => {
-        if (err) return next(err);
-        req['token'] = decode;
+        if (err) return next();
+        req['token'] = typeof decode === 'string' ? JSON.parse(decode) : decode;
         next();
       });
     } else {
@@ -37,5 +44,3 @@ function jwtParser(options: { secret: string }): restify.RequestHandler {
     }
   };
 }
-
-export = jwtParser;

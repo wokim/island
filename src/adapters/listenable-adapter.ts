@@ -1,8 +1,13 @@
-/// <reference path="../../typings/tsd.d.ts" />
 import Promise = require('bluebird');
-import IListenableAdapter = require('./interfaces/listenable-adapter-interface');
-import AbstractAdapter = require('./abstract-adapter');
-import AbstractController = require('../controllers/abstract-controller');
+import AbstractAdapter, { IAbstractAdapter } from './abstract-adapter';
+import AbstractController from '../controllers/abstract-controller';
+/**
+ * IListenableAdapter
+ * @interface
+ */
+export interface IListenableAdapter extends IAbstractAdapter {
+  listen(): Promise<void>;
+}
 
 /**
  * Abstract adapter class for back-end service.
@@ -11,25 +16,27 @@ import AbstractController = require('../controllers/abstract-controller');
  * @extends AbstractAdapter
  * @implements IListenableAdapter
  */
-class ListenableAdapter<T, U> extends AbstractAdapter<T, U> implements IListenableAdapter {
-  private _controllers: typeof AbstractController[] = [];
+export default class ListenableAdapter<T, U> extends AbstractAdapter<T, U> implements IListenableAdapter {
+  private _controllersClasses: typeof AbstractController[] = [];
+  private _controllers: AbstractController<T>[] = [];
 
   /**
    * @param {AbstractController} Class
    */
   public registerController(Class: typeof AbstractController) {
-    this._controllers.push(Class);
+    this._controllersClasses.push(Class);
   }
 
   /**
    * @returns {Promise<void>}
    * @final
    */
-  public postInitialize() {
-    while (this._controllers.length > 0) {
-      var controller = this._controllers.pop();
-      new controller(this._adaptee);
-    }
+  public postInitialize(): Promise<any> {
+    return Promise.all(this._controllersClasses.map(ControllerClass => {
+      let c = new ControllerClass(this._adaptee);
+      this._controllers.push(c);
+      return Promise.try(() => c.initialize()).then(() => c.onInitialized());
+    }));
   }
 
   /**
@@ -40,6 +47,15 @@ class ListenableAdapter<T, U> extends AbstractAdapter<T, U> implements IListenab
     throw new Error('Not implemented error');
     return Promise.resolve();
   }
-}
 
-export = ListenableAdapter;
+  public destroy() {
+    return Promise.all(this._controllers.map(c => Promise.try(() => c.onDestroy()))).then(() => {
+      this._controllersClasses = [];
+      this._controllers = [];
+    });
+  }
+
+  public close() {
+    return Promise.resolve();
+  }
+}

@@ -1,17 +1,19 @@
-/// <reference path="../../../typings/tsd.d.ts" />
 import io = require('socket.io');
 import Promise = require('bluebird');
-import ListenableAdapter = require('../listenable-adapter');
-import SocketIOAdapterOptions = require('../../options/socketio-adapter-options');
+import ListenableAdapter from '../listenable-adapter';
 
-class SocketIOAdapter extends ListenableAdapter<SocketIO.Server, SocketIOAdapterOptions> {
+export interface SocketIOAdapterOptions {
+  port: number;
+}
+
+export default class SocketIOAdapter extends ListenableAdapter<SocketIO.Server, SocketIOAdapterOptions> {
   /**
    * @returns {Promise<void>}
    * @override
    */
   public initialize() {
     var options = this.options;
-    this._adaptee = io();
+    this._adaptee = io({ transports: ['websocket', 'polling', 'flashsocket'] });
     return Promise.resolve();
   }
 
@@ -20,13 +22,7 @@ class SocketIOAdapter extends ListenableAdapter<SocketIO.Server, SocketIOAdapter
    * @returns {Promise<void>}
    */
   public listen() {
-    var deferred = Promise.defer<void>();
-    this.adaptee.listen(this.options.port,(err) => {
-      if (err) return deferred.reject(err);
-      deferred.resolve();
-    });
-    return deferred.promise;
+    this.adaptee.listen(this.options.port);
+    return Promise.resolve();
   }
 }
-
-export = SocketIOAdapter;
