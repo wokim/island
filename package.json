@@ -1,6 +1,6 @@
 {
   "name": "island",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "description": "A package suite for building microservice.",
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
