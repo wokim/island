@@ -10,7 +10,7 @@ export function debug(namespace) {
 }
 
 export function error(namespace) {
-  var d = _debug('[' + namespace + ']');
+  let d = _debug('[' + namespace + ']');
   d.log = console.error.bind(console);
   return d;
 }
