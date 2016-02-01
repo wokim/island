@@ -3,7 +3,7 @@ import * as Promise from 'bluebird';
 import ListenableAdapter from '../listenable-adapter';
 /** @deprecated ***********************************/
 import { IToken } from './middlewares/restify-jwt-middleware';
-import { ISession, ISessionStore } from './middlewares/restify-session-middleware';
+import { ISession } from './middlewares/restify-session-middleware';
 export interface Request extends restify.Request {
     token?: IToken;
     session?: ISession;
@@ -13,9 +13,7 @@ export interface Response extends restify.Response {
 export interface RestifyAdapterOptions {
     serverOptions?: restify.ServerOptions;
     middlewares?: restify.RequestHandler[];
-    store: ISessionStore;
     port: number;
-    secret: string;
 }
 /**
  * RestifyAdapter

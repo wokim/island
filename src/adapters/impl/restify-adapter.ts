@@ -19,9 +19,7 @@ let debug = __('ISLAND:RESTIFY');
 export interface RestifyAdapterOptions {
   serverOptions?: restify.ServerOptions;
   middlewares?: restify.RequestHandler[];
-  store: ISessionStore; // @deprecated
   port: number;
-  secret: string; // @deprecated
 }
 
 /**
@@ -108,10 +106,6 @@ export default class RestifyAdapter extends ListenableAdapter<restify.Server, Re
       // TODO: export below params to external configuation file
       maxBodySize: 0
     }));
-
-    // @deprecated
-    server.use(jwtParser({ secret: options.secret }));
-    server.use(sessionChecker({ store: options.store }));
 
     if (options.middlewares) {
       server.use(options.middlewares);

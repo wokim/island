@@ -8,9 +8,6 @@ var Promise = require('bluebird');
 var __ = require('debug');
 var listenable_adapter_1 = require('../listenable-adapter');
 var restify_query_parser_1 = require('./middlewares/restify-query-parser');
-/** @deprecated ***********************************/
-var restify_jwt_middleware_1 = require('./middlewares/restify-jwt-middleware');
-var restify_session_middleware_1 = require('./middlewares/restify-session-middleware');
 /**************************************************/
 var debug = __('ISLAND:RESTIFY');
 /**
@@ -97,9 +94,6 @@ var RestifyAdapter = (function (_super) {
             // TODO: export below params to external configuation file
             maxBodySize: 0
         }));
-        // @deprecated
-        server.use(restify_jwt_middleware_1.default({ secret: options.secret }));
-        server.use(restify_session_middleware_1.default({ store: options.store }));
         if (options.middlewares) {
             server.use(options.middlewares);
         }
