@@ -51,7 +51,7 @@ export default class MessagePack {
     return MessagePack.instance;
   }
 
-  public encode(obj: any): bl {
+  public encode(obj: any): any {
     try {
       return this.packer.encode(obj);
     } catch (e) {

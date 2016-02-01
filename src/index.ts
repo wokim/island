@@ -5,11 +5,11 @@ export import mongoose = require('mongoose');
 
 import * as _debug from 'debug';
 
-export function debug(namespace) {
+export function debug(namespace): any {
   return _debug('[' + namespace + ']');
 }
 
-export function error(namespace) {
+export function error(namespace): any {
   let d = _debug('[' + namespace + ']');
   d.log = console.error.bind(console);
   return d;

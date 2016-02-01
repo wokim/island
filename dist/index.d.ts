@@ -1,7 +1,6 @@
 export import mongoose = require('mongoose');
-import * as _debug from 'debug';
-export declare function debug(namespace: any): _debug.Debugger;
-export declare function error(namespace: any): _debug.Debugger;
+export declare function debug(namespace: any): any;
+export declare function error(namespace: any): any;
 import Islet from './islet';
 export { Islet };
 export { default as AbstractAdapter } from './adapters/abstract-adapter';
