@@ -64,7 +64,6 @@ export default class MessagePack {
   }
 
   public decode<T>(buf: Buffer): T;
-  public decode<T>(buf: bl): T;
   public decode<T>(buf: any): T {
     return this.packer.decode<T>(buf);
   }
