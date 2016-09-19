@@ -1,10 +1,12 @@
-import _ = require('lodash');
-import fs = require('fs');
-import Promise = require('bluebird');
-import { IAbstractAdapter } from './adapters/abstract-adapter';
-import ListenableAdapter from './adapters/listenable-adapter';
+import * as _ from 'lodash';
+import * as fs from 'fs';
+import * as Promise from 'bluebird';
 
-var debug = require('debug')('ISLAND:ISLET');
+import { IAbstractAdapter } from './adapters/abstract-adapter';
+import ListenableAdapter, { IListenableAdapter } from './adapters/listenable-adapter';
+import { logger } from './utils/logger';
+import { bindImpliedServices } from './utils/di-bind';
+import { LogicError, FatalError, ISLAND } from './utils/error';
 
 /**
  * Create a new Islet.
@@ -20,7 +22,7 @@ export default class Islet {
    * @static
    */
   private static registerIslet(islet: Islet) {
-    if (Islet.islet) throw new Error('The islet already has been registered.');
+    if (Islet.islet) throw new FatalError(ISLAND.FATAL.F0001_ISLET_ALREADY_HAS_BEEN_REGISTERED, 'The islet already has been registered.');
     Islet.islet = islet;
   }
 
@@ -29,9 +31,7 @@ export default class Islet {
    * @returns {Microservice}
    * @static
    */
-  public static getIslet(): Islet;
-  public static getIslet<T>(): T;
-  public static getIslet(): any {
+  static getIslet(): Islet {
     return Islet.islet;
   }
 
@@ -40,18 +40,15 @@ export default class Islet {
    * @param {Microservice} Class
    * @static
    */
-  public static run(Class: typeof Islet): Promise<any[]> {
+  public static run(Class: typeof Islet) {
     if (this.islet) return;
 
-    var Class: typeof Islet;
-    var config: Promise<any>;
-
     // Create such a micro-service instance.
-    var islet = new Class();
+    let islet = new Class();
     this.registerIslet(islet);
 
     islet.main();
-    return islet.initialize().then(() => islet.start());
+    return islet.initialize();
   }
 
   /** @type {Object.<string, IAbstractAdapter>} [adapters={}] */
@@ -63,7 +60,7 @@ export default class Islet {
    * @param {IAbstractAdapter} adapter
    */
   public registerAdapter(name: string, adapter: IAbstractAdapter) {
-    if (this.adapters[name]) throw new Error('duplicated adapter');
+    if (this.adapters[name]) throw new FatalError(ISLAND.FATAL.F0002_DUPLICATED_ADAPTER, 'duplicated adapter');
     this.adapters[name] = adapter;
   }
 
@@ -71,49 +68,42 @@ export default class Islet {
    * @param {string} name
    * @returns {typeof Adapter}
    */
-  public getAdaptee<T>(name: string): T;
-  public getAdaptee(name: string): any;
-  public getAdaptee(name: string): any {
-    if (!this.adapters[name]) throw new Error('Missing adapter');
-    return this.adapters[name].adaptee;
+  public getAdaptee<T>(name: string): T {
+    if (!this.adapters[name]) throw new FatalError(ISLAND.FATAL.F0003_MISSING_ADAPTER, 'Missing adapter');
+    return this.adapters[name].adaptee as T;
   }
 
   /**
    * @abstract
    */
   public main() {
-    throw new Error('Not implemented exception.');
+    throw new FatalError(ISLAND.FATAL.F0004_NOT_IMPLEMENTED_ERROR, 'Not implemented exception.');
   }
 
   /**
    * @returns {Promise<void>}
    */
-  public initialize() {
-    return Promise.all(_.values<IAbstractAdapter>(this.adapters).map(adapter => adapter.initialize())).then(() => {
-      // 모든 adapter가 초기화되면 onInitialize() 를 호출해준다
-      return Promise.resolve(this.onInitialized());
-    });
+  private initialize() {
+    return Promise.all(_.values<IAbstractAdapter>(this.adapters).map(adapter => adapter.initialize()))
+      .then(() => process.once('SIGTERM', this.destroy.bind(this)))
+      .then(() => bindImpliedServices(this.adapters))
+      .then(() => Promise.resolve(this.onInitialized()))
+      .then(() => _.values<IListenableAdapter>(this.adapters).filter(adapter => adapter instanceof ListenableAdapter))
+      .then(adapters => {
+        return Promise.all(adapters.map(adapter => adapter.postInitialize()))
+          .then(() => Promise.all(adapters.map(adapter => adapter.listen())));
+      })
+      .then(() => logger.info('started'))
+      .then(() => this.onStarted());
   }
 
   protected onInitialized() {}
   protected onDestroy() {}
+  protected onStarted() {}
 
-  /**
-   * @returns {Promise<void>}
-   */
-  public start() {
-    var adapters: any/*ListenableAdapter<any, any>*/[] = _.values(this.adapters).filter(adapter => {
-      return adapter instanceof ListenableAdapter;
-    });
-
-    // Initialize all of the adapters to register resource into routing table.
-    return Promise.all<void>(adapters.map(adapter => adapter.postInitialize()))
-      .then(() => Promise.all<void>(adapters.map(adapter => adapter.listen())));
-  }
-
-  public destroy() {
-    // TODO: 각 adapter의 destroy 호출해준다
-    let adapters: any[] = _.values(this.adapters).filter(adapter => (adapter instanceof ListenableAdapter));
-    return Promise.all(adapters.map(adapter => adapter.close().then(() => adapter.destroy()))).then(() => this.onDestroy())
+  private destroy() {
+    logger.info('Waiting for process to end');
+    return Promise.all(_.values<IAbstractAdapter>(this.adapters).map(adapter => adapter.destroy()))
+      .then(() => this.onDestroy());
   }
 }

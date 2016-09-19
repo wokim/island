@@ -1,4 +1,5 @@
-import Promise = require('bluebird');
+import * as Promise from 'bluebird';
+import { LogicError, FatalError, ISLAND } from '../utils/error';
 
 /**
  * IAbstractAdapter
@@ -6,7 +7,8 @@ import Promise = require('bluebird');
  */
 export interface IAbstractAdapter {
   adaptee: any;
-  initialize(): Promise<void>;
+  initialize(): any | Promise<any>;
+  destroy(): any | Promise<any>;
 }
 
 /**
@@ -26,12 +28,11 @@ export default class AbstractAdapter<T, U> implements IAbstractAdapter {
     this._options = options;
   }
 
-  /**
-   * @abstract
-   * @returns {Promise<any>}
-   */
-  public initialize() {
-    throw new Error('Not implemented error');
-    return Promise.resolve();
+  public initialize(): any | Promise<any> {
+    throw new FatalError(ISLAND.FATAL.F0005_NOT_IMPLEMENTED_ERROR, 'Not implemented error');
+  }
+
+  public destroy(): any | Promise<any> {
+    throw new FatalError(ISLAND.FATAL.F0006_NOT_IMPLEMENTED_ERROR, 'Not implemented error');
   }
 }

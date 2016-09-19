@@ -1,82 +1,130 @@
-import amqp = require('amqplib/callback_api');
-import Promise = require('bluebird');
-import AbstractBrokerService, { IConsumerInfo } from './abstract-broker-service';
+'use strict';
 
-export default class PushService extends AbstractBrokerService {
-  private static TOPIC_EXCHANGE_NAME: string = 'PUSH_TOPIC_EXCHANGE';
-  private static FANOUT_EXCHANGE_NAME: string = 'PUSH_FANOUT_EXCHANGE';
+import * as amqp from 'amqplib';
+import * as Promise from 'bluebird';
+import MessagePack from '../utils/msgpack';
+import { AmqpChannelPoolService } from './amqp-channel-pool-service';
+import _debug = require('debug');
+import * as _ from 'lodash';
 
-  public initialize() {
-    if (this.initialized) return Promise.resolve();
-    var promises = [this.declareExchange(PushService.TOPIC_EXCHANGE_NAME, 'topic', { durable: true }),
-                    this.declareExchange(PushService.FANOUT_EXCHANGE_NAME, 'fanout', { durable: true })];
-    return Promise.all(promises).then(() => { this.initialized = true; });
+let debug = _debug('ISLAND:SERVICES:PUSH');
+
+export default class PushService {
+  private static DEFAULT_EXCHANGE_OPTIONS: any = {
+    durable: true,
+    autoDelete: true
+  };
+
+  private msgpack: MessagePack;
+  private channelPool: AmqpChannelPoolService;
+
+  // this exchange is used for braodcasting
+  public static globalFanoutExchange = {
+    name: 'PUSH_FANOUT_EXCHANGE',
+    option: {
+      durable: true
+    }
   }
 
-  public purge() {
-    var promises = [this.deleteExchage(PushService.TOPIC_EXCHANGE_NAME, { ifUnused: true, ifEmpty: true }),
-                    this.deleteExchage(PushService.FANOUT_EXCHANGE_NAME,  { ifUnused: true, ifEmpty: true })];
-    return Promise.all(promises).then(() => {
-      this.initialized = false;
+  constructor() {
+    this.msgpack = MessagePack.getInst();
+  }
+
+  public async initialize(channelPool: AmqpChannelPoolService): Promise<any> {
+    this.channelPool = channelPool;
+
+    return this.channelPool.usingChannel(channel => {
+      return channel.assertExchange(PushService.globalFanoutExchange.name, 'fanout',
+        PushService.globalFanoutExchange.option);
     });
   }
 
-  public auth(sid: string, aid: string) {
-    if (!this.initialized) return Promise.reject(new Error('Not initialized'));
-    return this.declareQueue(sid, { durable: true }).then(() => {
-      var promises = [this.bindQueue(sid, PushService.TOPIC_EXCHANGE_NAME, aid),
-                      this.bindQueue(sid, PushService.FANOUT_EXCHANGE_NAME)];
-      return Promise.all(promises).then(() => this.initialized = true);
+  purge() {
+    return this.channelPool.usingChannel(channel => {
+      return channel.deleteExchange(PushService.globalFanoutExchange.name, {ifUnused: true});
     });
   }
 
-  public unauth(sid: string, aid: string) {
-    if (!this.initialized) return Promise.reject(new Error('Not initialized'));
-    return Promise.all([this.unbindQueue(sid, PushService.TOPIC_EXCHANGE_NAME, aid),
-                        this.unbindQueue(sid, PushService.FANOUT_EXCHANGE_NAME)]).then(() => {
-        return this.deleteQueue(sid, { ifUnused: true });
+  deleteExchange(exchange:string, options?: any) {
+    return this.channelPool.usingChannel(channel => {
+      return this._deleteExchange(channel, [exchange], options);
     });
   }
 
-  public login(sid: string, pid: string) {
-    return this.subscribe(sid, pid);
+  private _deleteExchange(channel: amqp.Channel, exchanges: string[], options) {
+    return Promise.reduce(exchanges, (total, exchange) => {
+      debug(`[INFO] delete exchange's name ${exchange}`)
+      return Promise.resolve(channel.deleteExchange(exchange, options));
+    }, 0);
   }
 
-  public logout(sid: string, pid: string) {
-    return this.unsubscribe(sid, pid);
+  /**
+   * bind specific exchange to (Account|Player) exchange
+   * @param destination
+   * @param source
+   * @param pattern
+   * @param sourceType
+   * @param sourceOpts
+   * @returns {Promise<any>}
+   */
+  bindExchange(destination: string, source: string, pattern?: string, sourceType?: string, sourceOpts?: any) {
+    debug(`bind exchanges. (source:${source}) => destination:${destination}`);
+    return this.channelPool.usingChannel(channel => {
+      return channel.assertExchange(source, sourceType || 'fanout', sourceOpts || PushService.DEFAULT_EXCHANGE_OPTIONS)
+        .then(() => channel.bindExchange(destination, source, pattern || '', {}));
+    });
   }
 
-  public subscribe(sid: string, pattern: string) {
-    if (!this.initialized) return Promise.reject(new Error('Not initialized'));
-    return this.bindQueue(sid, PushService.TOPIC_EXCHANGE_NAME, pattern);
+  /**
+   * unbind specfic exchange from (Account|Player) exchange
+   * @param destination
+   * @param source
+   * @param pattern
+   * @returns {Promise<any>}
+   */
+  unbindExchange(destination: string, source: string, pattern?: string) {
+    return this.channelPool.usingChannel(channel => {
+      return channel.unbindExchange(destination, source, pattern || '', {});
+    });
   }
 
-  public unsubscribe(sid: string, pattern: string) {
-    if (!this.initialized) return Promise.reject(new Error('Not initialized'));
-    return this.unbindQueue(sid, PushService.TOPIC_EXCHANGE_NAME, pattern);
+  /**
+   * publish message to (Account|Player) exchange
+   * @param exchange
+   * @param msg
+   * @param options
+   * @returns {Promise<any>}
+   */
+  unicast(exchange: string, msg: any, options?: any) {
+    return this.channelPool.usingChannel(channel => {
+      return Promise.resolve(channel.publish(exchange, '', this.msgpack.encode(msg), options));
+    });
   }
 
-  public publish(key: number, msg: any);
-  public publish(key: string, msg: any);
-  public publish(key: any, msg: any) {
-    if (!this.initialized) return Promise.reject(new Error('Not initialized'));
-    if (typeof key === 'number') key = key.toString();
-    return this._publish(PushService.TOPIC_EXCHANGE_NAME, key, this.msgpack.encode(msg));
+  /**
+   * publish message to specific exchange bound to (Account|Player) exchange
+   * @param exchange
+   * @param msg
+   * @param routingKey
+   * @param options
+   * @returns {Promise<any>}
+   */
+  multicast(exchange: string, msg: any, routingKey?: string, options?: any) {
+    return this.channelPool.usingChannel(channel => {
+      return Promise.resolve(channel.publish(exchange, routingKey || '', this.msgpack.encode(msg), options));
+    });
   }
 
-  public broadcast(msg: any) {
-    if (!this.initialized) return Promise.reject(new Error('Not initialized'));
-    return this._publish(PushService.FANOUT_EXCHANGE_NAME, '', this.msgpack.encode(msg));
-  }
-
-  public consume(key: string, handler: (msg: any, routingKey: string) => void, options?: any) {
-    if (!this.initialized) return Promise.reject<IConsumerInfo>(new Error('Not initialized'));
-    return this._consume(key, msg => { handler(this.msgpack.decode(msg.content), msg.fields.routingKey); }, options);
-  }
-
-  public cancel(consumer: IConsumerInfo) {
-    if (!consumer) return Promise.reject(new Error('Tag is undefined'));
-    if (!this.initialized) return Promise.reject<string>(new Error('Not initialized'));
-    return this._cancel(consumer);
+  /**
+   * publish message to global fanout exchange
+   * @param msg message to broadcast. message should be MessagePack encodable.
+   * @param options publish options
+   * @returns {Promise<any>}
+   */
+  broadcast(msg: any, options?: any) {
+    return this.channelPool.usingChannel(channel => {
+      const fanout = PushService.globalFanoutExchange.name;
+      return Promise.resolve(channel.publish(fanout, '', this.msgpack.encode(msg), options));
+    });
   }
 }

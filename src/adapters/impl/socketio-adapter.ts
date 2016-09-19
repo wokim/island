@@ -25,4 +25,8 @@ export default class SocketIOAdapter extends ListenableAdapter<SocketIO.Server, 
     this.adaptee.listen(this.options.port);
     return Promise.resolve();
   }
+
+  public destroy() {
+    return super.destroy();
+  }
 }

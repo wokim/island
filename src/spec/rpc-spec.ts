@@ -1,17 +1,18 @@
-/// <reference path="../../typings/jasmine/jasmine.d.ts" />
 require('source-map-support').install();
 import RPCService from '../services/rpc-service';
-import amqp = require('amqplib/callback_api');
+import * as amqp from 'amqplib';
 import Promise = require('bluebird');
+import { AmqpChannelPoolService } from '../services/amqp-channel-pool-service';
 
-xdescribe('RPC test:', () => {
-  var rpcService: RPCService;
+
+describe('RPC test:', () => {
+  const rpcService = new RPCService('haha');
+  const amqpChannelPool = new AmqpChannelPoolService();
   beforeAll(done => {
-    amqp.connect('amqp://192.168.99.100:5672', (err, conn: amqp.Connection) => {
-      if (err) return done.fail(err);
-      rpcService = new RPCService(conn);
-      done();
-    });
+    const url = process.env.RABBITMQ_HOST || 'amqp://rabbitmq:5672';
+    return amqpChannelPool.initialize({url})
+      .then(() => rpcService.initialize(amqpChannelPool))
+      .then(() => done());
   });
 
   it('rpc test #1: rpc call', done => {
@@ -43,7 +44,8 @@ xdescribe('RPC test:', () => {
       return Promise.reject(new Error('custom error'));
     }).then(() => {
       rpcService.invoke<string, string>('testMethod', 'hello').catch((err: Error) => {
-        expect(err.message).toBe('custom error');
+        // [FIXME] 뭔가 이상하다 @kson //2016-08-23
+        expect(err.message).toBe(`code: haha.ETC.F0001, msg: custom error'`);
         rpcService.unregister('testMethod').then(() => done()).catch(err => done.fail(err));
       });
     });

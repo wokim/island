@@ -1,11 +1,11 @@
-import amqp = require('amqplib/callback_api');
-import Promise = require('bluebird');
+import * as amqp from 'amqplib';
+import * as Promise from 'bluebird';
 import ListenableAdapter from '../listenable-adapter';
 
 export interface RabbitMqAdapterOptions {
   url: string;
   serviceName?: string;
-  socketOptions?: amqp.SocketOptions;
+  socketOptions?: {heartbeat?: number, noDelay: boolean};
   rpcTimeout?: number;
 }
 
@@ -16,16 +16,11 @@ export default class RabbitMqAdapter<T> extends ListenableAdapter<T, RabbitMqAda
    * @override
    */
   public initialize() {
-    var options = this.options;
-    var deferred = Promise.defer<void>();
-    amqp.connect(options.url, options.socketOptions, (err, connection) => {
-      if (err) return deferred.reject(err);
-      this.connection = connection;
-      // TODO: reconnect process
-      process.once('SIGINT',() => { connection.close(); });
-      deferred.resolve();
-    });
-    return deferred.promise;
+    const options = this.options;
+    return Promise.resolve(amqp.connect(options.url, options.socketOptions))
+      .then(connection => {
+        this.connection = connection
+      });
   }
 
   public listen() {

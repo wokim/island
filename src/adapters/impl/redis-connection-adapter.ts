@@ -20,20 +20,23 @@ export default class RedisConnectionAdapter extends AbstractAdapter<redis.RedisC
    * @override
    */
   public initialize() {
-    var options = this.options;
-    var deferred = Promise.defer<void>();
-    var client = redis.createClient(options.port, options.host, options.clientOpts);
+    let options = this.options;
 
-    // Although all commands before the connection are accumulated in the queue,
-    // Make sure for the case of using a external redis connector.
-    client.once('ready', () => {
-      this._adaptee = client;
-      client.removeAllListeners();
-      deferred.resolve();
+    return new Promise<void>((resolve, reject) => {
+      let client = redis.createClient(options.port, options.host, options.clientOpts);
+
+      // Although all commands before the connection are accumulated in the queue,
+      // Make sure for the case of using a external redis connector.
+      client.once('ready', () => {
+        this._adaptee = client;
+        client.removeAllListeners();
+        resolve();
+      });
+      client.once('error', err => {
+        reject(err);
+      });
     });
-    client.once('error', err => {
-      deferred.reject(err);
-    });
-    return deferred.promise;
   }
+
+  public destroy() {}
 }

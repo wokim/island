@@ -1,6 +1,7 @@
 /**
  * ModelFactory
  * @class
+ * @deprecated
  */
 export default class ModelFactory {
   private static models: { [name: string]: any } = {};

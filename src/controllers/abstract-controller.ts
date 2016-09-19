@@ -31,6 +31,8 @@ export default class AbstractController<T> {
 
   public onInitialized(): any | Promise<any> {}
 
+  public destroy(): any | Promise<any> {}
+
   public onDestroy(): any | Promise<any> {}
 
 }

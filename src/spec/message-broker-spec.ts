@@ -1,19 +1,21 @@
-/// <reference path="../../typings/jasmine/jasmine.d.ts" />
-
 import MessageBrokerService from '../services/message-broker-service';
-import amqp = require('amqplib/callback_api');
+import * as amqp from 'amqplib';
 import Promise = require('bluebird');
 
-xdescribe('msg-broker test:', () => {
+describe('msg-broker test:', () => {
   var brokerService1: MessageBrokerService;
   var brokerService2: MessageBrokerService;
   beforeAll(done => {
-    amqp.connect('amqp://192.168.99.100:5672', (err, conn: amqp.Connection) => {
-      if (err) return done.fail(err);
-      brokerService1 = new MessageBrokerService(conn, 'service1');
-      brokerService2 = new MessageBrokerService(conn, 'service2');
-      Promise.all([brokerService1.initialize(), brokerService2.initialize()]).then(() => done());
-    });
+    amqp.connect(process.env.RABBITMQ_HOST || 'amqp://192.168.99.100:5672')
+      .then((conn: amqp.Connection) => {
+        brokerService1 = new MessageBrokerService(conn, 'service1');
+        brokerService2 = new MessageBrokerService(conn, 'service2');
+        Promise.all([brokerService1.initialize(), brokerService2.initialize()])
+          .then(() => {
+            return Promise.all([brokerService1.startConsume(), brokerService2.startConsume()]);
+          })
+          .then(() => done());
+      });
   });
 
   var pattern = 'aaa.bbb.ccc';
@@ -22,9 +24,9 @@ xdescribe('msg-broker test:', () => {
     brokerService1.subscribe(pattern, msg => {
       expect(msg.hello).toBe('world');
       brokerService1.unsubscribe(pattern).then(() => done());
-    }).then(() => {
-      brokerService2.publish(pattern, {hello: 'world'});
-    }).catch(err => done.fail(err));
+    })
+      .then((res) => brokerService2.publish(pattern, {hello: 'world'}))
+      .catch(err => done.fail(err));
   });
 
   it('can send a pattern message #1', done => {

@@ -1,31 +1,16 @@
 {
   "compilerOptions": {
-    "target": "es5",
+    "target": "ES6",
     "module": "commonjs",
     "sourceMap": true,
     "declaration": true,
-    "outDir": "./dist"
+    "outDir": "./dist",
+    "moduleResolution": "node",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
   },
-  "files": [
-    "./typings/amqplib/amqplib.d.ts",
-    "./typings/bl/bl.d.ts",
-    "./typings/bluebird/bluebird.d.ts",
-    "./typings/debug/debug.d.ts",
-    "./typings/jsonwebtoken/jsonwebtoken.d.ts",
-    "./typings/lodash/lodash.d.ts",
-    "./typings/mongoose/mongoose.d.ts",
-    "./typings/msgpack5/msgpack5.d.ts",
-    "./typings/node-uuid/node-uuid.d.ts",
-    "./typings/node/node.d.ts",
-    "./typings/qs/qs.d.ts",
-    "./typings/redis/redis.d.ts",
-    "./typings/restify/restify.d.ts",
-    "./typings/restify/restify.d.ts",
-    "./typings/socket.io/socket.io.d.ts",
-
-    "./src/spec/message-broker-spec.ts",
-    "./src/spec/push-spec.ts",
-    "./src/spec/rpc-spec.ts",
-    "./src/index.ts"
+  "exclude": [
+    "dist",
+    "node_modules"
   ]
 }
