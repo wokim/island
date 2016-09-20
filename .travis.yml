@@ -20,4 +20,4 @@ script:
   - gulp coverage
 
 after_script:
-  - npm i coveralls && cat ./coverage/lcov.info | coveralls
+  - npm i coveralls && cat ./coverage/lcov-remap.info | coveralls
