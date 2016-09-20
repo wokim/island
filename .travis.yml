@@ -1,0 +1,17 @@
+language: node_js
+services: docker
+
+sudo: false
+
+node_js:
+  - "6"
+
+install:
+  - npm install
+  - npm install -g jasmine gulp typescript
+
+env:
+  - MONGODB=mongodb://localhost
+
+before_script:
+  - docker run -d -p 5672:5672 --name rabbitmq rabbitmq
