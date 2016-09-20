@@ -2,6 +2,9 @@
 
 var gulp = require('gulp');
 var jasmine = require('gulp-jasmine');
+var istanbul = require('gulp-istanbul');
+var sourcemaps = require('gulp-sourcemaps');
+var remapIstanbul = require('remap-istanbul/lib/gulpRemapIstanbul');
 
 var sources = ['./src/**/*.ts'];
 
@@ -39,7 +42,7 @@ function watch() {
 
 function clean(done) {
   var del = require('del');
-  del(['./dist', './node_modules'], done);
+  del(['./dist', './node_modules', './coverage'], done);
 }
 
 function registerJasmineTasks() {
@@ -54,16 +57,38 @@ function registerJasmineTasks() {
 function jasmineTask(name) {
   var buildAndTest = 'run-' + name;
   gulp.task(name, [buildAndTest], function () {
-    gulp.watch(sources, [buildAndTest]);
+    // gulp.watch(sources, [buildAndTest]);
   });
   gulp.task(buildAndTest, ['build'], function () {
-    gulp.src('./dist/spec/' + name + '.js')
+    return gulp.src('./dist/spec/' + name + '.js')
       .pipe(jasmine());
   });
+}
+
+function preIstanbulTask() {
+  return gulp.src(['dist/**/*.js'])
+    .pipe(istanbul())
+    .pipe(istanbul.hookRequire());
+}
+function istanbulTask() {
+  return gulp.src(['dist/spec/*.js'])
+    .pipe(jasmine())
+    .pipe(istanbul.writeReports());
+}
+function remapIstanbulTask() {
+  return gulp.src('coverage/coverage-final.json')
+    .pipe(remapIstanbul({
+      reports: {
+        html: 'coverage/remap-report'
+      }
+    }));
 }
 
 gulp.task('build', executeTypescriptCompiler());
 gulp.task('buildIgnoreError', executeTypescriptCompiler({noEmitOnError: '', taskAlwaysSucceed: true}));
 gulp.task('watch', watch);
 gulp.task('clean', clean);
+gulp.task('pre-coverage', ['build'], preIstanbulTask);
+gulp.task('coverage-js', ['pre-coverage'], istanbulTask);
+gulp.task('coverage', ['coverage-js'], remapIstanbulTask);
 registerJasmineTasks();
