@@ -20,7 +20,8 @@ describe('validate', () => {
   it('should support empty object', () => {
     const result = v.validate(island.validate.Object());
     expect(result).toEqual({
-      type: 'object'
+      type: 'object',
+      properties: undefined
     });
   });
   it(`should convert query validation`, () => {
@@ -52,7 +53,8 @@ describe('validate', () => {
   it('should support empty array', () => {
     const result = v.validate(island.validate.Array());
     expect(result).toEqual({
-      type: 'array'
+      type: 'array',
+      items: undefined
     });
   });
   it('should support boolean', () => {

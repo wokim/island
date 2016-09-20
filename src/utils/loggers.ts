@@ -4,7 +4,7 @@ import * as _ from 'lodash';
 const config = require('winston/lib/winston/config');
 
 function getTattoo() {
-  const ns = cls.getNamespace('app');
+  const ns = cls.getNamespace('app') || cls.createNamespace('app');
   return ns.get('RequestTrackId') || '--------';
 }
 const shortFormatter = (options) => {
