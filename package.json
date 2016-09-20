@@ -9,7 +9,7 @@
     "heycalmdown <hey.calmdown@gmail.com>"
   ],
   "scripts": {
-    "postinstall": "gulp build",
+    "prepublish": "gulp build",
     "build": "gulp build",
     "watch": "gulp build && gulp watch",
     "clean": "gulp clean",
