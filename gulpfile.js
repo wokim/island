@@ -13,9 +13,6 @@ function executeTypescriptCompiler(options) {
     require('child_process').exec(command, function (err, stdout, stderr) {
       var outString = stdout.toString();
       if (outString) console.log('\n', outString);
-      if (!err) {
-        console.log('succeed');
-      }
       if (options.taskAlwaysSucceed) {
         return done();
       }
