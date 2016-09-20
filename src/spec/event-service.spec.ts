@@ -1,6 +1,7 @@
 import { AmqpChannelPoolService } from '../services/amqp-channel-pool-service';
 import { EventService } from '../services/event-service';
 import { Event, PatternSubscriber } from '../services/event-subscriber';
+import * as Bluebird from 'bluebird';
 
 class BaseEvent<T> implements Event<T> {
   publishedAt: Date;
@@ -34,7 +35,7 @@ describe('EventService', () => {
       .then(done)
       .catch(done.fail);
   });
-
+  
   it('can publish an event', done => {
     eventService.publishEvent(new TestEvent('aaa'))
       .then(done)

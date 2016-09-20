@@ -5,9 +5,11 @@ import Promise = require('bluebird');
 describe('msg-broker test:', () => {
   var brokerService1: MessageBrokerService;
   var brokerService2: MessageBrokerService;
+  var connection: amqp.Connection;
   beforeAll(done => {
     amqp.connect(process.env.RABBITMQ_HOST || 'amqp://192.168.99.100:5672')
       .then((conn: amqp.Connection) => {
+        connection = conn;
         brokerService1 = new MessageBrokerService(conn, 'service1');
         brokerService2 = new MessageBrokerService(conn, 'service2');
         Promise.all([brokerService1.initialize(), brokerService2.initialize()])
@@ -48,6 +50,9 @@ describe('msg-broker test:', () => {
   });
 
   afterAll(done => {
-    Promise.all([brokerService1.purge(), brokerService2.purge()]).then(() => done()).catch(done.fail);
+    brokerService1.purge()
+      .then(() => brokerService2.purge())
+      .then(() => connection.close())
+      .then(done, done.fail);
   });
 });

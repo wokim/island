@@ -15,6 +15,13 @@ describe('RPC test:', () => {
       .then(() => done());
   });
 
+  afterAll(done => {
+    rpcService.purge()
+      .then(() => amqpChannelPool.purge())
+      .then(done)
+      .catch(done.fail);
+  });
+
   it('rpc test #1: rpc call', done => {
     rpcService.register('testMethod', (msg) => {
       expect(msg).toBe('hello');
@@ -57,11 +64,15 @@ describe('RPC test:', () => {
         setTimeout(() => resolve('world'), parseInt(msg, 10));
       });
     }).then(() => {
-      rpcService.invoke('testMethod', 5000);
-      rpcService.invoke('testMethod', 100).then(() => {
-        // 하나는 아직 처리중인데 unregister 시도를 해본다
-        return rpcService.unregister('testMethod');
-      }).then(() => done()).catch(done.fail);
+      const promises = [
+        rpcService.invoke('testMethod', 1000),
+        rpcService.invoke('testMethod', 100).then(res => {
+          // 하나는 아직 처리중인데 unregister 시도를 해본다
+          rpcService.unregister('testMethod');
+          return res;
+        })
+      ];
+      Promise.all(promises).then(() => done()).catch(done.fail);
     });
   });
 
