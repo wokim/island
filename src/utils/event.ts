@@ -1,4 +1,4 @@
-import { Event, EventHandler } from '../services/event-subscriber';
+import { BaseEvent, Event, EventHandler } from '../services/event-subscriber';
 import { SubscriptionOptions } from '../services/event-service';
 import { Loggers } from '../utils/loggers';
 
@@ -9,6 +9,7 @@ export interface EventSubscription<T extends Event<U>, U> {
 }
 
 export namespace Events {
+
   export namespace Arguments {
     export interface LoggerTypeChanged {
       type: 'short' | 'long' | 'json';
@@ -20,21 +21,15 @@ export namespace Events {
     }
   }
 
-  export class LoggerLevelChanged implements Event<Arguments.LoggerLevelChanged> {
-    key: string;
-    args: Arguments.LoggerLevelChanged;
+  export class LoggerLevelChanged extends BaseEvent<Arguments.LoggerLevelChanged> {
     constructor(args: Arguments.LoggerLevelChanged) {
-      this.key = 'logger.level.changed';
-      this.args = args;
+      super('logger.level.changed', args);
     }
   }
 
-  export class LoggerTypeChanged implements Event<Arguments.LoggerTypeChanged> {
-    key: string;
-    args: Arguments.LoggerTypeChanged;
+  export class LoggerTypeChanged extends BaseEvent<Arguments.LoggerTypeChanged> {
     constructor(args: Arguments.LoggerTypeChanged) {
-      this.key = 'logger.type.changed';
-      this.args = args;
+      super('logger.type.changed', args);
     }
   }
 }

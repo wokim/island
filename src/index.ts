@@ -70,6 +70,7 @@ export {
 } from './services/abstract-broker-service';
 export { AmqpChannelPoolService, AmqpOptions } from './services/amqp-channel-pool-service';
 export { EventService } from './services/event-service';
+export { Event, BaseEvent } from './services/event-subscriber';
 
 // utils
 export * from './utils/di';

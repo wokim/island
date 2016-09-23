@@ -6,6 +6,13 @@ export interface Event<T> {
   publishedAt?: Date;
 }
 
+export class BaseEvent<T> implements Event<T> {
+  publishedAt: Date;
+  constructor(public key: string,
+              public args: T) {
+  }
+}
+
 export interface EventHandler<T> {
   (event: T): Promise<any> | any;
 }
