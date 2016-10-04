@@ -1,18 +1,20 @@
 const cls = require('continuation-local-storage');
-
+import * as _ from 'lodash';
 import * as Promise from 'bluebird';
 import * as amqp from 'amqplib';
 import * as uuid from 'node-uuid';
 import { logger } from '../utils/logger';
 import { AmqpChannelPoolService } from './amqp-channel-pool-service';
-import { Event, EventHandler, Subscriber, EventSubscriber, PatternSubscriber } from './event-subscriber';
+import { Message, Event, EventHandler, Subscriber, EventSubscriber, PatternSubscriber } from './event-subscriber';
 import reviver from '../utils/reviver';
 
-function enterScope(tattoo:string, func): Promise<any> {
+function enterScope(properties: any, func): Promise<any> {
   return new Promise((resolve, reject) => {
     const ns = cls.getNamespace('app');
     ns.run(() => {
-      ns.set('RequestTrackId', tattoo);
+      _.each(properties, (value, key) => {
+        ns.set(key, value);
+      });
       Promise.try(func).then(resolve).catch(reject);
     });
   });
@@ -24,8 +26,9 @@ export class EventService {
   private roundRobinQ: string;
   private fanoutQ: string;
   private subscribers: Subscriber[] = [];
-
+  private serviceName: string;
   constructor(serviceName: string) {
+    this.serviceName = serviceName; 
     this.roundRobinQ = `event.${serviceName}`;
     this.fanoutQ = `event.${serviceName}.node.${uuid.v4()}`;
   }
@@ -69,14 +72,40 @@ export class EventService {
     //todo: save channel and consumer tag
   }
 
-  private handleMessage(msg: any): Promise<any> {
+  private handleMessage(msg: Message): Promise<any> {
     const headers = msg.properties.headers;
     const tattoo = headers && headers.tattoo;
-    return enterScope(tattoo, () => {
-      const content = JSON.parse(msg.content.toString('utf8'), reviver);
-      logger.debug(`${msg.fields.routingKey}`, content, msg.properties.headers);
-      const subscribers = this.subscribers.filter(subscriber => subscriber.isRoutingKeyMatched(msg.fields.routingKey));
-      return Promise.map(subscribers, subscriber => subscriber.handleEvent(content, msg));
+    const content = JSON.parse(msg.content.toString('utf8'), reviver);
+    logger.debug(`${msg.fields.routingKey}`, content, msg.properties.headers);
+    const subscribers = this.subscribers.filter(subscriber => subscriber.isRoutingKeyMatched(msg.fields.routingKey));
+    return Promise.map(subscribers, subscriber => {
+      return enterScope({RequestTrackId: tattoo, Context: msg.fields.routingKey, Type: 'event'}, () => {
+        const visualizeLog: any = {
+          tattoo,
+          ts: {
+            c: msg.properties.timestamp,
+            r: +(new Date())
+          },
+          size: msg.content.byteLength,
+          from: headers.from,
+          to: {
+              node: process.env.HOSTNAME,
+              context: msg.fields.routingKey,
+              island: this.serviceName,
+              type: 'event'
+          }
+        };
+        return subscriber.handleEvent(content, msg)
+          .then(() => {
+            visualizeLog.ts.e = +(new Date());
+            visualizeLog.error = false;
+            console.log(visualizeLog);
+          })
+          .catch(e => {
+            visualizeLog.ts.e = +(new Date());
+            visualizeLog.error = true;
+          })
+      });
     });
   }
 
@@ -116,11 +145,16 @@ export class EventService {
   publishEvent<T extends Event<U>, U>(event: T): Promise<any> {
     const ns = cls.getNamespace('app');
     const tattoo = ns.get('RequestTrackId');
+    const context = ns.get('Context');
+    const type = ns.get('Type');
     logger.debug(`publish ${event.key}`, event.args, tattoo);
     return Promise.try(() => new Buffer(JSON.stringify(event.args), 'utf8'))
       .then(content => {
         return this.channelPool.usingChannel(channel => {
-          const headers = { tattoo };
+          const headers = {
+            tattoo,
+            from: { node: process.env.HOSTNAME, context, island: this.serviceName, type }
+          };
           const options = {
             timestamp: +new Date(),
             headers

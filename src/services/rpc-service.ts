@@ -34,6 +34,29 @@ interface IRpcResponse {
   body?: AbstractError | any;
 }
 
+interface VisualizeLog {
+  tattoo: string;
+  ts: {
+    c?: number;
+    r?: number;
+    e?: number;
+  }
+  size?: number;
+  error?: boolean;
+  from?: {
+    node: string;
+    context: string;
+    island: string;
+    type: 'rpc' | 'event' | 'endpoint'
+  },
+  to?: {
+    node: string;
+    context: string;
+    island: string;
+    type: 'rpc' | 'event' | 'endpoint';
+  }
+}
+
 export interface RpcRequest {
   name: string;
   msg: any;
@@ -211,6 +234,18 @@ export default class RPCService {
     const consumer = (msg: Message) => {
       const headers = msg.properties.headers;
       const tattoo = headers && headers.tattoo;
+      const visualizeLog: VisualizeLog = {
+        tattoo,
+        ts: { c: msg.properties.timestamp, r: +(new Date()) },
+        size: msg.content.byteLength,
+        from: headers.from,
+        to: {
+          node: process.env.HOSTNAME,
+          context: name,
+          island: this.serviceName,
+          type: 'rpc'
+        }
+      };
       return enterScope(tattoo, () => {
         let content = JSON.parse(msg.content.toString('utf8'), reviver);
         if (rpcOptions) {
@@ -231,6 +266,8 @@ export default class RPCService {
         const options: amqp.Options.Publish = { correlationId: msg.properties.correlationId, headers };
         return Promise.try(() => handler(content))
           .then(res => {
+            visualizeLog.ts.e = +(new Date());
+            visualizeLog.error = false;
             if (rpcOptions) {
               if (_.get(rpcOptions, 'schema.result.sanitization')) {
                 res = sanitize(rpcOptions.schema.result.sanitization, res);
@@ -246,6 +283,8 @@ export default class RPCService {
           })
           .timeout(RPC_EXEC_TIMEOUT_MS)
           .catch(err => {
+            visualizeLog.ts.e = +(new Date());
+            visualizeLog.error = true;
             // 503 오류일 때는 응답을 caller에게 안보내줘야함
             if (err.statusCode && parseInt(err.statusCode, 10) === 503) {
               throw err;
@@ -257,10 +296,17 @@ export default class RPCService {
             }).then(() => {
               throw err;
             })
+          })
+          .finally(() => {
+            console.log(visualizeLog);
           });
       });
     };
 
+    const ns = cls.getNamespace('app');
+    ns.set('Context', name);
+    ns.set('Type', 'rpc');
+    
     // NOTE: 컨슈머가 0개 이상에서 0개가 될 때 자동으로 삭제된다.
     // 단 한번도 컨슈머가 등록되지 않는다면 영원히 삭제되지 않는데 그런 케이스는 없음
     await this.channelPool.usingChannel(channel => channel.assertQueue(name, {durable: false, autoDelete: true}));
@@ -286,28 +332,34 @@ export default class RPCService {
     return { name: name, msg: msg, options: this.consumerInfosMap[name] ? this.consumerInfosMap[name].options : {} };
   }
 
-  public async invoke<T, U>(name: string, msg: T): Promise<U>;
-  public async invoke(name: string, msg: any): Promise<any>;
-  public async invoke(name: string, msg: any): Promise<any> {
+  public async invoke<T, U>(name: string, msg: T, opts?: any): Promise<U>;
+  public async invoke(name: string, msg: any, opts?: any): Promise<any>;
+  public async invoke(name: string, msg: any, opts?: any): Promise<any> {
     const ns = cls.getNamespace('app');
     const tattoo = ns.get('RequestTrackId');
+    const context = ns.get('Context');
+    const type = ns.get('Type');
     this.trackRpcCalls(tattoo, 'RPC-REQUEST-SEND');
     const correlationId = uuid.v4();
-    const headers = { tattoo };
+    const headers = {
+      tattoo,
+      from: { node: process.env.HOSTNAME, context, island: this.serviceName, type }
+    };
     const content = new Buffer(JSON.stringify(msg), 'utf8');
     const options: amqp.Options.Publish = {
       headers,
       correlationId,
+      timestamp: +(new Date()),
       replyTo: this.responseQueue,
       expiration: `${RPC_WAIT_TIMEOUT_MS}` // [FIXME] https://github.com/louy/typed-amqplib/pull/1
     };
     await this.channelPool.usingChannel(channel => {
       return Promise.resolve(channel.sendToQueue(name, content, options));
     });
-    return await this.markTattoo(name, correlationId, tattoo, ns);
+    return await this.markTattoo(name, correlationId, tattoo, ns, opts);
   }
 
-  private markTattoo(name: string, corrId: any, tattoo: any, ns: any): Promise<any> {
+  private markTattoo(name: string, corrId: any, tattoo: any, ns: any, opts: any): Promise<any> {
     return new Promise((resolve, reject) => {
       // 지저분한데 bluebird .timeout으로 교체할 방법 없을까?
       // @kson //2016-08-11
@@ -331,8 +383,11 @@ export default class RPCService {
 
         return enterScope(tattoo, () => {
           const res = RpcResponse.decode(msg.content);
-          if (!res.result) reject(res.body);
-          else resolve(res.body);
+          if (!res.result) return reject(res.body);
+          if (opts && opts.withRawdata) {
+            return resolve({body: res.body, raw: msg.content});
+          }
+          resolve(res.body);
         });
       });
     });

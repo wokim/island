@@ -1,4 +1,6 @@
 import { logger } from '../utils/logger';
+const cls = require('continuation-local-storage');
+import * as amqp from 'amqplib';
 
 export interface Event<T> {
   key: string;
@@ -22,9 +24,7 @@ export interface Message {
   fields: {
     routingKey: string;
   };
-  properties: {
-    timestamp: number;
-  };
+  properties: amqp.Options.Publish;
 }
 
 export abstract class Subscriber {
