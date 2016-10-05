@@ -128,11 +128,13 @@ class RpcResponse {
   }
 }
 
-function enterScope(tattoo:string, func): Promise<any> {
+function enterScope(properties: any, func): Promise<any> {
   return new Promise((resolve, reject) => {
     const ns = cls.getNamespace('app');
     ns.run(() => {
-      ns.set('RequestTrackId', tattoo);
+      _.each(properties, (value, key) => {
+        ns.set(key, value);
+      });
       Promise.try(func).then(resolve).catch(reject);
     });
   });
@@ -246,7 +248,7 @@ export default class RPCService {
           type: 'rpc'
         }
       };
-      return enterScope(tattoo, () => {
+      return enterScope({RequestTrackId: tattoo, Context: name, Type: 'rpc'}, () => {
         let content = JSON.parse(msg.content.toString('utf8'), reviver);
         if (rpcOptions) {
           if (_.get(rpcOptions, 'schema.query.sanitization')) {
@@ -381,14 +383,12 @@ export default class RPCService {
         delete this.reqTimeouts[corrId];
         this.trackRpcCalls(tattoo, 'RPC-RESPONSE-RECV');
 
-        return enterScope(tattoo, () => {
-          const res = RpcResponse.decode(msg.content);
-          if (!res.result) return reject(res.body);
-          if (opts && opts.withRawdata) {
-            return resolve({body: res.body, raw: msg.content});
-          }
-          resolve(res.body);
-        });
+        const res = RpcResponse.decode(msg.content);
+        if (!res.result) return reject(res.body);
+        if (opts && opts.withRawdata) {
+          return resolve({body: res.body, raw: msg.content});
+        }
+        return resolve(res.body);
       });
     });
   }
