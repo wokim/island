@@ -58,7 +58,7 @@ export class EventSubscriber extends Subscriber {
   handleEvent(content: any, msg: Message): Promise<any> {
     let event = new this.eventClass(content);
     event.publishedAt = new Date(msg.properties.timestamp);
-    return this.handler(event);
+    return Promise.resolve(this.handler(event));
   }
 }
 
