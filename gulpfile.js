@@ -71,9 +71,12 @@ function preIstanbulTask() {
     .pipe(istanbul.hookRequire());
 }
 function istanbulTask() {
-  return gulp.src(['dist/spec/*.js'])
-    .pipe(jasmine())
-    .pipe(istanbul.writeReports());
+  const stream = gulp.src(['dist/spec/*.js']).pipe(jasmine());
+  // https://github.com/gulpjs/gulp/issues/358 or gulp-plumber
+  stream.on('error', (e) => {
+    process.exit(1);
+  });
+  return stream.pipe(istanbul.writeReports());
 }
 function remapIstanbulTask() {
   return gulp.src('coverage/coverage-final.json')

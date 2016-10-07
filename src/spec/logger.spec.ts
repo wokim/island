@@ -29,7 +29,6 @@ describe('Logger', () => {
     });
     const log = JSON.parse(output.stdout[0].slice(0, -1));
     expect(log.file).toContain('logger.spec.ts');
-    expect(log.line).toEqual(28);
   });
   
   it('should handle an object which has circular reference', () => {
