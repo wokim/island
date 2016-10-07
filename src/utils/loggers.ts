@@ -2,6 +2,7 @@ const cls = require('continuation-local-storage');
 import * as winston from 'winston';
 import * as _ from 'lodash';
 const config = require('winston/lib/winston/config');
+const sourceMapSupport = require('source-map-support');
 
 function getTattoo() {
   const ns = cls.getNamespace('app') || cls.createNamespace('app');
@@ -28,10 +29,27 @@ const longFormatter = (options) => {
 const jsonFormatter = (options) => {
   const tattoo = getTattoo();
   const timestamp = Date.now();
-  return config.colorize(options.level, JSON.stringify({
+  const log: any = {
     tattoo, timestamp,
     msg: options.message, meta: options.meta, level: options.level, category: options.label
-  }));
+  };
+  if (process.env.ISLAND_LOGGER_TRACE) {
+    const E = Error as any;
+    const oldLimit = E.stackTraceLimit;
+    const oldPrepare = E.prepareStackTrace;
+    E.stackTraceLimit = 10;
+    const myObject: any = {};
+    E.prepareStackTrace = function (o, stack) {
+      const caller = sourceMapSupport.wrapCallSite(stack[9]);
+      log.file = caller.getFileName();
+      log.line = caller.getLineNumber();
+    };
+    E.captureStackTrace(myObject);
+    myObject.stack;
+    E.stackTraceLimit = oldLimit;
+    E.prepareStackTrace = oldPrepare;
+  }
+  return JSON.stringify(log);
 }
 
 const allTransports = [];
@@ -92,8 +110,6 @@ export namespace Loggers {
   }
 }
 
-
-
 /*
 TODO:
 Issue: https://github.com/winstonjs/winston/issues/862
@@ -153,23 +169,6 @@ common.log = function (options) {
     if (options.label) { output.label = options.label; }
     if (options.message) { output.message = options.message; }
     if (timestamp) { output.timestamp = timestamp; }
-
-    if (options.logstash === true) {
-      // use logstash format
-      var logstashOutput = {};
-      if (output.message !== undefined) {
-        logstashOutput['@message'] = output.message;
-        delete output.message;
-      }
-
-      if (output.timestamp !== undefined) {
-        logstashOutput['@timestamp'] = output.timestamp;
-        delete output.timestamp;
-      }
-
-      logstashOutput['@fields'] = common.clone(output);
-      output = logstashOutput;
-    }
 
     if (typeof options.stringify === 'function') {
       return options.stringify(output);
