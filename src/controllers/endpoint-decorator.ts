@@ -202,7 +202,7 @@ export namespace sanitize {
     } else if (value === Cider) {
       property.type = '$cider';
     }
-    return _.omit(property, _.isUndefined);
+    return _.omitBy(property, _.isUndefined);
   }
 
 
@@ -417,7 +417,7 @@ export namespace validate {
     } else if (value === Cider) {
       property.type = '$cider';
     }
-    return _.omit(property, _.isUndefined);
+    return _.omitBy(property, _.isUndefined);
   }
 
 
