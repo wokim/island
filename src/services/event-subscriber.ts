@@ -88,10 +88,10 @@ export class PatternSubscriber extends Subscriber {
   }
 
   handleEvent(content: any, msg: Message): Promise<any> {
-    return this.handler({
+    return Promise.resolve(this.handler({
       key: msg.fields.routingKey, 
       args: content,
       publishedAt: new Date(msg.properties.timestamp)
-    });
+    }));
   }
 }
