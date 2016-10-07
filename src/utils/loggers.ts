@@ -5,8 +5,9 @@ const config = require('winston/lib/winston/config');
 const sourceMapSupport = require('source-map-support');
 require('./loggers-bugfix');
 
+const ns = cls.getNamespace('app') || cls.createNamespace('app');
+
 function getTattoo() {
-  const ns = cls.getNamespace('app') || cls.createNamespace('app');
   return ns.get('RequestTrackId') || '--------';
 }
 const shortFormatter = (options) => {
