@@ -17,7 +17,7 @@ before_script:
   - docker run -d -p 5672:5672 --name rabbitmq rabbitmq
 
 script:
-  - gulp coverage
+  - ISLAND_LOGGER_LEVEL=crit npm run test
 
 after_script:
   - npm i coveralls && cat ./coverage/lcov-remap.info | coveralls
