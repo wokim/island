@@ -12,7 +12,7 @@ function getTattoo() {
 const shortFormatter = (options) => {
   let meta = options.meta;
   const tattoo = getTattoo();
-  if (process.env.ISLAND_LOGGER_TRACE) {
+  if (process.env.ISLAND_LOGGER_TRACE === 'true') {
     const trace = getLogTrace();
     meta = meta || {};
     meta.file = trace.file;
@@ -23,22 +23,26 @@ const shortFormatter = (options) => {
     `${options.message || ''}`,
     `${options.meta && (JSON.stringify(options.meta))}`
   ].join(' ');
-}
+};
+(shortFormatter as any).type = 'short';
+
 const longFormatter = (options) => {
   let meta = options.meta;
   const tattoo = getTattoo();
-  if (process.env.ISLAND_LOGGER_TRACE) {
+  if (process.env.ISLAND_LOGGER_TRACE === 'true') {
     const trace = getLogTrace();
     meta = meta || {};
     meta.file = trace.file;
     meta.line = trace.line;
   }
   return [
-    config.colorize(options.level, `[${tattoo.slice(0, 8)}]` + `${new Date().toISOString()}` + `${options.level}`),
+    config.colorize(options.level, `[${tattoo.slice(0, 8)}] ${new Date().toISOString()} ${options.level}`),
     `${options.message || ''}`,
     `${options.meta && JSON.stringify(options.meta)}`
   ].join(' ');
-}
+};
+(longFormatter as any).type = 'long';
+
 const jsonFormatter = (options) => {
   const tattoo = getTattoo();
   const timestamp = Date.now();
@@ -46,13 +50,14 @@ const jsonFormatter = (options) => {
     tattoo, timestamp,
     msg: options.message, meta: options.meta, level: options.level, category: options.label
   };
-  if (process.env.ISLAND_LOGGER_TRACE) {
+  if (process.env.ISLAND_LOGGER_TRACE === 'true') {
     const { file, line } = getLogTrace();
     log.file = file;
     log.line = line;
   }
   return JSON.stringify(log);
-}
+};
+(jsonFormatter as any).type = 'json';
 
 function getLogTrace() {
     const E = Error as any;
@@ -74,26 +79,21 @@ function getLogTrace() {
 
 const allTransports = [];
 
+let currentType: 'short' | 'long' | 'json' = process.env.ISLAND_LOGGER_TYPE || 'short';
+
 function createLogger(id) {
+  function makeTransport(formatter) {
+    return new winston.transports.Console({
+      name: formatter.type,
+      label: id,
+      formatter: formatter,
+      silent: currentType !== formatter.type
+    });
+  }
   const transports = [
-    new winston.transports.Console({
-      name: 'short',
-      label: id,
-      formatter: shortFormatter,
-      silent: false
-    }),
-    new winston.transports.Console({
-      name: 'long',
-      label: id,
-      formatter: longFormatter,
-      silent: true
-    }),
-    new winston.transports.Console({
-      name: 'json',
-      label: id,
-      formatter: jsonFormatter,
-      silent: true
-    })
+    makeTransport(shortFormatter),
+    makeTransport(longFormatter),
+    makeTransport(jsonFormatter)
   ];
   transports.forEach(t => allTransports.push(t));
   const logger = winston.loggers.add(id, {transports});
@@ -114,6 +114,7 @@ export namespace Loggers {
   }
 
   export function switchType(type: 'short' | 'long' | 'json') {
+    currentType = type;
     allTransports.forEach(t => {
       if (t.name !== type) {
         t.silent = true;
