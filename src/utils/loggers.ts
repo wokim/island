@@ -9,8 +9,14 @@ function getTattoo() {
   return ns.get('RequestTrackId') || '--------';
 }
 const shortFormatter = (options) => {
+  let meta = options.meta;
   const tattoo = getTattoo();
-  Error.stackTraceLimit = 5;
+  if (process.env.ISLAND_LOGGER_TRACE) {
+    const trace = getLogTrace();
+    meta = meta || {};
+    meta.file = trace.file;
+    meta.line = trace.line;
+  }
   return [
     config.colorize(options.level,`[${tattoo.slice(0, 8)}|${new Date().toTimeString().slice(0, 8)}|${options.level.slice(0, 1)}]`),
     `${options.message || ''}`,
@@ -18,8 +24,14 @@ const shortFormatter = (options) => {
   ].join(' ');
 }
 const longFormatter = (options) => {
+  let meta = options.meta;
   const tattoo = getTattoo();
-  Error.stackTraceLimit = 10;
+  if (process.env.ISLAND_LOGGER_TRACE) {
+    const trace = getLogTrace();
+    meta = meta || {};
+    meta.file = trace.file;
+    meta.line = trace.line;
+  }
   return [
     config.colorize(options.level, `[${tattoo.slice(0, 8)}]` + `${new Date().toISOString()}` + `${options.level}`),
     `${options.message || ''}`,
@@ -34,22 +46,29 @@ const jsonFormatter = (options) => {
     msg: options.message, meta: options.meta, level: options.level, category: options.label
   };
   if (process.env.ISLAND_LOGGER_TRACE) {
+    const { file, line } = getLogTrace();
+    log.file = file;
+    log.line = line;
+  }
+  return JSON.stringify(log);
+}
+
+function getLogTrace() {
     const E = Error as any;
     const oldLimit = E.stackTraceLimit;
     const oldPrepare = E.prepareStackTrace;
-    E.stackTraceLimit = 10;
-    const myObject: any = {};
+    E.stackTraceLimit = 11;
+    const returnObject: any = {};
     E.prepareStackTrace = function (o, stack) {
-      const caller = sourceMapSupport.wrapCallSite(stack[9]);
-      log.file = caller.getFileName();
-      log.line = caller.getLineNumber();
+      const caller = sourceMapSupport.wrapCallSite(stack[10]);
+      returnObject.file = caller.getFileName();
+      returnObject.line = caller.getLineNumber();
     };
-    E.captureStackTrace(myObject);
-    myObject.stack;
+    E.captureStackTrace(returnObject);
+    returnObject.stack;
     E.stackTraceLimit = oldLimit;
     E.prepareStackTrace = oldPrepare;
-  }
-  return JSON.stringify(log);
+    return returnObject;
 }
 
 const allTransports = [];
