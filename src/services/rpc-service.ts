@@ -300,15 +300,11 @@ export default class RPCService {
             })
           })
           .finally(() => {
-            console.log(visualizeLog);
+            logger.debug(JSON.stringify(visualizeLog, null, 4));
           });
       });
     };
 
-    const ns = cls.getNamespace('app');
-    ns.set('Context', name);
-    ns.set('Type', 'rpc');
-    
     // NOTE: 컨슈머가 0개 이상에서 0개가 될 때 자동으로 삭제된다.
     // 단 한번도 컨슈머가 등록되지 않는다면 영원히 삭제되지 않는데 그런 케이스는 없음
     await this.channelPool.usingChannel(channel => channel.assertQueue(name, {durable: false, autoDelete: true}));

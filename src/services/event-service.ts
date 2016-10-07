@@ -99,7 +99,7 @@ export class EventService {
           .then(() => {
             visualizeLog.ts.e = +(new Date());
             visualizeLog.error = false;
-            console.log(visualizeLog);
+            logger.debug(JSON.stringify(visualizeLog, null, 4));
           })
           .catch(e => {
             visualizeLog.ts.e = +(new Date());
