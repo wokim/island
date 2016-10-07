@@ -31,4 +31,17 @@ describe('Logger', () => {
     expect(log.file).toContain('logger.spec.ts');
     expect(log.line).toEqual(28);
   });
+  
+  it('should handle an object which has circular reference', () => {
+    const a: any = { A: 'A' };
+    const b: any = { B: 'B' };
+    a.B = b;
+    b.A = a;
+
+    const circular = {};
+    const logger = Loggers.get('test');
+    mock(() => {
+      expect(() => logger.info('haha', a)).not.toThrow();
+    });
+  });
 });
