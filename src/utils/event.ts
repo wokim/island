@@ -19,6 +19,11 @@ export namespace Events {
       category: string;
       level: 'debug' | 'info' | 'notice' | 'warning' | 'error' | 'crit';
     }
+
+    export interface SystemNodeStarted {
+      name: string;
+      island: string;
+    }
   }
 
   export class LoggerLevelChanged extends BaseEvent<Arguments.LoggerLevelChanged> {
@@ -30,6 +35,12 @@ export namespace Events {
   export class LoggerTypeChanged extends BaseEvent<Arguments.LoggerTypeChanged> {
     constructor(args: Arguments.LoggerTypeChanged) {
       super('logger.type.changed', args);
+    }
+  }
+  
+  export class SystemNodeStarted extends BaseEvent<Arguments.SystemNodeStarted> {
+    constructor(args: Arguments.SystemNodeStarted) {
+      super('system.node.started', args);
     }
   }
 }
