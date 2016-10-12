@@ -22,8 +22,8 @@ export class ScopeExit {
     return this;
   }
 
-  disposer(): Promise.Disposer<any> {
-    return Promise.resolve().disposer(async (result, promise) => {
+  disposer(): Promise.Disposer<ScopeExit> {
+    return Promise.resolve(this).disposer(async (result, promise) => {
       let tasks: DeferredTask[];
       if (promise.isFulfilled()) {
         tasks = this.tasksOnFulfilled;
