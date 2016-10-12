@@ -11,6 +11,7 @@ import { AmqpChannelPoolService } from './amqp-channel-pool-service';
 import paramSchemaInspector, { sanitize, validate } from '../middleware/schema.middleware';
 import { RpcOptions } from '../controllers/rpc-decorator';
 import { logger } from '../utils/logger';
+import { VisualizeLog } from '../utils/visualize';
 import reviver from '../utils/reviver';
 import { AbstractError, AbstractLogicError, AbstractFatalError, ISLAND, LogicError, FatalError } from '../utils/error';
 
@@ -32,29 +33,6 @@ interface IRpcResponse {
   version: number;
   result: boolean;
   body?: AbstractError | any;
-}
-
-interface VisualizeLog {
-  tattoo: string;
-  ts: {
-    c?: number;
-    r?: number;
-    e?: number;
-  }
-  size?: number;
-  error?: boolean;
-  from?: {
-    node: string;
-    context: string;
-    island: string;
-    type: 'rpc' | 'event' | 'endpoint'
-  },
-  to?: {
-    node: string;
-    context: string;
-    island: string;
-    type: 'rpc' | 'event' | 'endpoint';
-  }
 }
 
 export interface RpcRequest {
@@ -238,18 +216,10 @@ export default class RPCService {
     const consumer = (msg: Message) => {
       const headers = msg.properties.headers;
       const tattoo = headers && headers.tattoo;
-      const visualizeLog: VisualizeLog = {
-        tattoo,
-        ts: { c: msg.properties.timestamp, r: +(new Date()) },
-        size: msg.content.byteLength,
-        from: headers.from,
-        to: {
-          node: process.env.HOSTNAME,
-          context: name,
-          island: this.serviceName,
-          type: 'rpc'
-        }
-      };
+      const log = new VisualizeLog(tattoo, msg.properties.timestamp);
+      log.size = msg.content.byteLength;
+      log.from = headers.from;
+      log.to = { node: process.env.HOSTNAME, context: name, island: this.serviceName, type: 'rpc' };
       return enterScope({RequestTrackId: tattoo, Context: name, Type: 'rpc'}, () => {
         let content = JSON.parse(msg.content.toString('utf8'), reviver);
         if (rpcOptions) {
@@ -270,8 +240,7 @@ export default class RPCService {
         const options: amqp.Options.Publish = { correlationId: msg.properties.correlationId, headers };
         return Promise.try(() => handler(content))
           .then(res => {
-            visualizeLog.ts.e = +(new Date());
-            visualizeLog.error = false;
+            log.end();
             if (rpcOptions) {
               if (_.get(rpcOptions, 'schema.result.sanitization')) {
                 res = sanitize(rpcOptions.schema.result.sanitization, res);
@@ -287,8 +256,7 @@ export default class RPCService {
           })
           .timeout(RPC_EXEC_TIMEOUT_MS)
           .catch(err => {
-            visualizeLog.ts.e = +(new Date());
-            visualizeLog.error = true;
+            log.end(err);
             // 503 오류일 때는 응답을 caller에게 안보내줘야함
             if (err.statusCode && parseInt(err.statusCode, 10) === 503) {
               throw err;
@@ -305,7 +273,7 @@ export default class RPCService {
             })
           })
           .finally(() => {
-            logger.debug(JSON.stringify(visualizeLog, null, 4));
+            log.shoot();
           });
       });
     };

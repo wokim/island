@@ -75,6 +75,7 @@ export { Event, BaseEvent } from './services/event-subscriber';
 // utils
 export * from './utils/di';
 export { Loggers } from './utils/loggers';
+export { VisualizeLog } from './utils/visualize';
 export { ScopeExit } from './utils/scope-exit';
 export { ResourcePush } from './utils/resource-push';
 export { default as MessagePack } from './utils/msgpack';

@@ -4,6 +4,7 @@ import * as Promise from 'bluebird';
 import * as amqp from 'amqplib';
 import * as uuid from 'node-uuid';
 import { logger } from '../utils/logger';
+import { VisualizeLog } from '../utils/visualize';
 import { Events } from '../utils/event';
 import { AmqpChannelPoolService } from './amqp-channel-pool-service';
 import { Message, Event, EventHandler, Subscriber, EventSubscriber, PatternSubscriber } from './event-subscriber';
@@ -84,30 +85,21 @@ export class EventService {
     const subscribers = this.subscribers.filter(subscriber => subscriber.isRoutingKeyMatched(msg.fields.routingKey));
     return Promise.map(subscribers, subscriber => {
       return enterScope({RequestTrackId: tattoo, Context: msg.fields.routingKey, Type: 'event'}, () => {
-        const visualizeLog: any = {
-          tattoo,
-          ts: {
-            c: msg.properties.timestamp,
-            r: +(new Date())
-          },
-          size: msg.content.byteLength,
-          from: headers.from,
-          to: {
-              node: process.env.HOSTNAME,
-              context: msg.fields.routingKey,
-              island: this.serviceName,
-              type: 'event'
-          }
-        };
+        const log = new VisualizeLog(tattoo, msg.properties.timestamp);
+        log.size = msg.content.byteLength;
+        log.from = headers.from;
+        log.to = { node: process.env.HOSTNAME, context: msg.fields.routingKey, island: this.serviceName, type: 'event' };
+
         return subscriber.handleEvent(content, msg)
           .then(() => {
-            visualizeLog.ts.e = +(new Date());
-            visualizeLog.error = false;
-            logger.debug(JSON.stringify(visualizeLog, null, 4));
+            log.end();
           })
           .catch(e => {
-            visualizeLog.ts.e = +(new Date());
-            visualizeLog.error = true;
+            log.end(e);
+            throw e;
+          })
+          .finally(() => {
+            log.shoot();
           })
       });
     });
