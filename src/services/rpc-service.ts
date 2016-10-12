@@ -178,7 +178,7 @@ export default class RPCService {
   }
 
   protected async _consume(key: string, handler: (msg) => Promise<any>, tag: string, options?: any):
-  Promise<IConsumerInfo> {
+      Promise<IConsumerInfo> {
     const channel = await this.channelPool.acquireChannel();
     const result = await channel.consume(key, async (msg) => {
       try {
@@ -186,12 +186,14 @@ export default class RPCService {
         channel.ack(msg);
       } catch (error) {
         if (error.statusCode && parseInt(error.statusCode, 10) === 503) {
-          // debug('got 503, send nack');
+          // Requeue the message when it has a chance
           setTimeout(() => {
             channel.nack(msg);
           }, 1000);
           return;
         }
+        // Discard the message
+        channel.ack(msg);
 
         this.channelPool.usingChannel(channel => {
           const content = RpcResponse.encode(error, this.serviceName);
@@ -254,7 +256,7 @@ export default class RPCService {
           if (_.get(rpcOptions, 'schema.query.sanitization')) {
             content = sanitize(rpcOptions.schema.query.sanitization, content);
           }
-          if (_.get(rpcOptions, 'schema.result.validation')) {
+          if (_.get(rpcOptions, 'schema.query.validation')) {
             if (!validate(rpcOptions.schema.query.validation, content)) {
               throw new LogicError(ISLAND.LOGIC.L0002_WRONG_PARAMETER_SCHEMA, `Wrong parameter schema`);
             }
@@ -291,8 +293,11 @@ export default class RPCService {
             if (err.statusCode && parseInt(err.statusCode, 10) === 503) {
               throw err;
             }
-            err.extra = { name, req: content }; // RPC 이름을 에러에 추가적으로 기록
-            logger.error('', err);
+            if (!err.extra) {
+              err.extra = { island: this.serviceName, name, req: content };
+            }
+            const extra = err.extra;
+            logger.error(`Got an error during ${extra.island}/${extra.name} with ${JSON.stringify(extra.req)} - ${err.stack}`);
             return this.channelPool.usingChannel(channel => {
               return Promise.resolve(channel.sendToQueue(msg.properties.replyTo, RpcResponse.encode(err, this.serviceName), options));
             }).then(() => {

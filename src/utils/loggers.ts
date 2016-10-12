@@ -7,6 +7,9 @@ require('./loggers-bugfix');
 
 const ns = cls.getNamespace('app') || cls.createNamespace('app');
 
+function stringifyMeta(meta) {
+  return meta && (0 < Object.keys(meta).length) && JSON.stringify(meta) || undefined;
+}
 function getTattoo() {
   return ns.get('RequestTrackId') || '--------';
 }
@@ -22,7 +25,7 @@ const shortFormatter = (options) => {
   return [
     config.colorize(options.level,`[${tattoo.slice(0, 8)}|${new Date().toTimeString().slice(0, 8)}|${options.level.slice(0, 1)}]`),
     `${options.message || ''}`,
-    `${options.meta && (JSON.stringify(options.meta))}`
+    stringifyMeta(meta)
   ].join(' ');
 };
 (shortFormatter as any).type = 'short';
@@ -39,7 +42,7 @@ const longFormatter = (options) => {
   return [
     config.colorize(options.level, `[${tattoo.slice(0, 8)}] ${new Date().toISOString()} ${options.level}`),
     `${options.message || ''}`,
-    `${options.meta && JSON.stringify(options.meta)}`
+    stringifyMeta(meta)
   ].join(' ');
 };
 (longFormatter as any).type = 'long';
@@ -61,21 +64,21 @@ const jsonFormatter = (options) => {
 (jsonFormatter as any).type = 'json';
 
 function getLogTrace() {
-    const E = Error as any;
-    const oldLimit = E.stackTraceLimit;
-    const oldPrepare = E.prepareStackTrace;
-    E.stackTraceLimit = 11;
-    const returnObject: any = {};
-    E.prepareStackTrace = function (o, stack) {
-      const caller = sourceMapSupport.wrapCallSite(stack[10]);
-      returnObject.file = caller.getFileName();
-      returnObject.line = caller.getLineNumber();
-    };
-    E.captureStackTrace(returnObject);
-    returnObject.stack;
-    E.stackTraceLimit = oldLimit;
-    E.prepareStackTrace = oldPrepare;
-    return returnObject;
+  const E = Error as any;
+  const oldLimit = E.stackTraceLimit;
+  const oldPrepare = E.prepareStackTrace;
+  E.stackTraceLimit = 11;
+  const returnObject: any = {};
+  E.prepareStackTrace = function (o, stack) {
+    const caller = sourceMapSupport.wrapCallSite(stack[10]);
+    returnObject.file = caller.getFileName();
+    returnObject.line = caller.getLineNumber();
+  };
+  E.captureStackTrace(returnObject);
+  returnObject.stack;
+  E.stackTraceLimit = oldLimit;
+  E.prepareStackTrace = oldPrepare;
+  return returnObject;
 }
 
 const allTransports = [];
