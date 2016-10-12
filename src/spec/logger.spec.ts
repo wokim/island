@@ -10,6 +10,24 @@ function mock(func) {
 }
 
 describe('Logger', () => {
+  it('could show as short format', () => {
+    const logger = Loggers.get('test');
+    Loggers.switchType('short');
+    const output = mock(() => {
+      logger.info('haha');
+    });
+    expect(output.stdout[0].split(' ')[1]).toEqual('haha');
+  });
+
+  it('could show as long format', () => {
+    const logger = Loggers.get('test');
+    Loggers.switchType('long');
+    const output = mock(() => {
+      logger.info('haha');
+    });
+    expect(output.stdout[0].split(' ')[3]).toEqual('haha');
+  });
+
   it('could show as JSON format', () => {
     const logger = Loggers.get('test');
     Loggers.switchType('json');
