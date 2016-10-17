@@ -20,6 +20,10 @@ export function jasmineAsyncAdapter(assertion: () => Promise<void>) {
 export function createSpyObjWithAllMethods<T>(Class: new (...args) => T): T {
   const methods = Object.getOwnPropertyNames(Class.prototype)
     .filter(name => name !== 'constructor');
+  
+  if (!methods || methods.length === 0) {
+    return {} as T;
+  }
 
   return jasmine.createSpyObj(Class.name, methods);
 }
