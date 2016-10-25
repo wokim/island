@@ -568,6 +568,7 @@ interface Endpoint {
 
 // - 컨트롤러 메소드 하나에 여러 endpoint를 붙일 수 있다.
 //
+// [OUTDATED]
 // [EXAMPLE]
 // @island.endpoint('GET /v2/blahblah', { level: 10, developmentOnly: true })
 export function endpoint(name: string, endpointOptions?: EndpointOptions) {
