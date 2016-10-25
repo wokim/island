@@ -27,3 +27,16 @@ export function createSpyObjWithAllMethods<T>(Class: new (...args) => T): T {
 
   return jasmine.createSpyObj(Class.name, methods);
 }
+
+export function resetSpyObjWithCallsCount(obj): void {
+  const methods = Object.getOwnPropertyNames(obj)
+    .filter(name => name !== 'constructor');
+  
+  if (!methods || methods.length === 0) {
+    return;
+  }
+  
+  for (const method of methods) {
+    (obj[method] as jasmine.Spy).calls.reset();
+  }
+}

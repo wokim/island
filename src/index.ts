@@ -83,6 +83,10 @@ export { default as ObjectWrapper } from './utils/object-wrapper';
 export { default as ObjectFactory } from './utils/object-factory';
 export { default as StaticDataLoader } from './utils/staticdata-loader';
 export { default as StaticDataFactory } from './utils/staticdata-factory';
-export { jasmineAsyncAdapter as spec, createSpyObjWithAllMethods as spyAll } from './utils/jasmine-async-support';
+export {
+  jasmineAsyncAdapter as spec, 
+  createSpyObjWithAllMethods as spyAll,
+  resetSpyObjWithCallsCount as resetCallsCount
+} from './utils/jasmine-async-support';
 export { ErrorType, AbstractError, AbstractFatalError, AbstractLogicError } from './utils/error';
 export { Events } from './utils/event';
