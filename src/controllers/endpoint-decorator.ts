@@ -521,18 +521,6 @@ export function auth(level:number) {
   };
 }
 
-function adminize(name) {
-  const [method, uri] = name.split(' ');
-  if (uri.startsWith('/v2/admin')) return name;
-
-  const tokens = uri.split('/');
-  if (!tokens[0]) tokens.shift();
-  if (tokens[0] === 'v2') tokens.shift();
-  const newUri = [null, 'v2', 'admin'].concat(tokens).join('/');
-
-  return `${method} ${newUri}`;
-}
-
 // - EndpointOptions#level, EndpointOptions#admin 속성의 Syntactic Sugar 이다
 //
 // [EXAMPLE]
@@ -545,7 +533,6 @@ export function admin(target, key, desc) {
   options.admin = true;
   if (desc.value.endpoints) {
     desc.value.endpoints.forEach(e => {
-      e.name = adminize(e.name);
       _.merge(e.options, options);
     });
   }
@@ -575,9 +562,6 @@ export function endpoint(name: string, endpointOptions?: EndpointOptions) {
   return (target, key, desc: PropertyDescriptor) => {
     const handler = desc.value;
     const options = _.merge({}, handler.options || {}, endpointOptions) as EndpointOptions;
-    if (options.admin) {
-      name = adminize(name);
-    }
     if (!options.hasOwnProperty('level')) {
        if (name.startsWith('GET') || name.startsWith('get')) {
         options.level = 5;
