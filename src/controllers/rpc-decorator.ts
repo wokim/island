@@ -50,7 +50,7 @@ export function rpcController(registerer?: {registerRpc: (name: string, value: a
         const developmentOnly = _.get(v, 'options.developmentOnly');
         if (developmentOnly && process.env.NODE_ENV !== 'development') return Promise.resolve();
 
-        return this.server.register(v.name, v.handler.bind(this), v.options).then(() => {
+        return this.server.register(v.name, v.handler.bind(this), 'rpc', v.options).then(() => {
           return registerer && registerer.registerRpc(v.name, v.options || {}) || Promise.resolve();
         });
       }))

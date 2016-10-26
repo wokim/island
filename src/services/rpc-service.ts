@@ -118,6 +118,15 @@ function enterScope(properties: any, func): Promise<any> {
   });
 }
 
+export type RpcHook = (rpc) => Promise<any>;
+export enum RpcHookType {
+  PRE_ENDPOINT,
+  POST_ENDPOINT,
+  PRE_RPC,
+  POST_RPC
+}
+
+
 export default class RPCService {
   private consumerInfosMap: { [name: string]: IConsumerInfo } = {};
   private responseQueue: string;
@@ -126,9 +135,11 @@ export default class RPCService {
   private reqTimeouts: {[corrId: string]: any} = {};
   private channelPool: AmqpChannelPoolService;
   private serviceName: string;
+  private hooks: {[key: string]: RpcHook[]};
 
   constructor(serviceName?: string) {
     this.serviceName = serviceName || 'unknown';
+    this.hooks = {};
   }
 
   public async initialize(channelPool: AmqpChannelPoolService): Promise<any> {
@@ -208,11 +219,17 @@ export default class RPCService {
     return Promise.resolve();
   }
 
+  public registerHook(type: RpcHookType, hook: RpcHook) {
+    this.hooks[type] = this.hooks[type] || [];
+    this.hooks[type].push(hook);
+  }
+
+
   // [TODO] register의 consumer와 _consume의 anonymous function을 하나로 합쳐야 한다.
   // 무척 헷갈림 @kson //2016-08-09
   // [TODO] Endpoint도 동일하게 RpcService.register를 부르는데, rpcOptions는 Endpoint가 아닌 RPC만 전달한다
   // 포함 관계가 잘못됐다. 애매하다. @kson //2016-08-09
-  public async register(name: string, handler: (req: any) => Promise<any>, rpcOptions?: RpcOptions): Promise<void> {
+  public async register(name: string, handler: (req: any) => Promise<any>, type: 'endpoint' | 'rpc', rpcOptions?: RpcOptions): Promise<void> {
     const consumer = (msg: Message) => {
       const headers = msg.properties.headers;
       const tattoo = headers && headers.tattoo;
@@ -236,9 +253,30 @@ export default class RPCService {
 
         logger.debug(`Got ${name} with ${JSON.stringify(content)}`)
 
+        const dohook = async (type: RpcHookType, content) => {
+          if (this.hooks[type]) {
+            return Promise.reduce(this.hooks[type], async (content, hook) => await hook(content), content);
+          }
+          return content;
+        }
         // Should wrap with Promise.try while handler sometimes returns ES6 Promise which doesn't support timeout.
         const options: amqp.Options.Publish = { correlationId: msg.properties.correlationId, headers };
-        return Promise.try(() => handler(content))
+        return Promise.try(async () => {
+          let req = content;
+          if (type == 'endpoint') {
+            return await dohook(RpcHookType.PRE_ENDPOINT, req);
+          } else { //rpc
+            return await dohook(RpcHookType.PRE_RPC, req);
+          }
+        })
+          .then((req) => handler(req))
+          .then(async (res) => {
+            if (type == 'endpoint') {
+              return await dohook(RpcHookType.POST_ENDPOINT, res);
+            } else { // rpc
+              return await dohook(RpcHookType.POST_RPC, res);
+            }           
+          })
           .then(res => {
             log.end();
             if (rpcOptions) {

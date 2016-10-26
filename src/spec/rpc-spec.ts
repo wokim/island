@@ -26,7 +26,7 @@ describe('RPC test:', () => {
     rpcService.register('testMethod', (msg) => {
       expect(msg).toBe('hello');
       return Promise.resolve('world');
-    }).then(() => {
+    }, 'rpc').then(() => {
       rpcService.invoke<string, string>('testMethod', 'hello').then(res => {
         expect(res).toBe('world');
         done();
@@ -49,7 +49,7 @@ describe('RPC test:', () => {
     rpcService.register('testMethod', (msg) => {
       expect(msg).toBe('hello');
       return Promise.reject(new Error('custom error'));
-    }).then(() => {
+    }, 'rpc').then(() => {
       rpcService.invoke<string, string>('testMethod', 'hello').catch((err: Error) => {
         // [FIXME] 뭔가 이상하다 @kson //2016-08-23
         expect(err.message).toBe(`code: haha.ETC.F0001, msg: custom error'`);
@@ -63,7 +63,7 @@ describe('RPC test:', () => {
       return new Promise((resolve, reject) => {
         setTimeout(() => resolve('world'), parseInt(msg, 10));
       });
-    }).then(() => {
+    }, 'rpc').then(() => {
       const promises = [
         rpcService.invoke('testMethod', 1000),
         rpcService.invoke('testMethod', 100).then(res => {
@@ -83,12 +83,12 @@ describe('RPC test:', () => {
           rpcService.purge();
           setTimeout(() => resolve('world'), parseInt(msg, 10));
         });
-      }),
+      }, 'rpc'),
       rpcService.register('BBBB', (msg) => {
         return new Promise((resolve, reject) => {
           setTimeout(() => resolve('world'), parseInt(msg, 10));
         });
-      })
+      }, 'rpc')
     ]).then(() => {
       return rpcService.invoke('AAA', 2000);
     }).then(() => {
