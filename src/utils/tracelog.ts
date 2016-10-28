@@ -7,7 +7,7 @@ export interface LogSource {
   type: 'rpc' | 'event' | 'endpoint'
 }
 
-export class VisualizeLog {
+export class TraceLog {
   data: {
     tattoo?: string;
     ts: {
@@ -42,9 +42,5 @@ export class VisualizeLog {
   end(error?: Error) {
     this.data.ts.e = +(new Date());
     this.data.error = !!error;
-  }
-  
-  shoot() {
-    logger.debug(JSON.stringify(this, null, 4));
   }
 }

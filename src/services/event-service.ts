@@ -3,12 +3,19 @@ import * as _ from 'lodash';
 import * as Promise from 'bluebird';
 import * as amqp from 'amqplib';
 import * as uuid from 'node-uuid';
-import { logger } from '../utils/logger';
-import { VisualizeLog } from '../utils/visualize';
+
+import { TraceService } from './trace-service';
 import { Events } from '../utils/event';
 import { AmqpChannelPoolService } from './amqp-channel-pool-service';
 import { Message, Event, EventHandler, Subscriber, EventSubscriber, PatternSubscriber } from './event-subscriber';
+
+import { TraceLog } from '../utils/tracelog';
+import { logger } from '../utils/logger';
 import reviver from '../utils/reviver';
+import { Di } from '../utils/di';
+
+import inject = Di.inject;
+import scope = Di.scope;
 
 function enterScope(properties: any, func): Promise<any> {
   return new Promise((resolve, reject) => {
@@ -29,6 +36,7 @@ export class EventService {
   private fanoutQ: string;
   private subscribers: Subscriber[] = [];
   private serviceName: string;
+  
   constructor(serviceName: string) {
     this.serviceName = serviceName; 
     this.roundRobinQ = `event.${serviceName}`;
@@ -77,7 +85,8 @@ export class EventService {
     //todo: save channel and consumer tag
   }
 
-  private handleMessage(msg: Message): Promise<any> {
+  @scope
+  private handleMessage(msg: Message, @inject traceService?: TraceService): Promise<any> {
     const headers = msg.properties.headers;
     const tattoo = headers && headers.tattoo;
     const content = JSON.parse(msg.content.toString('utf8'), reviver);
@@ -85,7 +94,7 @@ export class EventService {
     const subscribers = this.subscribers.filter(subscriber => subscriber.isRoutingKeyMatched(msg.fields.routingKey));
     return Promise.map(subscribers, subscriber => {
       return enterScope({RequestTrackId: tattoo, Context: msg.fields.routingKey, Type: 'event'}, () => {
-        const log = new VisualizeLog(tattoo, msg.properties.timestamp);
+        const log = new TraceLog(tattoo, msg.properties.timestamp);
         log.size = msg.content.byteLength;
         log.from = headers.from;
         log.to = { node: process.env.HOSTNAME, context: msg.fields.routingKey, island: this.serviceName, type: 'event' };
@@ -99,7 +108,9 @@ export class EventService {
             throw e;
           })
           .finally(() => {
-            log.shoot();
+            if (traceService) {
+              traceService.send(log.data);
+            }
           })
       });
     });

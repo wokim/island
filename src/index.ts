@@ -64,6 +64,7 @@ export { default as ModelFactory } from './models/model-factory';
 export { default as MessageBrokerService } from './services/message-broker-service';
 export { default as PushService } from './services/push-service';
 export { default as RPCService } from './services/rpc-service';
+export { TraceService } from './services/trace-service';
 
 export {
   default as AbstractBrokerService,
@@ -76,7 +77,7 @@ export { Event, BaseEvent } from './services/event-subscriber';
 // utils
 export * from './utils/di';
 export { Loggers } from './utils/loggers';
-export { VisualizeLog } from './utils/visualize';
+export { TraceLog } from './utils/tracelog';
 export { ScopeExit } from './utils/scope-exit';
 export { ResourcePush } from './utils/resource-push';
 export { default as MessagePack } from './utils/msgpack';
