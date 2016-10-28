@@ -579,7 +579,7 @@ export function endpoint(name: string, endpointOptions?: EndpointOptions) {
         options.level = 7;
       }
     }
-
+    
     const endpoint = { name, options, handler } as Endpoint;
     pushSafe(handler, 'endpoints', endpoint);
 
@@ -597,8 +597,8 @@ export function endpointController(registerer?: {registerEndpoint: (name: string
         if (developmentOnly && process.env.NODE_ENV !== 'development') return Promise.resolve();
 
         v.name = mangle(v.name);
-
-        return this.server.register(v.name, v.handler.bind(this)).then(() => {
+        
+        return this.server.register(v.name, v.handler.bind(this), 'endpoint').then(() => {
           return registerer && registerer.registerEndpoint(v.name, v.options || {}) || Promise.resolve();
         });
       }))
