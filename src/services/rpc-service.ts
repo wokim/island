@@ -10,16 +10,11 @@ import uuid = require('node-uuid');
 import { AmqpChannelPoolService } from './amqp-channel-pool-service';
 import paramSchemaInspector, { sanitize, validate } from '../middleware/schema.middleware';
 import { RpcOptions } from '../controllers/rpc-decorator';
-import { TraceService } from './trace-service';
 
 import { logger } from '../utils/logger';
 import { TraceLog } from '../utils/tracelog';
 import reviver from '../utils/reviver';
 import { AbstractError, AbstractLogicError, AbstractFatalError, ISLAND, LogicError, FatalError } from '../utils/error';
-import { Di } from '../utils/di';
-
-import inject = Di.inject;
-import scope = Di.scope;
 
 const RPC_EXEC_TIMEOUT_MS = parseInt(process.env.ISLAND_RPC_EXEC_TIMEOUT_MS, 10) || 25000;
 const RPC_WAIT_TIMEOUT_MS = parseInt(process.env.ISLAND_RPC_WAIT_TIMEOUT_MS, 10) || 60000;
@@ -167,6 +162,8 @@ export default class RPCService {
       return reqExecutor(msg);
     };
 
+    await TraceLog.initialize();
+
     this.channelPool = channelPool;
     await channelPool.usingChannel(channel => channel.assertQueue(this.responseQueue, {exclusive: true}));
     this.responseConsumerInfo = await this._consume(this.responseQueue, consumer, 'RequestExecutors', {});
@@ -235,12 +232,7 @@ export default class RPCService {
   // 무척 헷갈림 @kson //2016-08-09
   // [TODO] Endpoint도 동일하게 RpcService.register를 부르는데, rpcOptions는 Endpoint가 아닌 RPC만 전달한다
   // 포함 관계가 잘못됐다. 애매하다. @kson //2016-08-09
-  @scope
-  public async register(name: string, handler: (req: any) => Promise<any>, type: 'endpoint' | 'rpc', rpcOptions?: RpcOptions, @inject traceService?: TraceService): Promise<void> {
-    // to support overloading
-    if (!traceService) {
-      traceService = rpcOptions as TraceService;
-    }
+  public async register(name: string, handler: (req: any) => Promise<any>, type: 'endpoint' | 'rpc', rpcOptions?: RpcOptions): Promise<void> {
     const consumer = (msg: Message) => {
       const headers = msg.properties.headers;
       const tattoo = headers && headers.tattoo;
@@ -322,9 +314,7 @@ export default class RPCService {
             })
           })
           .finally(() => {
-            if (traceService) {
-              traceService.send(log.data);
-            }
+            log.shoot();
           });
       });
     };

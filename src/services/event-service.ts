@@ -4,7 +4,6 @@ import * as Promise from 'bluebird';
 import * as amqp from 'amqplib';
 import * as uuid from 'node-uuid';
 
-import { TraceService } from './trace-service';
 import { Events } from '../utils/event';
 import { AmqpChannelPoolService } from './amqp-channel-pool-service';
 import { Message, Event, EventHandler, Subscriber, EventSubscriber, PatternSubscriber } from './event-subscriber';
@@ -12,10 +11,6 @@ import { Message, Event, EventHandler, Subscriber, EventSubscriber, PatternSubsc
 import { TraceLog } from '../utils/tracelog';
 import { logger } from '../utils/logger';
 import reviver from '../utils/reviver';
-import { Di } from '../utils/di';
-
-import inject = Di.inject;
-import scope = Di.scope;
 
 function enterScope(properties: any, func): Promise<any> {
   return new Promise((resolve, reject) => {
@@ -43,7 +38,9 @@ export class EventService {
     this.fanoutQ = `event.${serviceName}.node.${uuid.v4()}`;
   }
 
-  initialize(channelPool: AmqpChannelPoolService): Promise<any> {
+  async initialize(channelPool: AmqpChannelPoolService): Promise<any> {
+    await TraceLog.initialize();
+    
     this.channelPool = channelPool;
     return channelPool.usingChannel(channel => {
       return channel.assertExchange(EventService.EXCHANGE_NAME, 'topic', {durable: true})
@@ -85,8 +82,7 @@ export class EventService {
     //todo: save channel and consumer tag
   }
 
-  @scope
-  private handleMessage(msg: Message, @inject traceService?: TraceService): Promise<any> {
+  private handleMessage(msg: Message): Promise<any> {
     const headers = msg.properties.headers;
     const tattoo = headers && headers.tattoo;
     const content = JSON.parse(msg.content.toString('utf8'), reviver);
@@ -108,9 +104,7 @@ export class EventService {
             throw e;
           })
           .finally(() => {
-            if (traceService) {
-              traceService.send(log.data);
-            }
+            log.shoot();
           })
       });
     });

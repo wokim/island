@@ -7,7 +7,6 @@ import ListenableAdapter, { IListenableAdapter } from './adapters/listenable-ada
 import { logger } from './utils/logger';
 import { bindImpliedServices } from './utils/di-bind';
 import { LogicError, FatalError, ISLAND } from './utils/error';
-import { TraceAdapter } from './adapters/impl/trace-adapter';
 
 /**
  * Create a new Islet.
@@ -81,17 +80,10 @@ export default class Islet {
     throw new FatalError(ISLAND.FATAL.F0004_NOT_IMPLEMENTED_ERROR, 'Not implemented exception.');
   }
 
-  private addDefaultAdapter() {
-    // if (process.env.ISLAND_TRACEMQ_HOST) {
-      this.registerAdapter('trace', new TraceAdapter());
-    // }
-  }
-
   /**
    * @returns {Promise<void>}
    */
   private initialize() {
-    this.addDefaultAdapter();
     return Promise.all(_.values<IAbstractAdapter>(this.adapters).map(adapter => adapter.initialize()))
       .then(() => process.once('SIGTERM', this.destroy.bind(this)))
       .then(() => bindImpliedServices(this.adapters))

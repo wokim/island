@@ -64,7 +64,6 @@ export { default as ModelFactory } from './models/model-factory';
 export { default as MessageBrokerService } from './services/message-broker-service';
 export { default as PushService } from './services/push-service';
 export { default as RPCService, RpcHook, RpcHookType } from './services/rpc-service';
-export { TraceService } from './services/trace-service';
 
 export {
   default as AbstractBrokerService,
