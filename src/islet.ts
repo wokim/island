@@ -82,9 +82,9 @@ export default class Islet {
   }
 
   private addDefaultAdapter() {
-    if (process.env.ISLAND_TRACEMQ_HOST) {
+    // if (process.env.ISLAND_TRACEMQ_HOST) {
       this.registerAdapter('trace', new TraceAdapter());
-    }
+    // }
   }
 
   /**
