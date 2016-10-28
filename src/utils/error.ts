@@ -4,6 +4,8 @@ export class AbstractError extends Error {
   public statusCode: number;
   public errorCode: string;
   public errorKey: string;
+  public result: boolean;
+  public reason: string;
 
   public stack: any;
   public extra: any;
@@ -17,6 +19,8 @@ export class AbstractError extends Error {
     super(`code: ${islandName}.${errorType}.${enumObj[errorNumber]}, msg: ${debugMsg}'`);
     this.errorKey = enumObj[errorNumber];
     this.errorCode = `${islandName}.${errorType}.${enumObj[errorNumber]}`;
+    this.reason = debugMsg;
+    this.result = false;
   }
 }
 
