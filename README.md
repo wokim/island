@@ -1,7 +1,7 @@
 # island
 A package suite for building microservice.
 
-This is a branch for preparing release 1.0 - check the [milestone](https://github.com/spearhead-ea/island/milestones)
+This is a branch for preparing release 1.0 - check the [milestone](https://github.com/spearhead-ea/island/milestone/1)
 
 
 [![Build Status](https://api.travis-ci.org/spearhead-ea/island.svg?branch=release-1.0)](https://travis-ci.org/spearhead-ea/island)
