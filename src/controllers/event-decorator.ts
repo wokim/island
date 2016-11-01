@@ -3,7 +3,6 @@ import { SubscriptionOptions } from '../services/event-service';
 import { Event, EventHandler } from '../services/event-subscriber';
 import AbstractController from './abstract-controller';
 import { logger } from '../utils/logger';
-import { Loggers } from '../utils/loggers';
 import { EventSubscription, DEFAULT_SUBSCRIPTIONS } from '../utils/event';
 
 interface PatternSubscription {
