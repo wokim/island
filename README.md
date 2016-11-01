@@ -1,4 +1,5 @@
-# island
+# island v1.0.0
+
 A package suite for building microservice.
 
 This is a branch for preparing release 1.0 - check the [milestone](https://github.com/spearhead-ea/island/milestone/1)
@@ -11,6 +12,14 @@ This is a branch for preparing release 1.0 - check the [milestone](https://githu
 [![Test Coverage](https://codeclimate.com/github/spearhead-ea/island/badges/coverage.svg)](https://codeclimate.com/github/spearhead-ea/island/coverage)
 [![Code Climate](https://codeclimate.com/github/spearhead-ea/island/badges/gpa.svg)](https://codeclimate.com/github/spearhead-ea/island)
 [![Issue Count](https://codeclimate.com/github/spearhead-ea/island/badges/issue_count.svg)](https://codeclimate.com/github/spearhead-ea/island)
+
+## Changes in v1.0.0
+
+- `Loggers` is no longer a part of `island` -> [island-loggers](https://github.com/spearhead-ea/island-loggers)
+
+
+### Breaking Changes
+
 
 
 ## Table of Contents
