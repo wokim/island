@@ -1,6 +1,7 @@
 import * as Promise from 'bluebird';
 import * as _ from 'lodash';
 import { logger } from '../utils/logger';
+import { FatalError, ISLAND } from '../utils/error';
 
 export interface EndpointOptions {
   scope?: {
@@ -563,30 +564,56 @@ interface Endpoint {
   handler: (req) => Promise<any>;
 }
 
+export interface EndpointDecorator {
+  (name: string, endpointOptions?: EndpointOptions): (target, key, desc: PropertyDescriptor) => any;
+  get?: (name: string, endpointOptions?: EndpointOptions) => (target, key, desc: PropertyDescriptor) => any;
+  post?: (name: string, endpointOptions?: EndpointOptions) => (target, key, desc: PropertyDescriptor) => any;
+  put?: (name: string, endpointOptions?: EndpointOptions) => (target, key, desc: PropertyDescriptor) => any;
+  del?: (name: string, endpointOptions?: EndpointOptions) => (target, key, desc: PropertyDescriptor) => any;
+}
+
 // - 컨트롤러 메소드 하나에 여러 endpoint를 붙일 수 있다.
 //
-// [OUTDATED]
 // [EXAMPLE]
 // @island.endpoint('GET /v2/blahblah', { level: 10, developmentOnly: true })
-export function endpoint(name: string, endpointOptions?: EndpointOptions) {
-  return (target, key, desc: PropertyDescriptor) => {
-    const handler = desc.value;
-    const options = _.merge({}, handler.options || {}, endpointOptions) as EndpointOptions;
-    if (!options.hasOwnProperty('level')) {
-       if (name.startsWith('GET') || name.startsWith('get')) {
-        options.level = 5;
-      } else {
+export const endpoint: EndpointDecorator = makeEndpointDecorator();
+
+function throwIfRedeclared(name) {
+  const [method, uri] = name.split(' ');
+  if (!method || !uri) return;
+  if (['GET', 'POST', 'PUT', 'DEL'].indexOf(method.toUpperCase()) > -1) {
+    throw new FatalError(ISLAND.FATAL.F0024_ENDPOINT_METHOD_REDECLARED);
+  }
+}
+
+function makeEndpointDecorator(method?: string) {
+  // FIXME name -> URI?
+  return (name: string, endpointOptions?: EndpointOptions) => {
+    if (method) {
+      throwIfRedeclared(name);
+    }
+    return (target, key, desc: PropertyDescriptor) => {
+      const handler = desc.value;
+      const options = _.merge({}, handler.options || {}, endpointOptions) as EndpointOptions;
+      if (!options.hasOwnProperty('level')) {
         options.level = 7;
       }
-    }
-    
-    const endpoint = { name, options, handler } as Endpoint;
-    pushSafe(handler, 'endpoints', endpoint);
+      
+      name = [method, name].filter(Boolean).join(' ');
+      const endpoint = { name, options, handler } as Endpoint;
+      pushSafe(handler, 'endpoints', endpoint);
 
-    const constructor = target.constructor;
-    pushSafe(constructor, '_endpointMethods', endpoint);
-  };
+      const constructor = target.constructor;
+      pushSafe(constructor, '_endpointMethods', endpoint);
+    };
+  }
 }
+
+endpoint.get = makeEndpointDecorator('GET');
+endpoint.post = makeEndpointDecorator('POST');
+endpoint.put = makeEndpointDecorator('PUT');
+endpoint.del = makeEndpointDecorator('DEL');
+
 
 export function endpointController(registerer?: {registerEndpoint: (name: string, value: any) => Promise<any>}) {
   return function _endpointControllerDecorator(target) {
