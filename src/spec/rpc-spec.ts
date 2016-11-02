@@ -3,8 +3,7 @@ import RPCService from '../services/rpc-service';
 import * as amqp from 'amqplib';
 import Promise = require('bluebird');
 import { AmqpChannelPoolService } from '../services/amqp-channel-pool-service';
-
-
+import { TraceLog } from '../utils/tracelog';
 describe('RPC test:', () => {
   const rpcService = new RPCService('haha');
   const amqpChannelPool = new AmqpChannelPoolService();
@@ -18,16 +17,17 @@ describe('RPC test:', () => {
   afterAll(done => {
     rpcService.purge()
       .then(() => amqpChannelPool.purge())
+      .then(() => TraceLog.purge())      
       .then(done)
       .catch(done.fail);
   });
 
   it('rpc test #1: rpc call', done => {
-    rpcService.register('testMethod', (msg) => {
+    return rpcService.register('testMethod', (msg) => {
       expect(msg).toBe('hello');
       return Promise.resolve('world');
     }, 'rpc').then(() => {
-      rpcService.invoke<string, string>('testMethod', 'hello').then(res => {
+      return rpcService.invoke<string, string>('testMethod', 'hello').then(res => {
         expect(res).toBe('world');
         done();
       });
@@ -35,22 +35,22 @@ describe('RPC test:', () => {
   });
 
   it('rpc test #2: rpc call again', done => {
-    rpcService.invoke<string, string>('testMethod', 'hello').then(res => {
+    return rpcService.invoke<string, string>('testMethod', 'hello').then(res => {
       expect(res).toBe('world');
       done();
     });
   });
 
   it('rpc test #3: purge', done => {
-    rpcService.unregister('testMethod').then(() => done()).catch(err => done.fail(err));
+    return rpcService.unregister('testMethod').then(() => done()).catch(err => done.fail(err));
   });
 
   it('rpc test #4: reject test', done => {
-    rpcService.register('testMethod', (msg) => {
+    return rpcService.register('testMethod', (msg) => {
       expect(msg).toBe('hello');
       return Promise.reject(new Error('custom error'));
     }, 'rpc').then(() => {
-      rpcService.invoke<string, string>('testMethod', 'hello').catch((err: Error) => {
+      return rpcService.invoke<string, string>('testMethod', 'hello').catch((err: Error) => {
         // [FIXME] 뭔가 이상하다 @kson //2016-08-23
         expect(err.message).toBe(`code: haha.ETC.F0001, msg: custom error'`);
         rpcService.unregister('testMethod').then(() => done()).catch(err => done.fail(err));
@@ -59,7 +59,7 @@ describe('RPC test:', () => {
   });
 
   it('rpc test #5: 메시지를 하나 처리하고 있는 사이에 삭제 시도', done => {
-    rpcService.register('testMethod', (msg) => {
+    return rpcService.register('testMethod', (msg) => {
       return new Promise((resolve, reject) => {
         setTimeout(() => resolve('world'), parseInt(msg, 10));
       });
@@ -77,7 +77,7 @@ describe('RPC test:', () => {
   });
 
   it('rpc 등록해두고 모조리 다 취소시키기', done => {
-    Promise.all([
+    return Promise.all([
       rpcService.register('AAA', (msg) => {
         return new Promise((resolve, reject) => {
           rpcService.purge();
