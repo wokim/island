@@ -15,8 +15,8 @@ This is a branch for preparing release 1.0 - check the [milestone](https://githu
 
 ## Changes in v1.0.0
 
-- `Loggers` is no longer a part of `island` -> [island-loggers](https://github.com/spearhead-ea/island-loggers) (#14)
-- `@endpoint` decorator now provides 4 more methods (#28)
+- `Loggers` is no longer a part of `island` -> [island-loggers](https://github.com/spearhead-ea/island-loggers) [#14](https://github.com/spearhead-ea/island/issues/14)
+- `@endpoint` decorator now provides 4 more methods [#28](https://github.com/spearhead-ea/island/issues/28)
   - `@endpoint('GET /test')` still works
   - `@endpoint.get('/test')` - You can omit the GET method
   - `@endpoint.post('/test')` - You can omit the POST method
