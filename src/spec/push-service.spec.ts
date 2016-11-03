@@ -40,6 +40,12 @@ describe('PushService test : ', () => {
   afterAll(done => {
     pushService.unbindExchange(destination_exchange, source_exchange)
     .then(() =>
+      pushService.deleteExchange(destination_exchange)
+    )
+    .then(() => 
+        pushService.deleteExchange(source_exchange)
+    )
+    .then(() =>
       pushService.purge()
     )
     .then(() => amqpChannelPool.purge())
@@ -59,6 +65,21 @@ describe('PushService test : ', () => {
     }).then(() => {
         //console.log("========= send : ", msg);  
         return pushService.unicast(source_exchange, msg);
+    })
+    .then(done, done.fail);
+  });
+
+  it('push test #2: multicast test', done => {
+    let msg = 'testMessage';
+    //let pattern = "pattern";
+    amqpChannelPool.usingChannel(channel => {
+        return channel.consume(destination_queue, (content) => {        
+            //console.log("========= dest_que : ", msgpack.decode(content.content));  
+            expect(msgpack.decode(content.content)).toBe('testMessage');
+        })
+    }).then(() => {
+        //console.log("========= send : ", msg);  
+        return pushService.multicast(source_exchange, msg);
     })
     .then(done, done.fail);
   });
