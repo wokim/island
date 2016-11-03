@@ -84,4 +84,42 @@ describe('PushService test : ', () => {
     .then(done, done.fail);
   });
 
+  it('push test #3: msgpack Error test', () => {
+    expect(() => {
+        new MessagePack();
+    }).toThrow();
+  });
+
+  it('push test #4: msgpack Encode test', () => {
+    expect(() => {
+      msgpack.encode(undefined);
+    }).toThrow();
+  });
+ 
+  it('push test #5: msgpack Encode Date test', done => {
+    let content = new Date();
+    //console.log("------ date : ", content);
+    return Promise.try(() => {
+      msgpack.encode(content);
+    })
+    .catch(err => {
+      console.log("msgpack Encode Date test : ", err);
+      return;
+    })
+    .then(done, done.fail); 
+  });
+
+  it('push test #6: msgpack Encode Error test', done => {
+    let content = new Error("test Err");
+    //console.log("------ Err : ", content);
+    return Promise.try(() => {
+      msgpack.encode(content);
+    })
+    .catch(err => {
+      console.log("msgpack Encode Error test : ", err);
+      return;
+    })
+    .then(done, done.fail); 
+  });
+  
 });
