@@ -10,6 +10,7 @@ export class AbstractError extends Error {
   public stack: any;
   public extra: any;
   public occurredIn: string;
+  public tattoo: string;
 
   constructor(public errorType: ErrorType,
               public errorNumber: number,

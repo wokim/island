@@ -368,7 +368,11 @@ export default class RPCService {
     await this.channelPool.usingChannel(channel => {
       return Promise.resolve(channel.sendToQueue(name, content, options));
     });
-    return await this.markTattoo(name, correlationId, tattoo, ns, opts);
+    return await this.markTattoo(name, correlationId, tattoo, ns, opts)
+    .catch((err) => {
+      err.tattoo = tattoo;
+      throw err;
+    })
   }
 
   private markTattoo(name: string, corrId: any, tattoo: any, ns: any, opts: any): Promise<any> {
