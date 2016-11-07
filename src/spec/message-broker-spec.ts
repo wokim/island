@@ -49,6 +49,15 @@ describe('msg-broker test:', () => {
     }).catch(err => done.fail(err));
   });
 
+  it('can send a pattern message #3', done => {
+    brokerService1.subscribeFanout('#.ccc', msg => {
+      expect(msg.hello).toBe('world');
+      brokerService1.unsubscribeFanout('#.ccc').then(() => done());
+    }).then(() => {
+      brokerService2.publish(pattern, {hello: 'world'});
+    }).catch(err => done.fail(err));
+  })
+
   afterAll(done => {
     brokerService1.purge()
       .then(() => brokerService2.purge())

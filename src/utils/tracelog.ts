@@ -75,4 +75,12 @@ export class TraceLog {
       });
     });
   }
+
+  static async purge(): Promise<any> {
+    if (!TraceLog.channelPool) return;
+    
+    await TraceLog.channelPool.purge();
+    delete(TraceLog.channelPool);
+    return Promise.resolve();
+  }
 }

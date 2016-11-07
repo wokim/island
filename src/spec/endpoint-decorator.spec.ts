@@ -7,6 +7,12 @@ function fakeDecorate(decorator) {
   return (target.constructor as any)._endpointMethods[0];
 }
 
+function fakeDecorate2(decorator) {
+  const desc = {value: {options: {}}};
+  decorator({}, null, desc);
+  return desc.value;
+}
+
 describe('@endpoint', () => {
   it('should be decorator itself', () => {
     class XX {
@@ -29,4 +35,9 @@ describe('@endpoint', () => {
     expect(() => fakeDecorate(island.endpoint.get('get /test')).name).toThrowError(FatalError, /.*REDECLARED.*/);
     expect(() => fakeDecorate(island.endpoint.get('POST /test')).name).toThrowError(FatalError, /.*REDECLARED.*/);
   });
+  it('auth, admin, devonly Test ', () => {    
+    expect(fakeDecorate2(island.auth(10))).toEqual({ options: { level: 10 } });
+    expect(fakeDecorate2(island.admin)).toEqual({ options: { level: 9, admin: true } });
+    expect(fakeDecorate2(island.devonly)).toEqual({ options: { developmentOnly: true } });
+  })
 });
