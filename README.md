@@ -13,6 +13,14 @@ This is a branch for preparing release 1.0 - check the [milestone](https://githu
 [![Code Climate](https://codeclimate.com/github/spearhead-ea/island/badges/gpa.svg)](https://codeclimate.com/github/spearhead-ea/island)
 [![Issue Count](https://codeclimate.com/github/spearhead-ea/island/badges/issue_count.svg)](https://codeclimate.com/github/spearhead-ea/island)
 
+
+## Support
+
+- RPC pattern
+- Event pattern
+- Chain contexts with unique UUID per each request
+
+
 ## Changes in v1.0.0
 
 - `Loggers` is no longer a part of `island` -> [island-loggers](https://github.com/spearhead-ea/island-loggers) [#14](https://github.com/spearhead-ea/island/issues/14)
