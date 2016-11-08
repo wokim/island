@@ -1,0 +1,6 @@
+exclude_paths:
+- spec/**/*
+- "typings/**/*"
+- node_modules/
+- dist/
+- coverage/
