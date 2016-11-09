@@ -1,5 +1,7 @@
 import translateSchemaType from '../middleware/schema-types'
 import Promise = require('bluebird')
+import * as island from '../controllers/endpoint-decorator';
+import { sanitize, validate } from '../middleware/schema.middleware'
 
 describe('Schema-types test:', () => {
 
@@ -81,5 +83,38 @@ describe('Schema-types test:', () => {
     })
     .then(done, done.fail);   
   })
+
+  it(`should convert query sanitization`, () => {
+    
+    const result = sanitize(island.sanitize.sanitize({
+      'aid?': island.sanitize.ObjectId,
+      'vcode!': 1,
+      'dcode!': 1,
+      name: String,
+      slot: 1,
+      cider: island.sanitize.Cider,
+      number1: island.sanitize.NumberOrQuery,
+      number2: island.sanitize.NumberOrQuery
+    }), {
+      'aid': 'tesssdfsdfds',
+      vcode: 2,
+      name: 'test',
+      slot: 4,
+      cider: '0.0.0.0/24',
+      number1: 1,
+      number2: {"$gt": "234"}
+    });
+    
+    expect(result).toEqual({
+      aid: 'tesssdfsdfds',
+      vcode: 2,
+      dcode: 1,
+      name: 'test',
+      slot: 4,
+      cider: '0.0.0.0/24',
+      number1: 1,
+      number2: { '$gt': 234 } 
+    });
+  });
 
 })
