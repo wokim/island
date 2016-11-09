@@ -269,6 +269,7 @@ export default class RPCService {
             }           
           })
           .then(res => {
+            logger.debug(`responses ${JSON.stringify(res)}`);
             log.end();
             if (rpcOptions) {
               if (_.get(rpcOptions, 'schema.result.sanitization')) {
