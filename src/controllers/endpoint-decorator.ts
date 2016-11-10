@@ -335,15 +335,15 @@ export namespace validate {
 
   export interface __String {
     exactLength?: number;
-    eq?: [string] | string;
-    ne?: [string] | string;
+    eq?: Array<string> | string;
+    ne?: Array<string> | string;
   }
 
 
   export class _String implements __String {
     exactLength: number;
-    eq: [string] | string;
-    ne: [string] | string;
+    eq: Array<string> | string;
+    ne: Array<string> | string;
 
     constructor ({ exactLength, eq, ne }: __String) {
       this.exactLength = exactLength;

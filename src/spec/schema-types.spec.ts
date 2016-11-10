@@ -117,4 +117,50 @@ describe('Schema-types test:', () => {
     });
   });
 
+  it(`test validation for string array types `, () => {
+    const GameModeArray1:string[] = ['ITEMINDIVIDUAL', 'ITEMTEAM', 'SPEEDINDIVIDUAL', 'SPEEDTEAM'];
+    const GameModeArray2:[string] = ['ITEMINDIVIDUAL', 'ITEMTEAM', 'SPEEDINDIVIDUAL', 'SPEEDTEAM'];
+
+    const result1 = island.validate.validate({'gameMode!': island.validate.String({eq: GameModeArray1})});
+    expect(result1).toEqual({ 
+      type: 'object',
+      properties: { gameMode: { optional: false, type: 'string', eq: GameModeArray1 } } 
+    });
+    //console.log("========", result1 );
+
+    const result2 = island.validate.validate({'gameMode!': island.validate.String({eq: GameModeArray1})});
+    expect(result2).toEqual({ 
+      type: 'object',
+      properties: { gameMode: { optional: false, type: 'string', eq: GameModeArray2 } } 
+    });
+    //console.log("========", result1 );
+
+    const result3 = island.validate.validate({'gameMode!': island.validate.String({eq: GameModeArray2})});
+    expect(result3).toEqual({ 
+      type: 'object',
+      properties: { gameMode: { optional: false, type: 'string', eq: GameModeArray1 } } 
+    });
+    //console.log("========", result1 );
+
+    const result4 = island.validate.validate({'gameMode!': island.validate.String({eq: GameModeArray2})});
+    expect(result4).toEqual({ 
+      type: 'object',
+      properties: { gameMode: { optional: false, type: 'string', eq: GameModeArray2 } } 
+    });
+    //console.log("========", result1 );
+
+    const result5 = island.validate.validate({'gameMode!': island.validate.String({eq: ['ITEMINDIVIDUAL', 'ITEMTEAM', 'SPEEDINDIVIDUAL', 'SPEEDTEAM']})});
+    expect(result5).toEqual({ 
+      type: 'object',
+      properties: { gameMode: { optional: false, type: 'string', eq: GameModeArray1 } } 
+    });
+    //console.log("========", result2 );   
+    const result6 = island.validate.validate({'gameMode!': island.validate.String({eq: ['ITEMINDIVIDUAL', 'ITEMTEAM', 'SPEEDINDIVIDUAL', 'SPEEDTEAM']})});
+    expect(result6).toEqual({ 
+      type: 'object',
+      properties: { gameMode: { optional: false, type: 'string', eq: GameModeArray2 } } 
+    });
+    //console.log("========", result2 );  
+  });
+
 })
