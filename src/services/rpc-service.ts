@@ -209,7 +209,7 @@ export default class RPCService {
   }
 
   public purge() {
-    //todo: cancel consume
+    // TODO: cancel consume
     return Promise.resolve();
   }
 

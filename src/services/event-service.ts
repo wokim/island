@@ -65,21 +65,21 @@ export class EventService {
     return Promise.resolve(channel.consume(queue, msg => {
       if (!msg) {
         logger.error(`consume was canceled unexpectedly`);
-        //todo: handle unexpected cancel
+        // TODO: handle unexpected cancel
         return;
       }
       Bluebird.resolve(this.handleMessage(msg))
         .catch(e => {
           logger.error(`error on handling event: ${e}`);
-          //todo: define island error and publish log.eventError
+          // TODO: define island error and publish log.eventError
         })
         .finally(() => {
           channel.ack(msg);
-          //todo: fix me. we're doing ACK always even if promise rejected.
-          //todo: how can we handle the case subscribers succeeds or fails partially
+          // TODO: fix me. we're doing ACK always even if promise rejected.
+          // TODO: how can we handle the case subscribers succeeds or fails partially
         });
     }));
-    //todo: save channel and consumer tag
+    // TODO: save channel and consumer tag
   }
 
   private handleMessage(msg: Message): Promise<any> {
@@ -112,7 +112,7 @@ export class EventService {
   }
 
   purge(): Promise<any> {
-    //todo: cancel consume
+    // TODO: cancel consume
     return Promise.resolve();
   }
 
@@ -148,7 +148,7 @@ export class EventService {
     });
   }
 
-  //todo: implement unsubscribe
+  // TODO: implement unsubscribe
 
   publishEvent<T extends Event<U>, U>(exchange: string, event: T): Promise<any>;
   publishEvent<T extends Event<U>, U>(event: T): Promise<any>;
