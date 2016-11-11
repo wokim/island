@@ -1,6 +1,6 @@
 import * as _ from 'lodash';
 import * as fs from 'fs';
-import * as Promise from 'bluebird';
+import * as Bluebird from 'bluebird';
 
 import { IAbstractAdapter } from './adapters/abstract-adapter';
 import ListenableAdapter, { IListenableAdapter } from './adapters/listenable-adapter';

@@ -1,5 +1,7 @@
+tasks.json
 package
 island-*.tgz
+.nvmrc
 
 # Logs
 logs

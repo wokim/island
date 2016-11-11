@@ -1,6 +1,6 @@
 import RabbitMqAdapter from './rabbitmq-adapter';
 import MessageBrokerService from '../../services/message-broker-service';
-import * as Promise from 'bluebird';
+import * as Bluebird from 'bluebird';
 
 export default class MessageBrokerAdapter extends RabbitMqAdapter<MessageBrokerService> {
   /**

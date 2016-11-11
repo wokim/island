@@ -1,4 +1,4 @@
-import Promise = require('bluebird');
+import Bluebird = require('bluebird');
 import { AmqpChannelPoolService } from '../services/amqp-channel-pool-service';
 import PushService from '../services/push-service';
 import MessagePack from '../utils/msgpack';
@@ -99,7 +99,7 @@ describe('PushService test : ', () => {
   it('push test #5: msgpack Encode Date test', done => {
     let content = new Date();
     //console.log("------ date : ", content);
-    return Promise.try(() => {
+    return Bluebird.try(() => {
       msgpack.encode(content);
     })
     .catch(err => {
@@ -112,7 +112,7 @@ describe('PushService test : ', () => {
   it('push test #6: msgpack Encode Error test', done => {
     let content = new Error("test Err");
     //console.log("------ Err : ", content);
-    return Promise.try(() => {
+    return Bluebird.try(() => {
       msgpack.encode(content);
     })
     .catch(err => {

@@ -1,7 +1,7 @@
 'use strict';
 
 //import * as amqp from 'amqplib';
-import * as Promise from 'bluebird';
+import * as Bluebird from 'bluebird';
 import ListenableAdapter from '../listenable-adapter';
 import PushService from '../../services/push-service';
 import {RabbitMqAdapterOptions} from './rabbitmq-adapter';

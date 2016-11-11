@@ -1,5 +1,5 @@
 import AbstractAdapter from '../abstract-adapter';
-import * as Promise from 'bluebird';
+import * as Bluebird from 'bluebird';
 import { AmqpChannelPoolService, AmqpOptions } from '../../services/amqp-channel-pool-service';
 
 export class AmqpChannelPoolAdapter extends AbstractAdapter<AmqpChannelPoolService, AmqpOptions> {

@@ -1,7 +1,7 @@
 const cls = require('continuation-local-storage');
 
 import * as restify from 'restify';
-import * as Promise from 'bluebird';
+import * as Bluebird from 'bluebird';
 import * as _ from 'lodash';
 import * as os from 'os';
 import * as amqp from 'amqplib';
@@ -51,18 +51,20 @@ class RpcResponse {
     };
 
     return new Buffer(JSON.stringify(res, (k, v: AbstractError | number | boolean) => {
+      // TODO instanceof Error should AbstractError
       if (v instanceof Error) {
+        const e = v as AbstractError;
         return {
-          name: v.name,
-          message: v.message,
-          stack: v.stack,
-          statusCode: v.statusCode,
-          errorType: v.errorType,
-          errorCode: v.errorCode,
-          errorNumber: v.errorNumber,
-          errorKey: v.errorKey,
-          debugMsg: v.debugMsg,
-          extra: v.extra,
+          name: e.name,
+          message: e.message,
+          stack: e.stack,
+          statusCode: e.statusCode,
+          errorType: e.errorType,
+          errorCode: e.errorCode,
+          errorNumber: e.errorNumber,
+          errorKey: e.errorKey,
+          debugMsg: e.debugMsg,
+          extra: e.extra,
           occurredIn: serviceName
         };
       }
@@ -114,7 +116,7 @@ function enterScope(properties: any, func): Promise<any> {
       _.each(properties, (value, key) => {
         ns.set(key, value);
       });
-      Promise.try(func).then(resolve).catch(reject);
+      Bluebird.try(func).then(resolve).catch(reject);
     });
   });
 }
@@ -246,13 +248,13 @@ export default class RPCService {
 
         const dohook = async (type: RpcHookType, content) => {
           if (this.hooks[type]) {
-            return Promise.reduce(this.hooks[type], async (content, hook) => await hook(content), content);
+            return Bluebird.reduce(this.hooks[type], async (content, hook) => await hook(content), content);
           }
           return content;
         }
-        // Should wrap with Promise.try while handler sometimes returns ES6 Promise which doesn't support timeout.
+        // Should wrap with Bluebird.try while handler sometimes returns ES6 Promise which doesn't support timeout.
         const options: amqp.Options.Publish = { correlationId: msg.properties.correlationId, headers };
-        return Promise.try(async () => {
+        return Bluebird.try(async () => {
           let req = content;
           if (type == 'endpoint') {
             return await dohook(RpcHookType.PRE_ENDPOINT, req);

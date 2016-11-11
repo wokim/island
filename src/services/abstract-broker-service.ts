@@ -1,5 +1,5 @@
 import * as amqp from 'amqplib';
-import * as Promise from 'bluebird';
+import * as Bluebird from 'bluebird';
 import MessagePack from '../utils/msgpack';
 import { LogicError, FatalError, ISLAND } from '../utils/error';
 

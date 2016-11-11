@@ -1,7 +1,7 @@
 import { logger } from '../utils/logger';
 const cls = require('continuation-local-storage');
 import * as amqp from 'amqplib';
-import * as Promise from 'bluebird';
+import * as Bluebird from 'bluebird';
 
 export interface Event<T> {
   key: string;

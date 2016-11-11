@@ -1,4 +1,4 @@
-import * as Promise from 'bluebird';
+import * as Bluebird from 'bluebird';
 import * as _ from 'lodash';
 import { logger } from '../utils/logger';
 import { FatalError, ISLAND } from '../utils/error';

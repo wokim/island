@@ -1,5 +1,5 @@
 import * as amqp from 'amqplib';
-import * as Promise from 'bluebird';
+import * as Bluebird from 'bluebird';
 import * as _  from 'lodash';
 import * as uuid from 'node-uuid';
 import AbstractBrokerService, { IConsumerInfo } from './abstract-broker-service';
@@ -22,7 +22,7 @@ export default class MessageBrokerService extends AbstractBrokerService {
 
   initialize(): Promise<void> {
     if (this.initialized) return Promise.resolve();
-    return Promise.try(() => {
+    return Promise.resolve(Bluebird.try(() => {
         if (!this.roundRobinEventQ) throw new FatalError(ISLAND.FATAL.F0012_ROUND_ROBIN_EVENT_Q_IS_NOT_DEFINED, 'roundRobinEventQ is not defined');
       })
       .then(() => this.declareExchange(MessageBrokerService.EXCHANGE_NAME, 'topic', {durable: true}))
@@ -30,7 +30,7 @@ export default class MessageBrokerService extends AbstractBrokerService {
       .then(() => this.declareQueue(this.fanoutEventQ, {exclusive: true, autoDelete: true}))
       .then(() => {
         this.initialized = true;
-      });
+      }));
   }
 
   startConsume(): Promise<void> {
@@ -85,15 +85,15 @@ export default class MessageBrokerService extends AbstractBrokerService {
   }
   
   private checkInitialized(): Promise<void> {
-    return Promise.try(() => {
+    return Promise.resolve(Bluebird.try(() => {
       if (!this.initialized) throw new FatalError(ISLAND.FATAL.F0013_NOT_INITIALIZED, 'not initialized');
-    });
+    }));
   }
 
   private onMessage(msg: any, routingKey: string) {
     _.keys(this.handlers).forEach(pattern => {
       var matcher = this.matcher(pattern);
-      Promise.try(()=>{
+      Bluebird.try(()=>{
         if (matcher.test(routingKey)) this.handlers[pattern](msg, routingKey);
       }).catch(e => {
         logger.debug('[handle msg error]', e);
@@ -113,7 +113,7 @@ export default class MessageBrokerService extends AbstractBrokerService {
 
   private consumeQueues(handler: Handler, options?: any): Promise<IConsumerInfo[]> {
     if (!this.initialized) return Promise.reject(new FatalError(ISLAND.FATAL.F0014_NOT_INITIALIZED, 'Not initialized'));
-    return Promise.map([this.roundRobinEventQ, this.fanoutEventQ], queue => {
+    return Promise.resolve(Bluebird.map([this.roundRobinEventQ, this.fanoutEventQ], queue => {
       return this._consume(queue, msg => {
         let decodedParams;
         try {
@@ -128,7 +128,7 @@ export default class MessageBrokerService extends AbstractBrokerService {
         }
         return Promise.resolve(0);
       }, 'MSG-BROKER', options);
-    });
+    }));
   }
 
   private cancelConsumes(consumeInfos: IConsumerInfo[]): Promise<void> {
@@ -136,7 +136,7 @@ export default class MessageBrokerService extends AbstractBrokerService {
       .then(() => {
         if (!consumeInfos) throw new FatalError(ISLAND.FATAL.F0015_TAG_IS_UNDEFINED, 'Tag is undefined');
       })
-      .then(() => Promise.map(consumeInfos, consumeInfo => this._cancel(consumeInfo)))
+      .then(() => Bluebird.map(consumeInfos, consumeInfo => this._cancel(consumeInfo)))
       .then(() => {});
   }
 }

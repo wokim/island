@@ -1,4 +1,4 @@
-import * as Promise from 'bluebird';
+import * as Bluebird from 'bluebird';
 
 export interface DeferredTask {
   (): any;
@@ -22,8 +22,8 @@ export class ScopeExit {
     return this;
   }
 
-  disposer(): Promise.Disposer<ScopeExit> {
-    return Promise.resolve(this).disposer(async (result, promise) => {
+  disposer(): Bluebird.Disposer<ScopeExit> {
+    return Bluebird.resolve(this).disposer(async (result, promise) => {
       let tasks: DeferredTask[];
       if (promise.isFulfilled()) {
         tasks = this.tasksOnFulfilled;

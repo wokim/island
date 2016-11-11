@@ -1,5 +1,5 @@
 import translateSchemaType from '../middleware/schema-types'
-import Promise = require('bluebird')
+import Bluebird = require('bluebird')
 import * as island from '../controllers/endpoint-decorator';
 import { sanitize, validate } from '../middleware/schema.middleware'
 
@@ -8,7 +8,7 @@ describe('Schema-types test:', () => {
   it('schema-type test #1: translate : object', done => {
     let schema = {type: 'object', 
           properties:{name: {type: 'string' }}}; 
-    return Promise.try(() => {
+    return Bluebird.try(() => {
       translateSchemaType(schema);    
     })
     .then(() => expect(typeof(schema)).toEqual('object'))
@@ -27,7 +27,7 @@ describe('Schema-types test:', () => {
       type : 'string',
       pattern : /^[a-f\d]{24}$/i
     }
-    return Promise.try(() => {
+    return Bluebird.try(() => {
       translateSchemaType(schema);    
     })
     .then(() => expect(schema).toEqual(target))
@@ -46,7 +46,7 @@ describe('Schema-types test:', () => {
       type : 'string',
       pattern : /^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(\d|[1-2]\d|3[0-2]))$/
     }
-    return Promise.try(() => {
+    return Bluebird.try(() => {
       translateSchemaType(schema);    
     })
     .then(() => expect(schema).toEqual(target))
@@ -72,7 +72,7 @@ describe('Schema-types test:', () => {
         '$gt': { type: 'number', optional: true }
       }
     }
-    return Promise.try(() => {
+    return Bluebird.try(() => {
       translateSchemaType(schema);    
     })
     //.then(() => expect(schema).toContain(target))

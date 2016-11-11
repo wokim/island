@@ -1,7 +1,7 @@
 'use strict';
 
 import * as amqp from 'amqplib';
-import * as Promise from 'bluebird';
+import * as Bluebird from 'bluebird';
 import MessagePack from '../utils/msgpack';
 import { AmqpChannelPoolService } from './amqp-channel-pool-service';
 import _debug = require('debug');
@@ -52,7 +52,7 @@ export default class PushService {
   }
 
   private _deleteExchange(channel: amqp.Channel, exchanges: string[], options) {
-    return Promise.reduce(exchanges, (total, exchange) => {
+    return Bluebird.reduce(exchanges, (total, exchange) => {
       debug(`[INFO] delete exchange's name ${exchange}`)
       return Promise.resolve(channel.deleteExchange(exchange, options));
     }, 0);

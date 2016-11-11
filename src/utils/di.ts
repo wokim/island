@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import * as Promise from 'bluebird';
+import * as Bluebird from 'bluebird';
 import { logger } from '../utils/logger';
 import * as _ from 'lodash';
 import * as inversify from 'inversify';
@@ -16,7 +16,7 @@ export namespace Di {
   };
 
   export interface DisposerFactory<T> {
-    (resource: T): Promise.Disposer<T>;
+    (resource: T): Bluebird.Disposer<T>;
   }
 
   export interface ScopeResource {
@@ -76,7 +76,7 @@ export namespace Di {
     private kernel: inversify.interfaces.Kernel;
     private objToBindScopeContext: {[name: string]: any};
     private injections: InjectionIdentifier<any>[] = [];
-    private disposers: {[name: string]: Promise.Disposer<any>} = {};
+    private disposers: {[name: string]: Bluebird.Disposer<any>} = {};
 
     constructor(kernel,
                 private scopeResources: ScopeResource[]) {
@@ -101,9 +101,9 @@ export namespace Di {
       this.kernel.restore();
 
       let disposerArray = _.map(this.disposers, disposer => disposer);
-      return Promise.using(disposerArray, () => {
+      return Promise.resolve(Bluebird.using(disposerArray, () => {
         return Promise.resolve<R>(task.apply(null, injectedObjects));
-      });
+      }));
     }
 
     private bindScopeContext(): void {

@@ -1,4 +1,4 @@
-import * as Promise from 'bluebird';
+import * as Bluebird from 'bluebird';
 import ListenableAdapter from '../listenable-adapter';
 import { EventService } from '../../services/event-service';
 import { AmqpChannelPoolAdapter } from './amqp-channel-pool-adapter';

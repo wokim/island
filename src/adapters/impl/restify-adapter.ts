@@ -1,5 +1,5 @@
 import * as restify from 'restify';
-import * as Promise from 'bluebird';
+import * as Bluebird from 'bluebird';
 import ListenableAdapter from '../listenable-adapter';
 import queryParser from './middlewares/restify-query-parser';
 
