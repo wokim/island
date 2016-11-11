@@ -52,7 +52,7 @@ describe('EventService', () => {
   });
 
   it('can unsubscribe the event', done => {
-    pending('not implemented');
+    pending('can unsubscribe the event - not implemented');
   });
 
   it('can subscribe the event by a pattern', done => {
