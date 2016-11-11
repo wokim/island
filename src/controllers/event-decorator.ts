@@ -7,7 +7,7 @@ import { EventSubscription, DEFAULT_SUBSCRIPTIONS } from '../utils/event';
 interface PatternSubscription {
   pattern: string;
   handler: EventHandler<any>;
-  options: SubscriptionOptions;
+  options?: SubscriptionOptions;
 }
 
 interface EventSubscriptionContainer<T extends Event<U>, U> {

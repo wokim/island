@@ -1,5 +1,6 @@
 import RabbitMqAdapter from './rabbitmq-adapter';
 import MessageBrokerService from '../../services/message-broker-service';
+import { FatalError, ISLAND } from '../../utils/error';
 
 export default class MessageBrokerAdapter extends RabbitMqAdapter<MessageBrokerService> {
   /**
@@ -8,6 +9,7 @@ export default class MessageBrokerAdapter extends RabbitMqAdapter<MessageBrokerS
    */
   public initialize() {
     return super.initialize().then(() => {
+      if (!this.options) throw new FatalError(ISLAND.FATAL.F0025_MISSING_ADAPTER_OPTIONS);
       this._adaptee = new MessageBrokerService(this.connection, this.options.serviceName || 'unknownService');
       return this._adaptee.initialize();
     });

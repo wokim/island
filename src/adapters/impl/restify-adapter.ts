@@ -1,6 +1,7 @@
 import * as restify from 'restify';
 import ListenableAdapter from '../listenable-adapter';
 import queryParser from './middlewares/restify-query-parser';
+import { FatalError, ISLAND } from '../../utils/error';
 
 export interface RestifyAdapterOptions {
   serverOptions?: restify.ServerOptions;
@@ -19,6 +20,7 @@ export default class RestifyAdapter extends ListenableAdapter<restify.Server, Re
    * @returns {Promise<void>}
    */
   public initialize() {
+    if (!this.options) throw new FatalError(ISLAND.FATAL.F0025_MISSING_ADAPTER_OPTIONS);
     let options = this.options;
     let server = restify.createServer(options.serverOptions || {});
 
@@ -45,6 +47,7 @@ export default class RestifyAdapter extends ListenableAdapter<restify.Server, Re
    */
   public listen() {
     return new Promise<void>((resolve, reject) => {
+      if (!this.options) throw new FatalError(ISLAND.FATAL.F0025_MISSING_ADAPTER_OPTIONS);
       this.adaptee.listen(this.options.port, (err) => {
         if (err) return reject(err);
         resolve();

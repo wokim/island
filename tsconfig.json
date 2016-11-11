@@ -8,7 +8,7 @@
     "moduleResolution": "node",
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "strictNullChecks": false,
+    "strictNullChecks": true,
     "noUnusedLocals": true
   },
   "exclude": [

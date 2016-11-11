@@ -56,10 +56,8 @@ export class AmqpChannelPoolService {
 
   acquireChannel(): Promise<amqp.Channel> {
     return Promise.resolve(Bluebird.try(() => {
-      if (this.idleChannels.length) {
-        return this.idleChannels.pop().channel;
-      }
-      return this.createChannel();
+      const info = this.idleChannels.pop();
+      return info && info.channel || this.createChannel();
     }));
   }
 
@@ -70,9 +68,11 @@ export class AmqpChannelPoolService {
       }
       if (this.idleChannels.length < this.options.poolSize) {
         this.idleChannels.push({channel:channel, date: this.date.getTime()});
-        while(this.idleChannels.length > 0 &&
-        this.idleChannels[0].date + AmqpChannelPoolService.EXPERATION_TIME < this.date.getTime()) {
-          this.idleChannels.shift().channel.close();
+        while(
+          this.idleChannels.length > 0 &&
+          this.idleChannels[0].date + AmqpChannelPoolService.EXPERATION_TIME < this.date.getTime()
+        ) {
+          this.idleChannels.shift()!.channel.close();
         }
         return;
       }

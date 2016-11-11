@@ -114,7 +114,7 @@ export namespace Di {
 
       if (this.objToBindScopeContext) {
         let scopeContext = this.kernel.get(ScopeContext);
-        _.forEach(this.objToBindScopeContext, (value, name) => {
+        _.forEach(this.objToBindScopeContext, (value, name: string) => {
           scopeContext.setOnce(name, value);
         });
       }
@@ -174,12 +174,16 @@ export namespace Di {
     return injectDecoratorFactory(target);
   }
 
-  function getParamType(target: any, key: string, index: number): any {
-    if (!Reflect.hasOwnMetadata(MetadataKeys.DesignParamTypes, target, key)) {
+  function getParamType(target: any, key?: string, index?: number): any {
+    // key! - hasOwnMetadata should take <string | symbol | undefined> as the key
+    //        but the spec has built before TypeScript 2.0
+    if (!Reflect.hasOwnMetadata(MetadataKeys.DesignParamTypes, target, key!)) {
       throw new FatalError(ISLAND.FATAL.F0018_ERROR_COLLECTING_META_DATA, 'error on collecting metadata. check compiler option emitDecoratorMetadata is true');
     }
-    let paramTypes = Reflect.getMetadata(MetadataKeys.DesignParamTypes, target, key);
-    return paramTypes[index];
+    // key! and index! - We can assume the properties is not `undefined` at this point
+    //                   after the condition check as above
+    const paramTypes = Reflect.getMetadata(MetadataKeys.DesignParamTypes, target, key!);
+    return paramTypes[index!];
   }
 
   function injectDecoratorFactory(id: InjectionIdentifier<any>) {

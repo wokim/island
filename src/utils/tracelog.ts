@@ -65,7 +65,7 @@ export class TraceLog {
   }
 
   shoot(): Promise<any> {
-    if (!TraceLog.channelPool) return;
+    if (!TraceLog.channelPool) return Promise.resolve();
     return Promise.resolve(Bluebird.try(() => {
       let content = new Buffer(JSON.stringify(this.data), 'utf8');
       let queueName = process.env.ISLAND_TRACEMQ_QUEUE || 'trace';

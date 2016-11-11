@@ -90,7 +90,7 @@ export class EventService {
     const subscribers = this.subscribers.filter(subscriber => subscriber.isRoutingKeyMatched(msg.fields.routingKey));
     const promise = Bluebird.map(subscribers, subscriber => {
       return enterScope({RequestTrackId: tattoo, Context: msg.fields.routingKey, Type: 'event'}, () => {
-        const log = new TraceLog(tattoo, msg.properties.timestamp);
+        const log = new TraceLog(tattoo, msg.properties.timestamp || 0) ;
         log.size = msg.content.byteLength;
         log.from = headers.from;
         log.to = { node: process.env.HOSTNAME, context: msg.fields.routingKey, island: this.serviceName, type: 'event' };
@@ -130,7 +130,7 @@ export class EventService {
       .then(subscriber => this.subscribe(subscriber, options)));
   }
 
-  private subscribe(subscriber: Subscriber, options: SubscriptionOptions): Promise<void> {
+  private subscribe(subscriber: Subscriber, options?: SubscriptionOptions): Promise<void> {
     options = options || {};
     let queue = options.everyNodeListen && this.fanoutQ || this.roundRobinQ;
     return this.channelPool.usingChannel(channel => {

@@ -89,6 +89,8 @@ $ npm install island --save
 
 ### Breaking Changes
 
+  - Require TypeScript@2.x
+    - `strictNullChecks`
 
 
 ## Building

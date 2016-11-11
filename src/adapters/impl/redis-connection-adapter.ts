@@ -1,6 +1,7 @@
 import redis = require('redis');
 import Promise = require('bluebird');
 import AbstractAdapter from '../abstract-adapter';
+import { FatalError, ISLAND } from '../../utils/error';
 
 export interface RedisAdapterOptions {
   port: number;
@@ -20,6 +21,7 @@ export default class RedisConnectionAdapter extends AbstractAdapter<redis.RedisC
    * @override
    */
   public initialize() {
+    if (!this.options) throw new FatalError(ISLAND.FATAL.F0025_MISSING_ADAPTER_OPTIONS);
     let options = this.options;
 
     return new Promise<void>((resolve, reject) => {
