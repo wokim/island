@@ -2,7 +2,6 @@ import * as amqp from 'amqplib';
 import * as Bluebird from 'bluebird';
 import MessagePack from '../utils/msgpack';
 import { AmqpChannelPoolService } from './amqp-channel-pool-service';
-import * as _ from 'lodash';
 import { logger } from '../utils/logger';
 
 export default class PushService {

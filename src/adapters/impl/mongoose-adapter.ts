@@ -1,5 +1,4 @@
 import * as mongoose from 'mongoose';
-import * as Bluebird from 'bluebird';
 import AbstractAdapter from '../abstract-adapter';
 
 export interface MongooseAdapterOptions {

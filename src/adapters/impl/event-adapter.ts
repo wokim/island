@@ -1,8 +1,7 @@
-import * as Bluebird from 'bluebird';
 import ListenableAdapter from '../listenable-adapter';
 import { EventService } from '../../services/event-service';
 import { AmqpChannelPoolAdapter } from './amqp-channel-pool-adapter';
-import { LogicError, FatalError, ISLAND } from '../../utils/error';
+import { FatalError, ISLAND } from '../../utils/error';
 
 export interface EventAdapterOptions {
   amqpChannelPoolAdapter: AmqpChannelPoolAdapter;

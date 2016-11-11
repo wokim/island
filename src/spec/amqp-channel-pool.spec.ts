@@ -1,5 +1,3 @@
-import * as _ from 'lodash';
-
 import { AmqpChannelPoolService } from '../services/amqp-channel-pool-service';
 
 describe('AmqpChannelPool', () => {

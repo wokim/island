@@ -126,7 +126,6 @@ export class EventService {
   subscribePattern(pattern: string,
                    handler: EventHandler<Event<any>>,
                    options?: SubscriptionOptions): Promise<void> {
-    const ns = cls.getNamespace('app');
     return Promise.resolve(Bluebird.try(() => new PatternSubscriber(handler, pattern))
       .then(subscriber => this.subscribe(subscriber, options)));
   }

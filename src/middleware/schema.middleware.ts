@@ -1,9 +1,7 @@
-import * as restify from 'restify';
-import * as _ from 'lodash';
 import { logger } from '../utils/logger';
 import translateSchemaType from './schema-types';
 import { RpcRequest } from '../services/rpc-service';
-import { LogicError, FatalError, ISLAND } from '../utils/error';
+import { LogicError, ISLAND } from '../utils/error';
 
 const inspector = require('schema-inspector');
 

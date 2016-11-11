@@ -1,9 +1,7 @@
-import * as Bluebird from 'bluebird';
-import RabbitMqAdapter from './rabbitmq-adapter';
 import RPCService, { RpcHookType, RpcHook } from '../../services/rpc-service';
 import ListenableAdapter from '../listenable-adapter';
 import { AmqpChannelPoolAdapter } from './amqp-channel-pool-adapter';
-import { LogicError, FatalError, ISLAND } from '../../utils/error';
+import { FatalError, ISLAND } from '../../utils/error';
 
 export interface RPCAdapterOptions {
   amqpChannelPoolAdapter: AmqpChannelPoolAdapter;

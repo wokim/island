@@ -1,7 +1,7 @@
 import * as Bluebird from 'bluebird';
 import AbstractAdapter, { IAbstractAdapter } from './abstract-adapter';
 import AbstractController from '../controllers/abstract-controller';
-import { LogicError, FatalError, ISLAND } from '../utils/error';
+import { FatalError, ISLAND } from '../utils/error';
 /**
  * IListenableAdapter
  * @interface

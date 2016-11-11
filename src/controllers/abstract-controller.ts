@@ -1,6 +1,3 @@
-import * as Bluebird from 'bluebird';
-import * as _ from 'lodash';
-
 /**
  * AbstractController<T>
  * @abstract

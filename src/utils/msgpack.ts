@@ -1,5 +1,4 @@
 import * as msgpack5 from 'msgpack5';
-import * as mongoose from 'mongoose';
 import bl = require('bl');
 import { logger } from '../utils/logger';
 import { LogicError, FatalError, ISLAND } from '../utils/error';

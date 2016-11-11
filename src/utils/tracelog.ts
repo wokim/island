@@ -1,4 +1,3 @@
-import { logger } from '../utils/logger';
 import * as Bluebird from 'bluebird';
 import { AmqpChannelPoolService } from '../services/amqp-channel-pool-service';
 

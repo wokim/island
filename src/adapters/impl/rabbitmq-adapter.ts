@@ -1,5 +1,4 @@
 import * as amqp from 'amqplib';
-import * as Bluebird from 'bluebird';
 import ListenableAdapter from '../listenable-adapter';
 
 export interface RabbitMqAdapterOptions {

@@ -1,12 +1,9 @@
 'use strict';
 
-//import * as amqp from 'amqplib';
-import * as Bluebird from 'bluebird';
 import ListenableAdapter from '../listenable-adapter';
 import PushService from '../../services/push-service';
-import {RabbitMqAdapterOptions} from './rabbitmq-adapter';
 import { AmqpChannelPoolAdapter } from './amqp-channel-pool-adapter';
-import { LogicError, FatalError, ISLAND } from '../../utils/error';
+import { FatalError, ISLAND } from '../../utils/error';
 
 export interface PushAdapterOptions {
   amqpChannelPoolAdapter: AmqpChannelPoolAdapter;

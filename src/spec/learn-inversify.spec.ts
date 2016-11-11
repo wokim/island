@@ -54,10 +54,6 @@ class Baz {
   say() { return 'value'; }
 }
 
-interface IFoo {
-  name: string;
-}
-
 class Bar {
   constructor (@inject private foo: Foo) {
   }

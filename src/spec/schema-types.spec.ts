@@ -1,7 +1,7 @@
 import translateSchemaType from '../middleware/schema-types'
 import Bluebird = require('bluebird')
 import * as island from '../controllers/endpoint-decorator';
-import { sanitize, validate } from '../middleware/schema.middleware'
+import { sanitize } from '../middleware/schema.middleware'
 
 describe('Schema-types test:', () => {
 

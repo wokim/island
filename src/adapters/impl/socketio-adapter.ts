@@ -12,7 +12,6 @@ export default class SocketIOAdapter extends ListenableAdapter<SocketIO.Server, 
    * @override
    */
   public initialize() {
-    var options = this.options;
     this._adaptee = io({ transports: ['websocket', 'polling', 'flashsocket'] });
     return Promise.resolve();
   }

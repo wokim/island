@@ -5,7 +5,7 @@ import * as _ from 'lodash';
 import * as inversify from 'inversify';
 import ObjectWraper from './object-wrapper';
 import ObjectFactory from './object-factory';
-import { LogicError, FatalError, ISLAND } from '../utils/error';
+import { FatalError, ISLAND } from '../utils/error';
 
 export namespace Di {
 

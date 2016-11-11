@@ -7,7 +7,9 @@
     "outDir": "./dist",
     "moduleResolution": "node",
     "experimentalDecorators": true,
-    "emitDecoratorMetadata": true
+    "emitDecoratorMetadata": true,
+    "strictNullChecks": false,
+    "noUnusedLocals": true
   },
   "exclude": [
     "dist",

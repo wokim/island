@@ -1,7 +1,6 @@
 require('source-map-support').install();
 import RPCService, {RpcRequest} from '../services/rpc-service';
 import { RpcOptions } from '../controllers/rpc-decorator';
-import * as amqp from 'amqplib';
 import Bluebird = require('bluebird');
 import { AmqpChannelPoolService } from '../services/amqp-channel-pool-service';
 import { TraceLog } from '../utils/tracelog';

@@ -2,7 +2,6 @@ import { AmqpChannelPoolService } from '../services/amqp-channel-pool-service';
 import { EventService } from '../services/event-service';
 import { Event, PatternSubscriber } from '../services/event-subscriber';
 import { TraceLog } from '../utils/tracelog';
-import * as Bluebird from 'bluebird';
 
 class BaseEvent<T> implements Event<T> {
   publishedAt: Date;

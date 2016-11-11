@@ -4,11 +4,6 @@ import * as Bluebird from 'bluebird';
 import { logger } from '../utils/logger';
 import * as util from 'util';
 
-
-function bluebirdTry(fn) {
-  return Promise.resolve(Bluebird.try(fn));
-}
-
 export interface AmqpOptions {
   url: string;
   socketOptions?: {noDelay?: boolean, heartbeat?: number};

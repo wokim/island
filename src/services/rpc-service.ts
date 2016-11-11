@@ -1,6 +1,5 @@
 const cls = require('continuation-local-storage');
 
-import * as restify from 'restify';
 import * as Bluebird from 'bluebird';
 import * as _ from 'lodash';
 import * as os from 'os';
@@ -8,7 +7,7 @@ import * as amqp from 'amqplib';
 import uuid = require('node-uuid');
 
 import { AmqpChannelPoolService } from './amqp-channel-pool-service';
-import paramSchemaInspector, { sanitize, validate } from '../middleware/schema.middleware';
+import { sanitize, validate } from '../middleware/schema.middleware';
 import { RpcOptions } from '../controllers/rpc-decorator';
 
 import { logger } from '../utils/logger';
@@ -328,10 +327,6 @@ export default class RPCService {
   protected async _cancel(consumerInfo: IConsumerInfo): Promise<void> {
     await consumerInfo.channel.cancel(consumerInfo.tag);
     await this.channelPool.releaseChannel(consumerInfo.channel);
-  }
-
-  private rpcMessageExpander(name: string, msg: any): RpcRequest {
-    return { name: name, msg: msg, options: this.consumerInfosMap[name] ? this.consumerInfosMap[name].options : {} };
   }
 
   public async invoke<T, U>(name: string, msg: T, opts?: any): Promise<U>;

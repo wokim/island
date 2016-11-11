@@ -1,12 +1,10 @@
 import * as _ from 'lodash';
-import * as fs from 'fs';
-import * as Bluebird from 'bluebird';
 
 import { IAbstractAdapter } from './adapters/abstract-adapter';
 import ListenableAdapter, { IListenableAdapter } from './adapters/listenable-adapter';
 import { logger } from './utils/logger';
 import { bindImpliedServices } from './utils/di-bind';
-import { LogicError, FatalError, ISLAND } from './utils/error';
+import { FatalError, ISLAND } from './utils/error';
 
 /**
  * Create a new Islet.
