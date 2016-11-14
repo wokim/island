@@ -104,7 +104,7 @@ export namespace sanitize {
 
   export interface __String {
     def?: string;
-    rules?: _StringRules | [_StringRules];
+    rules?: _StringRules | _StringRules[];
     minLength?: number;
     maxLength?: number;
     strict?: boolean;
@@ -113,7 +113,7 @@ export namespace sanitize {
 
   export class _String implements __String {
     def?: string;
-    rules?: _StringRules | [_StringRules];
+    rules?: _StringRules | _StringRules[];
     minLength?: number;
     maxLength?: number;
     strict?: boolean;
@@ -127,7 +127,7 @@ export namespace sanitize {
     }
   }
 
-  export function String({def = undefined, rules = undefined, minLength = undefined, maxLength = undefined, strict = undefined}) {
+  export function String({def, rules, minLength, maxLength, strict}: __String) {
     return new _String({def, rules, minLength, maxLength, strict});
   }
 
