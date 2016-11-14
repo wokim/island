@@ -112,7 +112,7 @@ $ cd island
 Install prerequisites and dev dependencies:
 
 ```
-$ npm install -g gulp typescript@1
+$ npm install -g gulp typescript
 $ npm install
 ```
 
