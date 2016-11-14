@@ -11,6 +11,11 @@
     "strictNullChecks": true,
     "noUnusedLocals": true
   },
+  "include": [
+    "src/**/*",
+    "typings/winston/*",
+    "typings/msgpack5/*"
+  ],
   "exclude": [
     "dist",
     "node_modules",
