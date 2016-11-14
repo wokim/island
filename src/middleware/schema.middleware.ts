@@ -17,7 +17,9 @@ export function validate(subschema, target): boolean {
   if (!subschema) return true;
   translateSchemaType(subschema);
   const result = inspector.validate(subschema, target);
-  logger.notice(`Is result valid? ${result.valid} / ${result.format()}`);
+  if (!result.valid) {
+    logger.notice(`Is result valid? ${result.valid} / ${result.format()}`);
+  }
   return result.valid;
 }
 
