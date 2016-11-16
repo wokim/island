@@ -79,6 +79,7 @@ $ npm install island --save
 ### Changes
 
   - `Loggers` is no longer a part of `island` -> [island-loggers](https://github.com/spearhead-ea/island-loggers) [#14](https://github.com/spearhead-ea/island/issues/14)
+  - `Di` is no longer a part of `island` -> [island-di](https://github.com/spearhead-ea/island-di) [#16](https://github.com/spearhead-ea/island/issues/16)
   - `@endpoint` decorator now provides 4 more methods [#28](https://github.com/spearhead-ea/island/issues/28)
     - `@endpoint('GET /test')` still works
     - `@endpoint.get('/test')` - You can omit the GET method
