@@ -25,6 +25,7 @@
     "@types/jsonwebtoken": "^7.1.33",
     "@types/lodash": "^4.14.38",
     "@types/mongoose": "^4.5.41",
+    "@types/msgpack5": "^3.4.0",
     "@types/node-uuid": "0.0.28",
     "@types/qs": "^6.2.30",
     "@types/redis": "^0.12.32",
