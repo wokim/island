@@ -1,7 +1,4 @@
-import { logger } from '../utils/logger';
-const cls = require('continuation-local-storage');
 import * as amqp from 'amqplib';
-import * as Promise from 'bluebird';
 
 export interface Event<T> {
   key: string;
@@ -58,7 +55,7 @@ export class EventSubscriber extends Subscriber {
 
   handleEvent(content: any, msg: Message): Promise<any> {
     let event = new this.eventClass(content);
-    event.publishedAt = new Date(msg.properties.timestamp);
+    event.publishedAt = new Date(msg.properties.timestamp || 0);
     return Promise.resolve(this.handler(event));
   }
 }
@@ -92,7 +89,7 @@ export class PatternSubscriber extends Subscriber {
     return Promise.resolve(this.handler({
       key: msg.fields.routingKey, 
       args: content,
-      publishedAt: new Date(msg.properties.timestamp)
+      publishedAt: new Date(msg.properties.timestamp || 0)
     }));
   }
 }

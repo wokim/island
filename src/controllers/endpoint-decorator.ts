@@ -1,4 +1,3 @@
-import * as Promise from 'bluebird';
 import * as _ from 'lodash';
 import { logger } from '../utils/logger';
 import { FatalError, ISLAND } from '../utils/error';
@@ -81,10 +80,10 @@ export namespace sanitize {
 
 
   export class _Number implements __Number {
-    def: number;
-    min: number;
-    max: number;
-    strict: boolean;
+    def?: number;
+    min?: number;
+    max?: number;
+    strict?: boolean;
 
     constructor ({def, min, max, strict}: __Number) {
       this.def = def;
@@ -105,19 +104,19 @@ export namespace sanitize {
 
   export interface __String {
     def?: string;
-    rules?: _StringRules | [_StringRules];
+    rules?: _StringRules | _StringRules[];
     minLength?: number;
     maxLength?: number;
-    strict: boolean;
+    strict?: boolean;
   }
 
 
   export class _String implements __String {
-    def: string;
-    rules: _StringRules | [_StringRules]
-    minLength: number;
-    maxLength: number;
-    strict: boolean;
+    def?: string;
+    rules?: _StringRules | _StringRules[];
+    minLength?: number;
+    maxLength?: number;
+    strict?: boolean;
 
     constructor ({def, rules, minLength, maxLength, strict}: __String) {
       this.def = def;
@@ -128,13 +127,13 @@ export namespace sanitize {
     }
   }
 
-  export function String({def = undefined, rules = undefined, minLength = undefined, maxLength = undefined, strict = undefined}) {
+  export function String({def, rules, minLength, maxLength, strict}: __String) {
     return new _String({def, rules, minLength, maxLength, strict});
   }
 
 
   export class _Object {
-    properties: { [key: string]: SanitizePropertyTypes };
+    properties: { [key: string]: SanitizePropertyTypes } | undefined;
 
     constructor(obj?: { [key: string]: SanitizePropertyTypes }) {
       this.properties = obj;
@@ -221,11 +220,11 @@ export namespace sanitize {
   // 헷갈리니까 생략하면 기본값, !는 required, ?는 optional로 양쪽에서 동일한 규칙을 쓰도록 한다
   // [example] validate: { a: 1, 'b?': 1, 'c!': 1 } - required / optional / required
   // [example] sanitize: { a: 1, 'b?': 1, 'c!': 1 } - optional / optional / required
-  function sanitizeAsObject(obj: {[key: string]: SanitizePropertyTypes}) {
+  function sanitizeAsObject(obj: {[key: string]: SanitizePropertyTypes} | undefined) {
     if (!obj) return;
 
-    const properties: { [key: string]: SchemaInspectorProperty } = {};
-    _.each(obj, (value, key) => {
+    const properties: { [key: string]: SchemaInspectorProperty | undefined } = {};
+    _.each(obj, (value, key: string) => {
       const property: SchemaInspectorProperty = {optional: true};
       if (key.endsWith('?')) {
         property.optional = true;
@@ -310,12 +309,12 @@ export namespace validate {
 
 
   export class _Number implements __Number {
-    lt: number;
-    lte: number;
-    gt: number;
-    gte: number;
-    eq: number | number[];
-    ne: number;
+    lt?: number;
+    lte?: number;
+    gt?: number;
+    gte?: number;
+    eq?: number | number[];
+    ne?: number;
 
     constructor ({lt, lte, gt, gte, eq, ne}: __Number) {
       this.lt = lt;
@@ -341,9 +340,9 @@ export namespace validate {
 
 
   export class _String implements __String {
-    exactLength: number;
-    eq: Array<string> | string;
-    ne: Array<string> | string;
+    exactLength?: number;
+    eq?: Array<string> | string;
+    ne?: Array<string> | string;
 
     constructor ({ exactLength, eq, ne }: __String) {
       this.exactLength = exactLength;
@@ -359,9 +358,9 @@ export namespace validate {
 
 
   export class _Object {
-    properties: { [key: string]: ValidatePropertyTypes };
+    properties: { [key: string]: ValidatePropertyTypes } | undefined;
 
-    constructor(obj: { [key: string]: ValidatePropertyTypes }) {
+    constructor(obj: { [key: string]: ValidatePropertyTypes } | undefined) {
       this.properties = obj;
     }
   }
@@ -373,9 +372,9 @@ export namespace validate {
 
 
   export class _Array {
-    items: [ValidatePropertyTypes];
+    items: [ValidatePropertyTypes] | undefined;
 
-    constructor(items: [ValidatePropertyTypes]) {
+    constructor(items: [ValidatePropertyTypes] | undefined) {
       this.items = items;
     }
   }
@@ -447,7 +446,7 @@ export namespace validate {
     if (!obj) return;
 
     const properties: { [key: string]: SchemaInspectorProperty } = {};
-    _.each(obj, (value, key) => {
+    _.each(obj, (value, key: string) => {
       const property: SchemaInspectorProperty = {optional: false};
       if (key.endsWith('?')) {
         property.optional = true;
@@ -572,17 +571,24 @@ interface Endpoint {
 
 export interface EndpointDecorator {
   (name: string, endpointOptions?: EndpointOptions): (target, key, desc: PropertyDescriptor) => any;
-  get?: (name: string, endpointOptions?: EndpointOptions) => (target, key, desc: PropertyDescriptor) => any;
-  post?: (name: string, endpointOptions?: EndpointOptions) => (target, key, desc: PropertyDescriptor) => any;
-  put?: (name: string, endpointOptions?: EndpointOptions) => (target, key, desc: PropertyDescriptor) => any;
-  del?: (name: string, endpointOptions?: EndpointOptions) => (target, key, desc: PropertyDescriptor) => any;
+  get: (name: string, endpointOptions?: EndpointOptions) => (target, key, desc: PropertyDescriptor) => any;
+  post: (name: string, endpointOptions?: EndpointOptions) => (target, key, desc: PropertyDescriptor) => any;
+  put: (name: string, endpointOptions?: EndpointOptions) => (target, key, desc: PropertyDescriptor) => any;
+  del: (name: string, endpointOptions?: EndpointOptions) => (target, key, desc: PropertyDescriptor) => any;
 }
 
 // - 컨트롤러 메소드 하나에 여러 endpoint를 붙일 수 있다.
 //
 // [EXAMPLE]
 // @island.endpoint('GET /v2/blahblah', { level: 10, developmentOnly: true })
-export const endpoint: EndpointDecorator = makeEndpointDecorator();
+export const endpoint: EndpointDecorator = (() => {
+  const decorator: any = makeEndpointDecorator();
+  decorator.get = makeEndpointDecorator('GET');
+  decorator.post = makeEndpointDecorator('POST');
+  decorator.put = makeEndpointDecorator('PUT');
+  decorator.del = makeEndpointDecorator('DEL');
+  return decorator;
+})();
 
 function throwIfRedeclared(name) {
   const [method, uri] = name.split(' ');
@@ -614,11 +620,6 @@ function makeEndpointDecorator(method?: string) {
     };
   }
 }
-
-endpoint.get = makeEndpointDecorator('GET');
-endpoint.post = makeEndpointDecorator('POST');
-endpoint.put = makeEndpointDecorator('PUT');
-endpoint.del = makeEndpointDecorator('DEL');
 
 
 export function endpointController(registerer?: {registerEndpoint: (name: string, value: any) => Promise<any>}) {

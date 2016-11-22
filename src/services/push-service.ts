@@ -1,13 +1,8 @@
-'use strict';
-
 import * as amqp from 'amqplib';
-import * as Promise from 'bluebird';
+import * as Bluebird from 'bluebird';
 import MessagePack from '../utils/msgpack';
 import { AmqpChannelPoolService } from './amqp-channel-pool-service';
-import _debug = require('debug');
-import * as _ from 'lodash';
-
-let debug = _debug('ISLAND:SERVICES:PUSH');
+import { logger } from '../utils/logger';
 
 export default class PushService {
   private static DEFAULT_EXCHANGE_OPTIONS: any = {
@@ -52,8 +47,8 @@ export default class PushService {
   }
 
   private _deleteExchange(channel: amqp.Channel, exchanges: string[], options) {
-    return Promise.reduce(exchanges, (total, exchange) => {
-      debug(`[INFO] delete exchange's name ${exchange}`)
+    return Bluebird.reduce(exchanges, (total, exchange) => {
+      logger.debug(`delete exchange's name ${exchange}`)
       return Promise.resolve(channel.deleteExchange(exchange, options));
     }, 0);
   }
@@ -68,7 +63,7 @@ export default class PushService {
    * @returns {Promise<any>}
    */
   bindExchange(destination: string, source: string, pattern?: string, sourceType?: string, sourceOpts?: any) {
-    debug(`bind exchanges. (source:${source}) => destination:${destination}`);
+    logger.debug(`bind exchanges. (source:${source}) => destination:${destination}`);
     return this.channelPool.usingChannel(channel => {
       return channel.assertExchange(source, sourceType || 'fanout', sourceOpts || PushService.DEFAULT_EXCHANGE_OPTIONS)
         .then(() => channel.bindExchange(destination, source, pattern || '', {}));

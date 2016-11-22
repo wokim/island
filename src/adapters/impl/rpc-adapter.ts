@@ -1,9 +1,7 @@
-import * as Promise from 'bluebird';
-import RabbitMqAdapter from './rabbitmq-adapter';
 import RPCService, { RpcHookType, RpcHook } from '../../services/rpc-service';
 import ListenableAdapter from '../listenable-adapter';
 import { AmqpChannelPoolAdapter } from './amqp-channel-pool-adapter';
-import { LogicError, FatalError, ISLAND } from '../../utils/error';
+import { FatalError, ISLAND } from '../../utils/error';
 
 export interface RPCAdapterOptions {
   amqpChannelPoolAdapter: AmqpChannelPoolAdapter;
@@ -17,6 +15,7 @@ export default class RPCAdapter extends ListenableAdapter<RPCService, RPCAdapter
     this.hooks = [];
   }
   async initialize(): Promise<void> {
+    if (!this.options) throw new FatalError(ISLAND.FATAL.F0025_MISSING_ADAPTER_OPTIONS);
     this._adaptee = new RPCService(this.options.serviceName || 'unknownService');
     let amqpChannelPoolService = this.options.amqpChannelPoolAdapter.adaptee;
     if (!amqpChannelPoolService) throw new FatalError(ISLAND.FATAL.F0010_AMQP_CHANNEL_POOL_REQUIRED, 'AmqpChannelPoolService required');

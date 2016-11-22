@@ -7,8 +7,15 @@
     "outDir": "./dist",
     "moduleResolution": "node",
     "experimentalDecorators": true,
-    "emitDecoratorMetadata": true
+    "emitDecoratorMetadata": true,
+    "strictNullChecks": true,
+    "noUnusedLocals": true
   },
+  "include": [
+    "src/**/*",
+    "typings/winston/*",
+    "typings/msgpack5/*"
+  ],
   "exclude": [
     "dist",
     "node_modules",

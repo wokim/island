@@ -1,7 +1,6 @@
 import * as amqp from 'amqplib';
-import * as Promise from 'bluebird';
 import MessagePack from '../utils/msgpack';
-import { LogicError, FatalError, ISLAND } from '../utils/error';
+import { FatalError, ISLAND } from '../utils/error';
 
 export interface IConsumerInfo {
   channel: amqp.Channel;
@@ -71,10 +70,6 @@ export default class AbstractBrokerService {
   }
 
   protected _consume(key: string, handler: (msg) => Promise<any>, tag: string, options?: any): Promise<IConsumerInfo> {
-    let f = (message) => {
-      return String.fromCharCode(0x1b) + '[32m' + message + String.fromCharCode(0x1b) + '[0m';
-    };
-
     return this.call((channel: amqp.Channel) => {
       const myHandler = msg => {
         handler(msg).then(() => {

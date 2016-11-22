@@ -1,5 +1,5 @@
 import * as _ from 'lodash';
-import * as Promise from 'bluebird';
+import * as Bluebird from 'bluebird';
 import { Di } from './di';
 import PushService from '../services/push-service';
 
@@ -18,8 +18,8 @@ export class ResourcePush {
     return target;
   }
 
-  disposer(): Promise.Disposer<any> {
-    return Promise.resolve().disposer(async (result, promise) => {
+  disposer(): Bluebird.Disposer<any> {
+    return Bluebird.resolve().disposer(async (result, promise) => {
       if (!promise.isFulfilled()) return;
       for (let target of _.map(this.resourceTargets, i => i)) {
         await target.flush();

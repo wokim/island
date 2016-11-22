@@ -1,8 +1,7 @@
 require('source-map-support').install();
 import RPCService, {RpcRequest} from '../services/rpc-service';
 import { RpcOptions } from '../controllers/rpc-decorator';
-import * as amqp from 'amqplib';
-import Promise = require('bluebird');
+import Bluebird = require('bluebird');
 import { AmqpChannelPoolService } from '../services/amqp-channel-pool-service';
 import { TraceLog } from '../utils/tracelog';
 import paramSchemaInspector from '../middleware/schema.middleware'
@@ -140,7 +139,7 @@ describe('RPC test:', () => {
       options: rpcoptions
     }
     
-    return Promise.try(() => {
+    return Bluebird.try(() => {
       paramSchemaInspector(req);    
     })
     .catch(err => {

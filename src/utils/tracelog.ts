@@ -1,5 +1,4 @@
-import { logger } from '../utils/logger';
-import * as Promise from 'bluebird';
+import * as Bluebird from 'bluebird';
 import { AmqpChannelPoolService } from '../services/amqp-channel-pool-service';
 
 
@@ -66,14 +65,14 @@ export class TraceLog {
   }
 
   shoot(): Promise<any> {
-    if (!TraceLog.channelPool) return;
-    return Promise.try(() => {
+    if (!TraceLog.channelPool) return Promise.resolve();
+    return Promise.resolve(Bluebird.try(() => {
       let content = new Buffer(JSON.stringify(this.data), 'utf8');
       let queueName = process.env.ISLAND_TRACEMQ_QUEUE || 'trace';
       return TraceLog.channelPool.usingChannel(channel => {
         return Promise.resolve(channel.sendToQueue(queueName, content));
       });
-    });
+    }));
   }
 
   static async purge(): Promise<any> {

@@ -6,7 +6,7 @@ import { SubscriptionOptions } from '../services/event-service';
 export interface EventSubscription<T extends Event<U>, U> {
   eventClass: new (args: U) => T;
   handler: EventHandler<T>;
-  options: SubscriptionOptions;
+  options?: SubscriptionOptions;
 }
 
 export namespace Events {

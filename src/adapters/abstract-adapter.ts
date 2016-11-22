@@ -1,5 +1,4 @@
-import * as Promise from 'bluebird';
-import { LogicError, FatalError, ISLAND } from '../utils/error';
+import { FatalError, ISLAND } from '../utils/error';
 
 /**
  * IAbstractAdapter
@@ -19,10 +18,10 @@ export interface IAbstractAdapter {
  */
 export default class AbstractAdapter<T, U> implements IAbstractAdapter {
   protected _adaptee: T;
-  protected _options: U;
+  protected _options: U | undefined;
 
   public get adaptee(): T { return this._adaptee; }
-  protected get options(): U { return this._options; }
+  protected get options(): U | undefined { return this._options; }
 
   constructor(options?: U) {
     this._options = options;

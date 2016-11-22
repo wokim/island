@@ -1,5 +1,4 @@
-import * as Promise from 'bluebird';
-import { LogicError, FatalError, ISLAND } from '../utils/error';
+import { FatalError, ISLAND } from '../utils/error';
 
 export default class StaticDataLoader<T> {
   protected object: T;

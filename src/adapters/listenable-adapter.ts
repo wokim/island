@@ -1,7 +1,7 @@
-import * as Promise from 'bluebird';
+import * as Bluebird from 'bluebird';
 import AbstractAdapter, { IAbstractAdapter } from './abstract-adapter';
 import AbstractController from '../controllers/abstract-controller';
-import { LogicError, FatalError, ISLAND } from '../utils/error';
+import { FatalError, ISLAND } from '../utils/error';
 /**
  * IListenableAdapter
  * @interface
@@ -38,7 +38,7 @@ export default class ListenableAdapter<T, U> extends AbstractAdapter<T, U> imple
     return Promise.all(this._controllersClasses.map(ControllerClass => {
       let c = new ControllerClass(this._adaptee);
       this._controllers.push(c);
-      return Promise.try(() => c.initialize()).then(() => c.onInitialized());
+      return Bluebird.try(() => c.initialize()).then(() => c.onInitialized());
     }));
   }
 
@@ -51,8 +51,8 @@ export default class ListenableAdapter<T, U> extends AbstractAdapter<T, U> imple
   }
 
   public destroy(): any | Promise<any> {
-    return Promise.all(this._controllers.map(c => Promise.try(() => c.destroy())))
-      .then(() => Promise.all(this._controllers.map(c => Promise.try(() => c.onDestroy()))))
+    return Promise.all(this._controllers.map(c => Bluebird.try(() => c.destroy())))
+      .then(() => Promise.all(this._controllers.map(c => Bluebird.try(() => c.onDestroy()))))
       .then(() => {
         this._controllersClasses = [];
         this._controllers = [];

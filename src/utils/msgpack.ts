@@ -1,6 +1,4 @@
 import * as msgpack5 from 'msgpack5';
-import * as mongoose from 'mongoose';
-import bl = require('bl');
 import { logger } from '../utils/logger';
 import { LogicError, FatalError, ISLAND } from '../utils/error';
 
@@ -63,9 +61,8 @@ export default class MessagePack {
     }
   }
 
-  public decode<T>(buf: Buffer): T;
-  public decode<T>(buf: bl): T;
-  public decode<T>(buf: any): T {
-    return this.packer.decode<T>(buf);
+  public decode<T>(buf: any): T;
+  public decode<T>(buf: Buffer): T {
+    return this.packer.decode(buf);
   }
 }

@@ -1,6 +1,6 @@
 import * as _ from 'lodash';
 import * as amqp from 'amqplib';
-import * as Promise from 'bluebird';
+import * as Bluebird from 'bluebird';
 import { logger } from '../utils/logger';
 import * as util from 'util';
 
@@ -23,11 +23,11 @@ export class AmqpChannelPoolService {
   private options: AmqpOptions;
   private openChannels: amqp.Channel[] = [];
   private idleChannels: ChannelInfo[] = [];
-  private initResolver: Promise.Resolver<void>;
+  private initResolver: Bluebird.Resolver<void>;
   private date: Date;
 
   constructor() {
-    this.initResolver = Promise.defer<void>();
+    this.initResolver = Bluebird.defer<void>();
     this.date = new Date();
   }
 
@@ -43,11 +43,11 @@ export class AmqpChannelPoolService {
       })
       .catch(e => this.initResolver.reject(e));
 
-    return this.initResolver.promise;
+    return Promise.resolve(this.initResolver.promise);
   }
 
   waitForInit(): Promise<void> {
-    return this.initResolver.promise;
+    return Promise.resolve(this.initResolver.promise);
   }
 
   purge(): Promise<void> {
@@ -55,37 +55,37 @@ export class AmqpChannelPoolService {
   }
 
   acquireChannel(): Promise<amqp.Channel> {
-    return Promise.try(() => {
-      if (this.idleChannels.length) {
-        return this.idleChannels.pop().channel;
-      }
-      return this.createChannel();
-    });
+    return Promise.resolve(Bluebird.try(() => {
+      const info = this.idleChannels.pop();
+      return info && info.channel || this.createChannel();
+    }));
   }
 
   releaseChannel(channel: amqp.Channel): Promise<void> {
-    return Promise.try(() => {
+    return Promise.resolve(Bluebird.try(() => {
       if (!_.includes(this.openChannels, channel)) {
         return;
       }
       if (this.idleChannels.length < this.options.poolSize) {
         this.idleChannels.push({channel:channel, date: this.date.getTime()});
-        while(this.idleChannels.length > 0 &&
-        this.idleChannels[0].date + AmqpChannelPoolService.EXPERATION_TIME < this.date.getTime()) {
-          this.idleChannels.shift().channel.close();
+        while(
+          this.idleChannels.length > 0 &&
+          this.idleChannels[0].date + AmqpChannelPoolService.EXPERATION_TIME < this.date.getTime()
+        ) {
+          this.idleChannels.shift()!.channel.close();
         }
         return;
       }
       return channel.close();
-    });
+    }));
   }
 
   usingChannel<T>(task: (channel: amqp.Channel) => PromiseLike<T>): Promise<T> {
-    return Promise.using(this.getChannelDisposer(), task);
+    return Promise.resolve(Bluebird.using(this.getChannelDisposer(), task));
   }
 
-  getChannelDisposer(): Promise.Disposer<amqp.Channel> {
-    return this.acquireChannel()
+  getChannelDisposer(): Bluebird.Disposer<amqp.Channel> {
+    return Bluebird.resolve(this.acquireChannel())
       .disposer(channel => {
         this.releaseChannel(channel);
       });

@@ -47,13 +47,13 @@ export class AbstractFatalError extends AbstractError {
 
 export class LogicError extends AbstractLogicError {
   constructor(errorNumber: ISLAND.LOGIC, debugMsg?: string) {
-    super(errorNumber, debugMsg, 'ISLAND', ISLAND.LOGIC);
+    super(errorNumber, debugMsg || '', 'ISLAND', ISLAND.LOGIC);
   }
 }
 
 export class FatalError extends AbstractFatalError {
   constructor(errorNumber: ISLAND.FATAL, debugMsg?: string) {
-    super(errorNumber, debugMsg, 'ISLAND', ISLAND.FATAL);
+    super(errorNumber, debugMsg || '', 'ISLAND', ISLAND.FATAL);
   }
 }
 
@@ -91,7 +91,9 @@ export namespace ISLAND {
     F0021_NOT_IMPLEMENTED_ERROR               = 21,
     F0022_NOT_INITIALIZED_EXCEPTION           = 22,
     F0023_RPC_TIMEOUT                         = 23,
-    F0024_ENDPOINT_METHOD_REDECLARED          = 24
+    F0024_ENDPOINT_METHOD_REDECLARED          = 24,
+    F0025_MISSING_ADAPTER_OPTIONS             = 25,
+    F0026_MISSING_REPLYTO_IN_RPC              = 26,
   }
 }
 

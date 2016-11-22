@@ -1,4 +1,4 @@
-import * as Promise from 'bluebird';
+import * as Bluebird from 'bluebird';
 import * as events from 'events';
 
 export class Response extends events.EventEmitter {
@@ -43,7 +43,7 @@ export function middleware(...middlewares: ((req, res, next) => any)[]) {
           });
         };
       });
-      return Promise.reduce(promises, (total, current) => current(req, res), promises[0])
+      return Bluebird.reduce(promises, (total, current) => current(req, res), promises[0])
         .then(() => args[args.length] = res)
         .then(() => originalMethod.apply(this, args))
         .catch(err => Promise.reject(err));

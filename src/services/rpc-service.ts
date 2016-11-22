@@ -1,14 +1,13 @@
 const cls = require('continuation-local-storage');
 
-import * as restify from 'restify';
-import * as Promise from 'bluebird';
+import * as Bluebird from 'bluebird';
 import * as _ from 'lodash';
 import * as os from 'os';
 import * as amqp from 'amqplib';
 import uuid = require('node-uuid');
 
 import { AmqpChannelPoolService } from './amqp-channel-pool-service';
-import paramSchemaInspector, { sanitize, validate } from '../middleware/schema.middleware';
+import { sanitize, validate } from '../middleware/schema.middleware';
 import { RpcOptions } from '../controllers/rpc-decorator';
 
 import { logger } from '../utils/logger';
@@ -51,18 +50,20 @@ class RpcResponse {
     };
 
     return new Buffer(JSON.stringify(res, (k, v: AbstractError | number | boolean) => {
+      // TODO instanceof Error should AbstractError
       if (v instanceof Error) {
+        const e = v as AbstractError;
         return {
-          name: v.name,
-          message: v.message,
-          stack: v.stack,
-          statusCode: v.statusCode,
-          errorType: v.errorType,
-          errorCode: v.errorCode,
-          errorNumber: v.errorNumber,
-          errorKey: v.errorKey,
-          debugMsg: v.debugMsg,
-          extra: v.extra,
+          name: e.name,
+          message: e.message,
+          stack: e.stack,
+          statusCode: e.statusCode,
+          errorType: e.errorType,
+          errorCode: e.errorCode,
+          errorNumber: e.errorNumber,
+          errorKey: e.errorKey,
+          debugMsg: e.debugMsg,
+          extra: e.extra,
           occurredIn: serviceName
         };
       }
@@ -71,14 +72,15 @@ class RpcResponse {
   }
 
   static decode(msg: Buffer): IRpcResponse {
-    if (!msg) return;
+    if (!msg) return { version: 0, result: false };
     try {
       const res: IRpcResponse = JSON.parse(msg.toString('utf8'), reviver);
       if (!res.result) res.body = this.getAbstractError(res.body);
 
       return res;
     } catch (e) {
-      logger.debug('[decode error]', e);
+      logger.notice('[decode error]', e);
+      return { version: 0, result: false };
     }
   }
 
@@ -114,7 +116,7 @@ function enterScope(properties: any, func): Promise<any> {
       _.each(properties, (value, key) => {
         ns.set(key, value);
       });
-      Promise.try(func).then(resolve).catch(reject);
+      Bluebird.try(func).then(resolve).catch(reject);
     });
   });
 }
@@ -152,13 +154,14 @@ export default class RPCService {
       if (!msg) {
         logger.error(`[WARN] msg is null. consume was canceled unexpectedly`);
       }
-      const reqExecutor = this.reqExecutors[msg.properties.correlationId];
+      const correlationId = msg.properties.correlationId || 'no-correlation-id';
+      const reqExecutor = this.reqExecutors[correlationId];
       if (!reqExecutor) {
         // Request timeout이 생겨도 reqExecutor가 없음
-        logger.notice('[RPC-WARNING] invalid correlationId');
-        return;
+        logger.notice(`[RPC-WARNING] invalid correlationId ${correlationId}`);
+        return Promise.resolve();
       }
-      delete this.reqExecutors[msg.properties.correlationId];
+      delete this.reqExecutors[correlationId];
       return reqExecutor(msg);
     };
 
@@ -207,7 +210,7 @@ export default class RPCService {
   }
 
   public purge() {
-    //todo: cancel consume
+    // TODO: cancel consume
     return Promise.resolve();
   }
 
@@ -223,9 +226,12 @@ export default class RPCService {
   // 포함 관계가 잘못됐다. 애매하다. @kson //2016-08-09
   public async register(name: string, handler: (req: any) => Promise<any>, type: 'endpoint' | 'rpc', rpcOptions?: RpcOptions): Promise<void> {
     const consumer = (msg: Message) => {
+      if (!msg.properties.replyTo) throw ISLAND.FATAL.F0026_MISSING_REPLYTO_IN_RPC;
+      const replyTo = msg.properties.replyTo;
       const headers = msg.properties.headers;
       const tattoo = headers && headers.tattoo;
-      const log = new TraceLog(tattoo, msg.properties.timestamp);
+      const timestamp = msg.properties.timestamp || 0;
+      const log = new TraceLog(tattoo, timestamp);
       log.size = msg.content.byteLength;
       log.from = headers.from;
       log.to = { node: process.env.HOSTNAME, context: name, island: this.serviceName, type: 'rpc' };
@@ -233,10 +239,10 @@ export default class RPCService {
         let content = JSON.parse(msg.content.toString('utf8'), reviver);
         if (rpcOptions) {
           if (_.get(rpcOptions, 'schema.query.sanitization')) {
-            content = sanitize(rpcOptions.schema.query.sanitization, content);
+            content = sanitize(rpcOptions.schema!.query!.sanitization, content);
           }
           if (_.get(rpcOptions, 'schema.query.validation')) {
-            if (!validate(rpcOptions.schema.query.validation, content)) {
+            if (!validate(rpcOptions.schema!.query!.validation, content)) {
               throw new LogicError(ISLAND.LOGIC.L0002_WRONG_PARAMETER_SCHEMA, `Wrong parameter schema`);
             }
           }
@@ -246,13 +252,13 @@ export default class RPCService {
 
         const dohook = async (type: RpcHookType, content) => {
           if (this.hooks[type]) {
-            return Promise.reduce(this.hooks[type], async (content, hook) => await hook(content), content);
+            return Bluebird.reduce(this.hooks[type], async (content, hook) => await hook(content), content);
           }
           return content;
         }
-        // Should wrap with Promise.try while handler sometimes returns ES6 Promise which doesn't support timeout.
+        // Should wrap with Bluebird.try while handler sometimes returns ES6 Promise which doesn't support timeout.
         const options: amqp.Options.Publish = { correlationId: msg.properties.correlationId, headers };
-        return Promise.try(async () => {
+        return Bluebird.try(async () => {
           let req = content;
           if (type == 'endpoint') {
             return await dohook(RpcHookType.PRE_ENDPOINT, req);
@@ -273,14 +279,14 @@ export default class RPCService {
             log.end();
             if (rpcOptions) {
               if (_.get(rpcOptions, 'schema.result.sanitization')) {
-                res = sanitize(rpcOptions.schema.result.sanitization, res);
+                res = sanitize(rpcOptions.schema!.result!.sanitization, res);
               }
               if (_.get(rpcOptions, 'schema.result.validation')) {
-                validate(rpcOptions.schema.result.validation, res);
+                validate(rpcOptions.schema!.result!.validation, res);
               }
             }
             this.channelPool.usingChannel(channel => {
-              return Promise.resolve(channel.sendToQueue(msg.properties.replyTo, RpcResponse.encode(res, this.serviceName), options));
+              return Promise.resolve(channel.sendToQueue(replyTo, RpcResponse.encode(res, this.serviceName), options));
             });
           })
           .timeout(RPC_EXEC_TIMEOUT_MS)
@@ -296,7 +302,7 @@ export default class RPCService {
             const extra = err.extra;
             logger.error(`Got an error during ${extra.island}/${extra.name} with ${JSON.stringify(extra.req)} - ${err.stack}`);
             return this.channelPool.usingChannel(channel => {
-              return Promise.resolve(channel.sendToQueue(msg.properties.replyTo, RpcResponse.encode(err, this.serviceName), options));
+              return Promise.resolve(channel.sendToQueue(replyTo, RpcResponse.encode(err, this.serviceName), options));
             }).then(() => {
               throw err;
             })
@@ -326,10 +332,6 @@ export default class RPCService {
   protected async _cancel(consumerInfo: IConsumerInfo): Promise<void> {
     await consumerInfo.channel.cancel(consumerInfo.tag);
     await this.channelPool.releaseChannel(consumerInfo.channel);
-  }
-
-  private rpcMessageExpander(name: string, msg: any): RpcRequest {
-    return { name: name, msg: msg, options: this.consumerInfosMap[name] ? this.consumerInfosMap[name].options : {} };
   }
 
   public async invoke<T, U>(name: string, msg: T, opts?: any): Promise<U>;

@@ -1,11 +1,11 @@
 import 'reflect-metadata';
-import * as Promise from 'bluebird';
+import * as Bluebird from 'bluebird';
 import { logger } from '../utils/logger';
 import * as _ from 'lodash';
 import * as inversify from 'inversify';
 import ObjectWraper from './object-wrapper';
 import ObjectFactory from './object-factory';
-import { LogicError, FatalError, ISLAND } from '../utils/error';
+import { FatalError, ISLAND } from '../utils/error';
 
 export namespace Di {
 
@@ -16,7 +16,7 @@ export namespace Di {
   };
 
   export interface DisposerFactory<T> {
-    (resource: T): Promise.Disposer<T>;
+    (resource: T): Bluebird.Disposer<T>;
   }
 
   export interface ScopeResource {
@@ -76,7 +76,7 @@ export namespace Di {
     private kernel: inversify.interfaces.Kernel;
     private objToBindScopeContext: {[name: string]: any};
     private injections: InjectionIdentifier<any>[] = [];
-    private disposers: {[name: string]: Promise.Disposer<any>} = {};
+    private disposers: {[name: string]: Bluebird.Disposer<any>} = {};
 
     constructor(kernel,
                 private scopeResources: ScopeResource[]) {
@@ -101,9 +101,9 @@ export namespace Di {
       this.kernel.restore();
 
       let disposerArray = _.map(this.disposers, disposer => disposer);
-      return Promise.using(disposerArray, () => {
+      return Promise.resolve(Bluebird.using(disposerArray, () => {
         return Promise.resolve<R>(task.apply(null, injectedObjects));
-      });
+      }));
     }
 
     private bindScopeContext(): void {
@@ -114,7 +114,7 @@ export namespace Di {
 
       if (this.objToBindScopeContext) {
         let scopeContext = this.kernel.get(ScopeContext);
-        _.forEach(this.objToBindScopeContext, (value, name) => {
+        _.forEach(this.objToBindScopeContext, (value, name: string) => {
           scopeContext.setOnce(name, value);
         });
       }
@@ -174,12 +174,16 @@ export namespace Di {
     return injectDecoratorFactory(target);
   }
 
-  function getParamType(target: any, key: string, index: number): any {
-    if (!Reflect.hasOwnMetadata(MetadataKeys.DesignParamTypes, target, key)) {
+  function getParamType(target: any, key?: string, index?: number): any {
+    // key! - hasOwnMetadata should take <string | symbol | undefined> as the key
+    //        but the spec has built before TypeScript 2.0
+    if (!Reflect.hasOwnMetadata(MetadataKeys.DesignParamTypes, target, key!)) {
       throw new FatalError(ISLAND.FATAL.F0018_ERROR_COLLECTING_META_DATA, 'error on collecting metadata. check compiler option emitDecoratorMetadata is true');
     }
-    let paramTypes = Reflect.getMetadata(MetadataKeys.DesignParamTypes, target, key);
-    return paramTypes[index];
+    // key! and index! - We can assume the properties is not `undefined` at this point
+    //                   after the condition check as above
+    const paramTypes = Reflect.getMetadata(MetadataKeys.DesignParamTypes, target, key!);
+    return paramTypes[index!];
   }
 
   function injectDecoratorFactory(id: InjectionIdentifier<any>) {
