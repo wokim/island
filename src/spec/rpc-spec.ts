@@ -1,9 +1,12 @@
 require('source-map-support').install();
-import RPCService from '../services/rpc-service';
+import RPCService, {RpcRequest} from '../services/rpc-service';
+import { RpcOptions } from '../controllers/rpc-decorator';
 import * as amqp from 'amqplib';
 import Promise = require('bluebird');
 import { AmqpChannelPoolService } from '../services/amqp-channel-pool-service';
 import { TraceLog } from '../utils/tracelog';
+import paramSchemaInspector from '../middleware/schema.middleware'
+
 describe('RPC test:', () => {
   const rpcService = new RPCService('haha');
   const amqpChannelPool = new AmqpChannelPoolService();
@@ -76,7 +79,7 @@ describe('RPC test:', () => {
     });
   });
 
-  it('rpc 등록해두고 모조리 다 취소시키기', done => {
+  it('rpc test #6: 등록해두고 모조리 다 취소시키기', done => {
     return Promise.all([
       rpcService.register('AAA', (msg) => {
         return new Promise((resolve, reject) => {
@@ -95,4 +98,56 @@ describe('RPC test:', () => {
       done();
     }).catch(done.fail);
   }, 10000);
+
+  it('rpc test #7: rpc call with sanitizatioin, validation', done => {
+    // Sanitization Schema
+    let sanitization = {
+      type: 'string'
+    };
+    // Validation Schema
+    let validation = {
+      type: 'string'
+    };
+
+    let rpcoptions:RpcOptions = {schema:{
+      query:{sanitization:sanitization, validation:validation}, 
+      result:{sanitization:sanitization, validation:validation}}
+    };
+    
+    return rpcService.register('testMethod', (msg) => {
+      expect(msg).toBe('hello');
+      return Promise.resolve('world');
+    }, 'rpc', rpcoptions).then(() => {
+      return rpcService.invoke<string, string>('testMethod', 'hello').then(res => {
+        expect(res).toBe('world');
+        done();
+      });
+    });
+  })
+
+  it('rpc test #8: rpc call with paramSchemaInspector', done => {
+    // Validation Schema
+    let validation = {
+      type: 'string'
+    };
+    let rpcoptions:RpcOptions = {schema:{
+      query:{sanitization:{}, validation:validation}, 
+      result:{sanitization:{}, validation:validation}}
+    };
+    let req:RpcRequest = {
+      name: 'test',
+      msg: {},
+      options: rpcoptions
+    }
+    
+    return Promise.try(() => {
+      paramSchemaInspector(req);    
+    })
+    .catch(err => {
+      console.log("rpc paramSchemaInspector test : ", err);
+      return;
+    })
+    .then(done, done.fail);   
+  })
+
 });

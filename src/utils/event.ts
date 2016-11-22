@@ -1,6 +1,7 @@
+import { Loggers } from 'island-loggers'
+
 import { BaseEvent, Event, EventHandler } from '../services/event-subscriber';
 import { SubscriptionOptions } from '../services/event-service';
-import { Loggers } from '../utils/loggers';
 
 export interface EventSubscription<T extends Event<U>, U> {
   eventClass: new (args: U) => T;

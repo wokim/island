@@ -75,7 +75,7 @@ export { Event, BaseEvent } from './services/event-subscriber';
 
 // utils
 export * from './utils/di';
-export { Loggers } from './utils/loggers';
+export { Loggers } from 'island-loggers';
 export { TraceLog } from './utils/tracelog';
 export { ScopeExit } from './utils/scope-exit';
 export { ResourcePush } from './utils/resource-push';

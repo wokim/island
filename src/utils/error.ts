@@ -10,6 +10,7 @@ export class AbstractError extends Error {
   public stack: any;
   public extra: any;
   public occurredIn: string;
+  public tattoo: string;
 
   constructor(public errorType: ErrorType,
               public errorNumber: number,
@@ -90,6 +91,7 @@ export namespace ISLAND {
     F0021_NOT_IMPLEMENTED_ERROR               = 21,
     F0022_NOT_INITIALIZED_EXCEPTION           = 22,
     F0023_RPC_TIMEOUT                         = 23,
+    F0024_ENDPOINT_METHOD_REDECLARED          = 24
   }
 }
 
