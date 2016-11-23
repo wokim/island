@@ -38,6 +38,7 @@ export {
   admin,
   auth,
   devonly,
+  mangle,
   EndpointOptions,
   EndpointSchemaOptions,
   endpoint,
