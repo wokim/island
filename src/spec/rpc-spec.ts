@@ -53,7 +53,6 @@ describe('RPC test:', () => {
       return Promise.reject(new Error('custom error'));
     }, 'rpc').then(() => {
       return rpcService.invoke<string, string>('testMethod', 'hello').catch((err: Error) => {
-        // [FIXME] 뭔가 이상하다 @kson //2016-08-23
         expect(err.message).toBe(`code: haha.ETC.F0001, msg: custom error'`);
         rpcService.unregister('testMethod').then(() => done()).catch(err => done.fail(err));
       });

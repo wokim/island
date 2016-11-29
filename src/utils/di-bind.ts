@@ -1,5 +1,5 @@
 import * as _ from 'lodash';
-import { Di } from './di';
+import { Di } from 'island-di';
 import { IAbstractAdapter } from '../adapters/abstract-adapter';
 import { ScopeExit } from './scope-exit';
 import { ResourcePush } from './resource-push';

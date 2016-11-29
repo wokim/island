@@ -1,6 +1,6 @@
 import * as _ from 'lodash';
 import * as Bluebird from 'bluebird';
-import { Di } from './di';
+import { Di } from 'island-di';
 import PushService from '../services/push-service';
 
 export class ResourcePush {
