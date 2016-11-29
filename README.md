@@ -50,6 +50,7 @@ island.Islet.run(HawaiiIslet);
   - [v1.0](#v1.0)
   - [Building](#building)
   - [Tests](#tests)
+  - [Environment Variables](#environment+variables)
   - [Milestones](#milestones)
   - [People](#people)
   - [License](#license)
@@ -126,6 +127,20 @@ $ npm install
 $ npm install
 $ RABBITMQ_HOST=localhost npm test
 ```
+
+
+## Environment Variables
+
+| Environment                  | Notes                                                             |
+| ---------------------------- | ----------------------------------------------------------------- |
+| `NODE_ENV`                   | When `development`, allows APIs which has options.developmentOnly |
+| `HOSTNAME`                   | TraceLog uses this as a name of node                              |
+| `ISLAND_RPC_EXEC_TIMEOUT_MS` | Timeout during execution (Defaults to 25000)                      |
+| `ISLAND_RPC_WAIT_TIMEOUT_MS` | Timeout during call (Defaults to 60000)                           |
+| `ISLAND_LOGGER_LEVEL`        | Logger level of category `island`                                 |
+| `ISLAND_TRACEMQ_HOST`        | MQ(formatted by amqp URI) for TraceLog. If omitted it doesn't log |
+| `ISLAND_TRACEMQ_QUEUE`       | A queue name to log TraceLog                                      |
+
 
 
 ## Milestones

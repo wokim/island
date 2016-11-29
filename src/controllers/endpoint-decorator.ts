@@ -554,7 +554,7 @@ export function devonly(target, key, desc) {
   }
 }
 
-function mangle(name) {
+export function mangle(name) {
   return name.replace(' ', '@').replace(/\//g, '|');
 }
 
