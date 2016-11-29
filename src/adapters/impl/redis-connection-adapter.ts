@@ -22,10 +22,10 @@ export default class RedisConnectionAdapter extends AbstractAdapter<redis.RedisC
    */
   public initialize() {
     if (!this.options) throw new FatalError(ISLAND.FATAL.F0025_MISSING_ADAPTER_OPTIONS);
-    let options = this.options;
+    const options = this.options;
 
     return new Promise<void>((resolve, reject) => {
-      let client = redis.createClient(options.port, options.host, options.clientOpts);
+      const client = redis.createClient(options.port, options.host, options.clientOpts);
 
       // Although all commands before the connection are accumulated in the queue,
       // Make sure for the case of using a external redis connector.

@@ -36,7 +36,7 @@ export default class ListenableAdapter<T, U> extends AbstractAdapter<T, U> imple
    */
   public postInitialize(): Promise<any> {
     return Promise.all(this._controllersClasses.map(ControllerClass => {
-      let c = new ControllerClass(this._adaptee);
+      const c = new ControllerClass(this._adaptee);
       this._controllers.push(c);
       return Bluebird.try(() => c.initialize()).then(() => c.onInitialized());
     }));
@@ -47,15 +47,14 @@ export default class ListenableAdapter<T, U> extends AbstractAdapter<T, U> imple
    * @returns {Promise<void>}
    */
   public listen(): any | Promise<any> {
-    throw new FatalError(ISLAND.FATAL.F0007_NOT_IMPLEMENTED_ERROR, 'Not implemented error');
+    throw new FatalError(ISLAND.FATAL.F0004_NOT_IMPLEMENTED_ERROR, 'Not implemented error');
   }
 
-  public destroy(): any | Promise<any> {
-    return Promise.all(this._controllers.map(c => Bluebird.try(() => c.destroy())))
-      .then(() => Promise.all(this._controllers.map(c => Bluebird.try(() => c.onDestroy()))))
-      .then(() => {
-        this._controllersClasses = [];
-        this._controllers = [];
-      });
+  public async destroy(): Promise<any> {
+    await Promise.all(this._controllers.map(c => Bluebird.try(() => c.destroy())));
+    await Promise.all(this._controllers.map(c => Bluebird.try(() => c.onDestroy())));
+    
+    this._controllersClasses = [];
+    this._controllers = [];
   }
 }

@@ -28,10 +28,10 @@ export class Response extends events.EventEmitter {
 
 export function middleware(...middlewares: ((req, res, next) => any)[]) {
   return function middlewareDecorator(target, key, descriptor) {
-    let originalMethod = descriptor.value;
+    const originalMethod = descriptor.value;
     descriptor.value = (...args) => {
-      let {req, res} = {req: args[0], res: new Response()};
-      let promises = middlewares.map(middleware => {
+      const {req, res} = {req: args[0], res: new Response()};
+      const promises = middlewares.map(middleware => {
         return (req: any, res: Response) => {
           return new Promise<any>((resolve, reject) => {
             res.once('xxx', body => resolve());

@@ -23,18 +23,16 @@ export default class AbstractBrokerService {
     return Promise.resolve(this.connection.createChannel());
   }
 
-  private call(handler: (channel: amqp.Channel) => any, ignoreClosingChannel?: boolean) {
-    return this.getChannel().then(channel => {
-      channel.on('error', err => {
-        console.log('channel error:', err);
-        err.stack && console.log(err.stack);
-      });
-      return Promise.resolve(handler(channel))
-        .then(ok => {
-          if (!ignoreClosingChannel) channel.close();
-          return ok;
-        });
+  private async call(handler: (channel: amqp.Channel) => any, ignoreClosingChannel?: boolean) {
+    const channel = await this.getChannel();
+    channel.on('error', err => {
+      console.log('channel error:', err);
+      err.stack && console.log(err.stack);
     });
+    const ok = await handler(channel);
+    
+    if (!ignoreClosingChannel) channel.close();
+    return ok;
   }
 
   protected declareExchange(name: string, type: string, options: amqp.Options.AssertExchange): Promise<amqp.Replies.AssertExchange> {
@@ -71,33 +69,32 @@ export default class AbstractBrokerService {
 
   protected _consume(key: string, handler: (msg) => Promise<any>, tag: string, options?: any): Promise<IConsumerInfo> {
     return this.call((channel: amqp.Channel) => {
-      const myHandler = msg => {
-        handler(msg).then(() => {
+      const myHandler = async msg => {
+        try {
+          await handler(msg);
           channel.ack(msg);
-        })
-          .catch((error: Error) => {
-            if (error['type'] && parseInt(error['type']) === 503) {
-            setTimeout(() => {
-              channel.nack(msg);
-            }, 1000);
-            return;
-            }
-            throw error;
-          });
-        // if (!(options && options.noAck)) {
-        //   channel.ack(msg);  // delivery-tag 가 channel 내에서만 유효하기 때문에 여기서 해야됨.
-        // }
+        } catch (error) {
+          if (error['type'] && parseInt(error['type']) === 503) {
+          setTimeout(() => {
+            channel.nack(msg);
+          }, 1000);
+          return;
+          }
+          throw error;
+        }
+      // if (!(options && options.noAck)) {
+      //   channel.ack(msg);  // delivery-tag 가 channel 내에서만 유효하기 때문에 여기서 해야됨.
+      // }
       };
       return channel.consume(key, myHandler, options || {})
         .then(result => ({channel, tag: result.consumerTag}));
     }, true);
   }
 
-  protected _cancel(consumerInfo: IConsumerInfo): Promise<amqp.Replies.Empty> {
-    return Promise.resolve(consumerInfo.channel.cancel(consumerInfo.tag))
-      .then((ok) => {
-        return consumerInfo.channel.close().then(() => ok);
-      });
+  protected async _cancel(consumerInfo: IConsumerInfo): Promise<amqp.Replies.Empty> {
+    const result = await consumerInfo.channel.cancel(consumerInfo.tag);
+    await consumerInfo.channel.close();
+    return result
   }
 
   protected _publish(exchange: any, routingKey: any, content: any, options?: any) {

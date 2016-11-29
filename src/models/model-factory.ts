@@ -14,8 +14,8 @@ export default class ModelFactory {
   public static get<T>(Class: any): T;
   public static get(Class: any): any;
   public static get(Class: any): any {
-    var name: string = (<any>Class.prototype.constructor).name;
-    var instance = this.models[name];
+    const name: string = (<any>Class.prototype.constructor).name;
+    let instance = this.models[name];
     if (!instance) {
       this.models[name] = instance = new Class();
       return instance;
