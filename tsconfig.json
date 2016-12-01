@@ -12,9 +12,7 @@
     "noUnusedLocals": true
   },
   "include": [
-    "src/**/*",
-    "typings/winston/*",
-    "typings/msgpack5/*"
+    "src/**/*"
   ],
   "exclude": [
     "dist",
