@@ -1,0 +1,9 @@
+FROM spearheadea/tsnode:6.9.1-slim-2.0.9
+
+WORKDIR /app
+COPY package.json /app/
+COPY .gitignore .npmignore /app/
+RUN npm i
+ADD spec /app/
+ADD src tsconfig.json gulpfile.js /app/
+RUN npm run build
