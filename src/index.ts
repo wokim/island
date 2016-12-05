@@ -90,3 +90,6 @@ export {
 } from './utils/jasmine-async-support';
 export { ErrorType, AbstractError, AbstractFatalError, AbstractLogicError } from './utils/error';
 export { Events } from './utils/event';
+
+export { Di } from 'island-di';
+export { Loggers } from 'island-loggers';
