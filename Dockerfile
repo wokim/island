@@ -4,6 +4,8 @@ WORKDIR /app
 COPY package.json /app/
 COPY .gitignore .npmignore /app/
 RUN npm i
-ADD spec /app/
-ADD src tsconfig.json gulpfile.js /app/
+RUN ls
+COPY spec /app/spec
+COPY src /app/src
+COPY tsconfig.json gulpfile.js /app/
 RUN npm run build
