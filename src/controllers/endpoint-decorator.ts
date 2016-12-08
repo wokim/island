@@ -516,15 +516,15 @@ export namespace validate {
 }
 
 
-// Login Proof 레벨을 지정
+// Login ensure 레벨을 지정
 // TOKEN : 토큰 확인
 // SESSION : SESSION 확인
 // CONNECTION : client의 push-island 연결 확인
 //
 // [EXAMPLE]
-// @island.proof(island.ProofOptions.CONNECTION)
-// @island.proof(3)
-// @island.endpoint('...', { proof: island.ProofOptions.CONNECTION })
+// @island.ensure(island.EnsureOptions.CONNECTION)
+// @island.ensure(3)
+// @island.endpoint('...', { ensure: island.EnsureOptions.CONNECTION })
 export function ensure(ensure: number){
   return (target, key, desc: PropertyDescriptor) => {
     const options = desc.value.options = (desc.value.options || {}) as EndpointOptions;
