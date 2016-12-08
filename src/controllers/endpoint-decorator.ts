@@ -2,6 +2,12 @@ import * as _ from 'lodash';
 import { logger } from '../utils/logger';
 import { FatalError, ISLAND } from '../utils/error';
 
+export enum EnsureOptions {
+  TOKEN = 1,
+  SESSION = 2 ,
+  CONNECTION = 3 
+}
+
 export interface EndpointOptions {
   scope?: {
     resource: number;
@@ -13,6 +19,7 @@ export interface EndpointOptions {
   ignoreSession?: boolean;
   level?: number;
   admin?: boolean;
+  ensure?: number;
 }
 
 export interface EndpointSchemaOptions {
@@ -509,6 +516,41 @@ export namespace validate {
 }
 
 
+// Login Proof 레벨을 지정
+// TOKEN : 토큰 확인
+// SESSION : SESSION 확인
+// CONNECTION : client의 push-island 연결 확인
+//
+// [EXAMPLE]
+// @island.proof(island.ProofOptions.CONNECTION)
+// @island.proof(3)
+// @island.endpoint('...', { proof: island.ProofOptions.CONNECTION })
+export function ensure(ensure: number){
+  return (target, key, desc: PropertyDescriptor) => {
+    const options = desc.value.options = (desc.value.options || {}) as EndpointOptions;
+    options.ensure = (ensure || options.ensure) || EnsureOptions.SESSION; 
+    if (desc.value.endpoints) {
+      desc.value.endpoints.forEach(e => _.merge(e.options, options));
+    }
+  };
+}
+
+// - request에 session을 붙이지 않도록 해준다.  
+// - session이 필요하지 않은 endpoint에 사용.
+//
+// [EXAMPLE]
+// @island.nosession()
+// @island.endpoint('...', { ignoreSession: true })
+export function nosession(){
+  return (target, key, desc: PropertyDescriptor) => {
+    const options = desc.value.options = (desc.value.options || {}) as EndpointOptions;
+    options.ignoreSession = true; 
+    if (desc.value.endpoints) {
+      desc.value.endpoints.forEach(e => _.merge(e.options, options));
+    }
+  }; 
+}
+
 // - EndpointOptions#level 속성의 Syntactic Sugar 이다
 // - @endpoint 데코레이터의 옵션에서 레벨을 선언하는 것과 @auth 데코레이터의 효과는 동일하다
 // - 선언이 중복될 경우 높은 레벨이 남는다
@@ -609,6 +651,9 @@ function makeEndpointDecorator(method?: string) {
       const options = _.merge({}, handler.options || {}, endpointOptions) as EndpointOptions;
       if (!options.hasOwnProperty('level')) {
         options.level = 7;
+      }
+      if (!options.hasOwnProperty('ensure')) {
+        options.ensure = EnsureOptions.SESSION;
       }
       
       name = [method, name].filter(Boolean).join(' ');
