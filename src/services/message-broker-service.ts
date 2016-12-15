@@ -72,7 +72,12 @@ export default class MessageBrokerService extends AbstractBrokerService {
 
   async publish<T>(key: string, msg: T): Promise<void> {
     await this.checkInitialized();
-    await this._publish(MessageBrokerService.EXCHANGE_NAME, key, new Buffer(JSON.stringify(msg), 'utf8'));
+    await this._publish(
+      MessageBrokerService.EXCHANGE_NAME,
+      key,
+      new Buffer(JSON.stringify(msg), 'utf8'),
+      { timestamp: +new Date() }
+    );
   }
   
   private async checkInitialized(): Promise<void> {
