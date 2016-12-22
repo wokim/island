@@ -82,7 +82,6 @@ export { TraceLog } from './utils/tracelog';
 export { ScopeExit } from './utils/scope-exit';
 export { ResourcePush } from './utils/resource-push';
 export { default as MessagePack } from './utils/msgpack';
-export { default as ObjectWrapper } from './utils/object-wrapper';
 export { default as ObjectFactory } from './utils/object-factory';
 export { default as StaticDataLoader } from './utils/staticdata-loader';
 export { default as StaticDataFactory } from './utils/staticdata-factory';
@@ -94,5 +93,5 @@ export {
 export { ErrorType, AbstractError, AbstractFatalError, AbstractLogicError } from './utils/error';
 export { Events } from './utils/event';
 
-export { Di } from 'island-di';
+export { Di, ObjectWrapper } from 'island-di';
 export { Loggers } from 'island-loggers';

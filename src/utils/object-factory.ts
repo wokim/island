@@ -1,4 +1,4 @@
-import ObjectWrapper from './object-wrapper';
+import { ObjectWrapper } from 'island-di';
 
 /**
  * ModelFactory
