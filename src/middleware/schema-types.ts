@@ -1,6 +1,6 @@
 import * as _ from 'lodash';
 
-let translators = {
+const translators = {
   object: schema => _.forEach(schema.properties, v => translateSchemaType(v)),
   array: schema => translateSchemaType(schema.items),
   $oid: schema => {

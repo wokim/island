@@ -43,7 +43,7 @@ export interface RpcRequest {
 
 class RpcResponse {
   static encode(body: any, serviceName: string): Buffer {
-    let res: IRpcResponse = {
+    const res: IRpcResponse = {
       version: 1,
       result: body instanceof Error ? false : true,
       body: body
@@ -259,7 +259,7 @@ export default class RPCService {
         // Should wrap with Bluebird.try while handler sometimes returns ES6 Promise which doesn't support timeout.
         const options: amqp.Options.Publish = { correlationId: msg.properties.correlationId, headers };
         return Bluebird.try(async () => {
-          let req = content;
+          const req = content;
           if (type == 'endpoint') {
             return await dohook(RpcHookType.PRE_ENDPOINT, req);
           } else { //rpc
@@ -319,14 +319,13 @@ export default class RPCService {
     this.consumerInfosMap[name] = await this._consume(name, consumer, 'SomeoneCallsMe');
   }
 
-  public unregister(name: string) {
+  public async unregister(name: string) {
     const consumerInfo = this.consumerInfosMap[name];
     if (!consumerInfo) return Promise.resolve();
-    return this._cancel(consumerInfo)
-      .then(ok => {
-        delete this.consumerInfosMap[name];
-        return ok;
-      });
+    const ok = await this._cancel(consumerInfo);
+      
+    delete this.consumerInfosMap[name];
+    return ok;  
   }
 
   protected async _cancel(consumerInfo: IConsumerInfo): Promise<void> {

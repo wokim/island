@@ -42,7 +42,7 @@ export default class Islet {
     if (this.islet) return;
 
     // Create such a micro-service instance.
-    let islet = new Class();
+    const islet = new Class();
     this.registerIslet(islet);
 
     islet.main();
@@ -81,31 +81,32 @@ export default class Islet {
   /**
    * @returns {Promise<void>}
    */
-  private initialize() {
-    return Promise.all(_.values<IAbstractAdapter>(this.adapters).map(adapter => adapter.initialize()))
-      .then(() => process.once('SIGTERM', this.destroy.bind(this)))
-      .then(() => bindImpliedServices(this.adapters))
-      .then(() => Promise.resolve(this.onInitialized()))
-      .then(() => _.values<IListenableAdapter>(this.adapters).filter(adapter => adapter instanceof ListenableAdapter))
-      .then(adapters => {
-        return Promise.all(adapters.map(adapter => adapter.postInitialize()))
-          .then(() => Promise.all(adapters.map(adapter => adapter.listen())));
-      })
-      .then(() => logger.info('started'))
-      .then(() => this.onStarted())
-      .catch(e => {
-        console.log('failed to initialize', e);
-        process.exit(1);
-      });
+  private async initialize() {
+    try {
+      await Promise.all(_.values<IAbstractAdapter>(this.adapters).map(adapter => adapter.initialize()));
+      process.once('SIGTERM', this.destroy.bind(this));
+      bindImpliedServices(this.adapters);
+      await this.onInitialized();
+      const adapters = _.values<IListenableAdapter>(this.adapters).filter(adapter => adapter instanceof ListenableAdapter);
+      
+      await Promise.all(adapters.map(adapter => adapter.postInitialize()));
+      await Promise.all(adapters.map(adapter => adapter.listen()));
+        
+      logger.info('started');
+      await this.onStarted();
+    } catch(e) {
+      console.log('failed to initialize', e);
+      process.exit(1);
+    };
   }
 
   protected onInitialized() {}
   protected onDestroy() {}
   protected onStarted() {}
 
-  private destroy() {
+  private async destroy() {
     logger.info('Waiting for process to end');
-    return Promise.all(_.values<IAbstractAdapter>(this.adapters).map(adapter => adapter.destroy()))
-      .then(() => this.onDestroy());
+    await Promise.all(_.values<IAbstractAdapter>(this.adapters).map(adapter => adapter.destroy()));
+    this.onDestroy();
   }
 }

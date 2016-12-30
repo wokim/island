@@ -49,16 +49,13 @@ export class EventService {
     });
   }
 
-  startConsume(): Promise<any> {
-    return this.channelPool.acquireChannel()
-      .then(channel => {
-        return Bluebird.map([this.roundRobinQ, this.fanoutQ], queue => {
-          return this.registerConsumer(channel, queue);
-        });
-      })
-      .then(() => {
-        this.publishEvent(new Events.SystemNodeStarted({name: this.fanoutQ, island: this.serviceName}));
-      });
+  async startConsume(): Promise<any> {
+    const channel = await this.channelPool.acquireChannel();
+
+    await Bluebird.map([this.roundRobinQ, this.fanoutQ], queue => {
+      this.registerConsumer(channel, queue);
+    });
+    this.publishEvent(new Events.SystemNodeStarted({name: this.fanoutQ, island: this.serviceName}));
   }
 
   private registerConsumer(channel: amqp.Channel, queue: string): Promise<any> {

@@ -31,17 +31,17 @@ export class AmqpChannelPoolService {
     this.date = new Date();
   }
 
-  initialize(options: AmqpOptions): Promise<void> {
+  async initialize(options: AmqpOptions): Promise<void> {
     options.poolSize = options.poolSize || AmqpChannelPoolService.DEFAULT_POOL_SIZE;
     this.options = options;
     logger.info(`connecting to broker ${util.inspect(options, {colors: true})}`);
-    Promise.resolve(amqp.connect(options.url, options.socketOptions))
-      .then(connection => {
-        logger.info(`connected to ${options.url}`);
-        this.connection = connection;
-        this.initResolver.resolve();
-      })
-      .catch(e => this.initResolver.reject(e));
+    try {
+      const connection = await amqp.connect(options.url, options.socketOptions);
+      
+      logger.info(`connected to ${options.url}`);
+      this.connection = connection;
+      this.initResolver.resolve();
+    } catch(e) { this.initResolver.reject(e)};
 
     return Promise.resolve(this.initResolver.promise);
   }
@@ -91,13 +91,12 @@ export class AmqpChannelPoolService {
       });
   }
 
-  private createChannel(): Promise<amqp.Channel> {
-    return Promise.resolve(this.connection.createChannel())
-      .then(channel => {
-        this.setChannelEventHandler(channel);
-        this.openChannels.push(channel);
-        return channel;
-      });
+  private async createChannel(): Promise<amqp.Channel> {
+    const channel = await this.connection.createChannel();
+      
+    this.setChannelEventHandler(channel);
+    this.openChannels.push(channel);
+    return channel; 
   }
 
   private setChannelEventHandler(channel: amqp.Channel) {
