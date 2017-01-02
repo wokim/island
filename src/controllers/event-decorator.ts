@@ -21,27 +21,26 @@ interface PatternSubscriptionContainer {
 
 export function eventController(target: typeof AbstractController) {
   const _onInitialized = target.prototype.onInitialized;
-  target.prototype.onInitialized = function() {
-    return Promise.resolve(_onInitialized.apply(this))
-      .then(result => {
-        let constructor = target as typeof AbstractController &
-          EventSubscriptionContainer<Event<any>, any> & PatternSubscriptionContainer;
+  target.prototype.onInitialized = async function() {
+    const result = await _onInitialized.apply(this);
+      
+    const constructor = target as typeof AbstractController &
+      EventSubscriptionContainer<Event<any>, any> & PatternSubscriptionContainer;
 
-        constructor._eventSubscriptions = DEFAULT_SUBSCRIPTIONS.concat(constructor._eventSubscriptions || []);
-        return Bluebird.map(constructor._eventSubscriptions || [], ({eventClass, handler, options}) => {
-            return this.server.subscribeEvent(eventClass, handler.bind(this), options);
-          })
-          .then(() => Bluebird.map(constructor._patternSubscriptions || [], ({pattern, handler, options}) => {
-            return this.server.subscribePattern(pattern, handler.bind(this), options);
-          }))
-          .then(() => result);
-      });
+    constructor._eventSubscriptions = DEFAULT_SUBSCRIPTIONS.concat(constructor._eventSubscriptions || []);
+    return Bluebird.map(constructor._eventSubscriptions || [], ({eventClass, handler, options}) => {
+        return this.server.subscribeEvent(eventClass, handler.bind(this), options);
+      })
+      .then(() => Bluebird.map(constructor._patternSubscriptions || [], ({pattern, handler, options}) => {
+        return this.server.subscribePattern(pattern, handler.bind(this), options);
+      }))
+      .then(() => result);    
   };
 }
 
 export function subscribeEvent<T extends Event<U>, U>(eventClass: new (args: U) => T, options?: SubscriptionOptions) {
   return function eventSubscriberDecorator(target: any, propertyKey: string, desc: PropertyDescriptor) {
-    let constructor = target.constructor as Function & EventSubscriptionContainer<T, U>;
+    const constructor = target.constructor as Function & EventSubscriptionContainer<T, U>;
     constructor._eventSubscriptions = constructor._eventSubscriptions || [];
     constructor._eventSubscriptions.push({
       eventClass,
@@ -53,7 +52,7 @@ export function subscribeEvent<T extends Event<U>, U>(eventClass: new (args: U) 
 
 export function subscribePattern(pattern: string, options?: SubscriptionOptions) {
   return function patternSubscriberDecorator(target: any, propertyKey: string, desc: PropertyDescriptor) {
-    let constructor = target.constructor as Function & PatternSubscriptionContainer;
+    const constructor = target.constructor as Function & PatternSubscriptionContainer;
     constructor._patternSubscriptions = constructor._patternSubscriptions || [];
     constructor._patternSubscriptions.push({
       pattern,

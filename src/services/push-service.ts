@@ -1,5 +1,3 @@
-import * as amqp from 'amqplib';
-import * as Bluebird from 'bluebird';
 import MessagePack from '../utils/msgpack';
 import { AmqpChannelPoolService } from './amqp-channel-pool-service';
 import { logger } from '../utils/logger';
@@ -10,16 +8,33 @@ export default class PushService {
     autoDelete: true
   };
 
+  private static autoDeleteTriggerQueue = {
+    name: 'auto-delete.trigger',
+    options: {
+      messageTtl: 0
+    }
+  };
+
   private msgpack: MessagePack;
   private channelPool: AmqpChannelPoolService;
 
-  // this exchange is used for braodcasting
-  public static globalFanoutExchange = {
+  // Exchange to broadcast to the entire users.
+  public static broadcastExchange = {
     name: 'PUSH_FANOUT_EXCHANGE',
-    option: {
+    type: 'fanout',
+    options: {
       durable: true
     }
-  }
+  };
+
+  // Exchange to push to a specific user.
+  public static playerPushExchange = {
+    name: 'push.player',
+    type: 'direct',
+    options: {
+      durable: true
+    }
+  };
 
   constructor() {
     this.msgpack = MessagePack.getInst();
@@ -28,33 +43,30 @@ export default class PushService {
   public async initialize(channelPool: AmqpChannelPoolService): Promise<any> {
     this.channelPool = channelPool;
 
-    return this.channelPool.usingChannel(channel => {
-      return channel.assertExchange(PushService.globalFanoutExchange.name, 'fanout',
-        PushService.globalFanoutExchange.option);
+    await this.channelPool.usingChannel(async (channel) => {
+      const globalFanoutX = PushService.broadcastExchange;
+      const playerPushX = PushService.playerPushExchange;
+      await channel.assertExchange(globalFanoutX.name, globalFanoutX.type, globalFanoutX.options);
+      await channel.assertExchange(playerPushX.name, playerPushX.type, playerPushX.options);
+      await channel.assertQueue(PushService.autoDeleteTriggerQueue.name, PushService.autoDeleteTriggerQueue.options);
     });
   }
 
-  purge() {
+  async purge(): Promise<any> {
     return this.channelPool.usingChannel(channel => {
-      return channel.deleteExchange(PushService.globalFanoutExchange.name, {ifUnused: true});
+      return channel.deleteExchange(PushService.broadcastExchange.name, {ifUnused: true});
     });
   }
 
-  deleteExchange(exchange:string, options?: any) {
+  async deleteExchange(exchange:string, options?: any): Promise<any> {
     return this.channelPool.usingChannel(channel => {
-      return this._deleteExchange(channel, [exchange], options);
+      logger.debug(`[INFO] delete exchange's name ${exchange}`);
+      return channel.deleteExchange(exchange, options);
     });
-  }
-
-  private _deleteExchange(channel: amqp.Channel, exchanges: string[], options) {
-    return Bluebird.reduce(exchanges, (total, exchange) => {
-      logger.debug(`delete exchange's name ${exchange}`)
-      return Promise.resolve(channel.deleteExchange(exchange, options));
-    }, 0);
   }
 
   /**
-   * bind specific exchange to (Account|Player) exchange
+   * bind specific exchange wrapper
    * @param destination
    * @param source
    * @param pattern
@@ -62,51 +74,74 @@ export default class PushService {
    * @param sourceOpts
    * @returns {Promise<any>}
    */
-  bindExchange(destination: string, source: string, pattern?: string, sourceType?: string, sourceOpts?: any) {
-    logger.debug(`bind exchanges. (source:${source}) => destination:${destination}`);
-    return this.channelPool.usingChannel(channel => {
-      return channel.assertExchange(source, sourceType || 'fanout', sourceOpts || PushService.DEFAULT_EXCHANGE_OPTIONS)
-        .then(() => channel.bindExchange(destination, source, pattern || '', {}));
-    });
+  async bindExchange(destination: string,
+                     source: string,
+                     pattern: string = '',
+                     sourceType: string = 'fanout',
+                     sourceOpts: any = PushService.DEFAULT_EXCHANGE_OPTIONS
+  ): Promise<any> {
+    logger.debug(`bind exchange. ${source} ==${pattern}==> ${destination}`);
+    let sourceDeclared = false;
+    try {
+      await this.channelPool.usingChannel(async (channel) => {
+        await channel.assertExchange(source, sourceType, sourceOpts);
+        sourceDeclared = true;
+        await channel.bindExchange(destination, source, pattern);
+      });
+    } catch (e) {
+      // Auto-delete is triggered only when target exchange(or queue) is unbound or deleted.
+      // If previous bind fails, we can't ensure auto-delete triggered or not.
+      // Below workaround prevents this from happening.
+      // caution: Binding x-recent-history exchange to unroutable target causes connection loss.
+      // target should be a queue and routable.
+      if (sourceDeclared && sourceOpts.autoDelete) {
+        await this.channelPool.usingChannel(async (channel) => {
+          await channel.bindQueue(PushService.autoDeleteTriggerQueue.name, source, '');
+          await channel.unbindQueue(PushService.autoDeleteTriggerQueue.name, source, '');
+        });
+      }
+      throw e;
+    }
   }
 
   /**
-   * unbind specfic exchange from (Account|Player) exchange
+   * unbind exchange wrapper
    * @param destination
    * @param source
    * @param pattern
    * @returns {Promise<any>}
    */
-  unbindExchange(destination: string, source: string, pattern?: string) {
+  async unbindExchange(destination: string, source: string, pattern: string = ''): Promise<any> {
+    logger.debug(`unbind exchange; ${source} --${pattern}--X ${destination}`);
     return this.channelPool.usingChannel(channel => {
-      return channel.unbindExchange(destination, source, pattern || '', {});
+      return channel.unbindExchange(destination, source, pattern, {});
     });
   }
 
   /**
-   * publish message to (Account|Player) exchange
-   * @param exchange
+   * publish message to a player
+   * @param pid
    * @param msg
    * @param options
    * @returns {Promise<any>}
    */
-  unicast(exchange: string, msg: any, options?: any) {
-    return this.channelPool.usingChannel(channel => {
-      return Promise.resolve(channel.publish(exchange, '', this.msgpack.encode(msg), options));
+  async unicast(pid: string, msg: any, options?: any): Promise<any> {
+    return this.channelPool.usingChannel(async (channel) => {
+      return channel.publish(PushService.playerPushExchange.name, pid, this.msgpack.encode(msg), options);
     });
   }
 
   /**
-   * publish message to specific exchange bound to (Account|Player) exchange
+   * publish message to specific exchange
    * @param exchange
    * @param msg
    * @param routingKey
    * @param options
    * @returns {Promise<any>}
    */
-  multicast(exchange: string, msg: any, routingKey?: string, options?: any) {
-    return this.channelPool.usingChannel(channel => {
-      return Promise.resolve(channel.publish(exchange, routingKey || '', this.msgpack.encode(msg), options));
+  async multicast(exchange: string, msg: any, routingKey: string = '', options?: any): Promise<any> {
+    return this.channelPool.usingChannel(async (channel) => {
+      return channel.publish(exchange, routingKey, this.msgpack.encode(msg), options);
     });
   }
 
@@ -116,10 +151,10 @@ export default class PushService {
    * @param options publish options
    * @returns {Promise<any>}
    */
-  broadcast(msg: any, options?: any) {
-    return this.channelPool.usingChannel(channel => {
-      const fanout = PushService.globalFanoutExchange.name;
-      return Promise.resolve(channel.publish(fanout, '', this.msgpack.encode(msg), options));
+  async broadcast(msg: any, options?: any): Promise<any> {
+    return this.channelPool.usingChannel(async (channel) => {
+      const fanout = PushService.broadcastExchange.name;
+      return channel.publish(fanout, '', this.msgpack.encode(msg), options);
     });
   }
 }

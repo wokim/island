@@ -37,7 +37,7 @@ export class EventSubscriber extends Subscriber {
   constructor(private handler: EventHandler<Event<any>>,
               private eventClass: new (args: any) => Event<any>) {
     super();
-    let event = new eventClass(null);
+    const event = new eventClass(null);
     this.key = event.key;
   }
 
@@ -54,7 +54,7 @@ export class EventSubscriber extends Subscriber {
   }
 
   handleEvent(content: any, msg: Message): Promise<any> {
-    let event = new this.eventClass(content);
+    const event = new this.eventClass(content);
     event.publishedAt = new Date(msg.properties.timestamp || 0);
     return Promise.resolve(this.handler(event));
   }
@@ -74,7 +74,7 @@ export class PatternSubscriber extends Subscriber {
   }
 
   private convertRoutingKeyPatternToRegexp(pattern: string): RegExp {
-    let regexPattern = pattern
+    const regexPattern = pattern
       .replace('.', '\\.')        // dot(.) is separator
       .replace('*', '\\w+')       // star(*) means one word exactly
       .replace('#', '[\\w\\.]*'); // hash(#) means zero or more words, including dot(.)

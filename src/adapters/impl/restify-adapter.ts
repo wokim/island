@@ -21,8 +21,8 @@ export default class RestifyAdapter extends ListenableAdapter<restify.Server, Re
    */
   public initialize() {
     if (!this.options) throw new FatalError(ISLAND.FATAL.F0025_MISSING_ADAPTER_OPTIONS);
-    let options = this.options;
-    let server = restify.createServer(options.serverOptions || {});
+    const options = this.options;
+    const server = restify.createServer(options.serverOptions || {});
 
     // Cleans up sloppy URLs on the request object, like /foo////bar/// to /foo/bar.
     // ex) /v2/a/b/ => /v2/a/b

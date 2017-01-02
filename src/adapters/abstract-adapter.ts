@@ -28,10 +28,10 @@ export default class AbstractAdapter<T, U> implements IAbstractAdapter {
   }
 
   public initialize(): any | Promise<any> {
-    throw new FatalError(ISLAND.FATAL.F0005_NOT_IMPLEMENTED_ERROR, 'Not implemented error');
+    throw new FatalError(ISLAND.FATAL.F0004_NOT_IMPLEMENTED_ERROR, 'Not implemented error');
   }
 
   public destroy(): any | Promise<any> {
-    throw new FatalError(ISLAND.FATAL.F0006_NOT_IMPLEMENTED_ERROR, 'Not implemented error');
+    throw new FatalError(ISLAND.FATAL.F0004_NOT_IMPLEMENTED_ERROR, 'Not implemented error');
   }
 }

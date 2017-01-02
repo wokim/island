@@ -670,8 +670,8 @@ function makeEndpointDecorator(method?: string) {
 export function endpointController(registerer?: {registerEndpoint: (name: string, value: any) => Promise<any>}) {
   return function _endpointControllerDecorator(target) {
     const _onInitialized = target.prototype.onInitialized;
-    target.prototype.onInitialized = function () {
-      return Promise.all(_.map(target._endpointMethods, (v: Endpoint) => {
+    target.prototype.onInitialized = async function () {
+      await  Promise.all(_.map(target._endpointMethods, (v: Endpoint) => {
         const developmentOnly = _.get(v, 'options.developmentOnly');
         if (developmentOnly && process.env.NODE_ENV !== 'development') return Promise.resolve();
 
@@ -680,17 +680,17 @@ export function endpointController(registerer?: {registerEndpoint: (name: string
         return this.server.register(v.name, v.handler.bind(this), 'endpoint').then(() => {
           return registerer && registerer.registerEndpoint(v.name, v.options || {}) || Promise.resolve();
         });
-      }))
-        .then(() => _onInitialized.apply(this));
+      }));
+      return _onInitialized.apply(this);
     };
 
     const _onDestroy = target.prototype.onDestroy;
-    target.prototype.onDestroy = function () {
-      return Promise.all(_.map(target._endpointMethods, (v: Endpoint) => {
+    target.prototype.onDestroy = async function () {
+      await  Promise.all(_.map(target._endpointMethods, (v: Endpoint) => {
         logger.info(`stop serving ${v.name}`);
         return this.server.unregister(v.name);
-      }))
-        .then(() => _onDestroy.apply(this));
+      }));
+      return _onDestroy.apply(this);
     };
   };
 }

@@ -17,31 +17,28 @@ export interface ChannelInfo {
 
 export class AmqpChannelPoolService {
   static DEFAULT_POOL_SIZE: number = 100;
-  static EXPERATION_TIME: number = 1000 * 300;  // 5 minutes
 
   private connection: amqp.Connection;
   private options: AmqpOptions;
   private openChannels: amqp.Channel[] = [];
   private idleChannels: ChannelInfo[] = [];
   private initResolver: Bluebird.Resolver<void>;
-  private date: Date;
 
   constructor() {
     this.initResolver = Bluebird.defer<void>();
-    this.date = new Date();
   }
 
-  initialize(options: AmqpOptions): Promise<void> {
+  async initialize(options: AmqpOptions): Promise<void> {
     options.poolSize = options.poolSize || AmqpChannelPoolService.DEFAULT_POOL_SIZE;
     this.options = options;
     logger.info(`connecting to broker ${util.inspect(options, {colors: true})}`);
-    Promise.resolve(amqp.connect(options.url, options.socketOptions))
-      .then(connection => {
-        logger.info(`connected to ${options.url}`);
-        this.connection = connection;
-        this.initResolver.resolve();
-      })
-      .catch(e => this.initResolver.reject(e));
+    try {
+      const connection = await amqp.connect(options.url, options.socketOptions);
+      
+      logger.info(`connected to ${options.url}`);
+      this.connection = connection;
+      this.initResolver.resolve();
+    } catch(e) { this.initResolver.reject(e)};
 
     return Promise.resolve(this.initResolver.promise);
   }
@@ -54,30 +51,22 @@ export class AmqpChannelPoolService {
     return Promise.resolve(this.connection.close());
   }
 
-  acquireChannel(): Promise<amqp.Channel> {
+  async acquireChannel(): Promise<amqp.Channel> {
     return Promise.resolve(Bluebird.try(() => {
-      const info = this.idleChannels.pop();
+      const info = this.idleChannels.shift();
       return info && info.channel || this.createChannel();
     }));
   }
 
-  releaseChannel(channel: amqp.Channel): Promise<void> {
-    return Promise.resolve(Bluebird.try(() => {
-      if (!_.includes(this.openChannels, channel)) {
-        return;
-      }
-      if (this.idleChannels.length < this.options.poolSize) {
-        this.idleChannels.push({channel:channel, date: this.date.getTime()});
-        while(
-          this.idleChannels.length > 0 &&
-          this.idleChannels[0].date + AmqpChannelPoolService.EXPERATION_TIME < this.date.getTime()
-        ) {
-          this.idleChannels.shift()!.channel.close();
-        }
-        return;
-      }
-      return channel.close();
-    }));
+  async releaseChannel(channel: amqp.Channel, reusable: boolean = false): Promise<void> {
+    if (!_.includes(this.openChannels, channel)) {
+      return;
+    }
+    if (reusable && this.idleChannels.length < this.options.poolSize) {
+      this.idleChannels.push({channel:channel, date: +new Date()});
+      return;
+    }
+    return channel.close();
   }
 
   usingChannel<T>(task: (channel: amqp.Channel) => PromiseLike<T>): Promise<T> {
@@ -86,18 +75,17 @@ export class AmqpChannelPoolService {
 
   getChannelDisposer(): Bluebird.Disposer<amqp.Channel> {
     return Bluebird.resolve(this.acquireChannel())
-      .disposer(channel => {
+      .disposer((channel: amqp.Channel) => {
         this.releaseChannel(channel);
       });
   }
 
-  private createChannel(): Promise<amqp.Channel> {
-    return Promise.resolve(this.connection.createChannel())
-      .then(channel => {
-        this.setChannelEventHandler(channel);
-        this.openChannels.push(channel);
-        return channel;
-      });
+  private async createChannel(): Promise<amqp.Channel> {
+    const channel = await this.connection.createChannel();
+      
+    this.setChannelEventHandler(channel);
+    this.openChannels.push(channel);
+    return channel; 
   }
 
   private setChannelEventHandler(channel: amqp.Channel) {
