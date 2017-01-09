@@ -103,6 +103,23 @@ describe('validate', () => {
       }
     });
   });
+  it('should support minLength, maxLength, exactLength with String', () => {
+    const result = v.validate({
+      min: v.String({ minLength: 1 }),
+      max: v.String({ maxLength: 10}),
+      exact: v.String({ exactLength: 8 }),
+      mixed: v.String({ minLength: 2, maxLength: 4, exactLength: 3 })
+    });
+    expect(result).toEqual({
+      type: 'object',
+      properties: {
+        min: { type: 'string', minLength: 1, optional: false },
+        max: { type: 'string', maxLength: 10, optional: false },
+        exact: { type: 'string', exactLength: 8, optional: false },
+        mixed: { type: 'string', minLength: 2, maxLength: 4, exactLength: 3, optional: false }
+      }
+    });
+  });
   it('should support complex type with Number', () => {
     const result = v.validate({
       offset: Number,
