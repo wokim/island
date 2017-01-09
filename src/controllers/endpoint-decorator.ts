@@ -340,6 +340,8 @@ export namespace validate {
 
 
   export interface __String {
+    minLength?: number;
+    maxLength?: number;
     exactLength?: number;
     eq?: Array<string> | string;
     ne?: Array<string> | string;
@@ -347,11 +349,15 @@ export namespace validate {
 
 
   export class _String implements __String {
+    minLength?: number;
+    maxLength?: number;
     exactLength?: number;
     eq?: Array<string> | string;
     ne?: Array<string> | string;
 
-    constructor ({ exactLength, eq, ne }: __String) {
+    constructor ({ minLength, maxLength, exactLength, eq, ne }: __String) {
+      this.minLength = minLength;
+      this.maxLength = maxLength;
       this.exactLength = exactLength;
       this.eq = eq;
       this.ne = ne;
@@ -359,8 +365,8 @@ export namespace validate {
   }
 
 
-  export function String({exactLength, eq, ne}: __String) {
-    return new _String({exactLength, eq, ne});
+  export function String({minLength, maxLength, exactLength, eq, ne}: __String) {
+    return new _String({minLength, maxLength, exactLength, eq, ne});
   }
 
 
