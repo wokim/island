@@ -52,6 +52,7 @@ type SchemaInspectorProperty = {
   type?: 'string' | 'number' | 'integer' | 'boolean' | 'null' | 'date' | 'object' | 'array' | 'any' | '$oid' | '$cider' | '$numberOrQuery';
   properties?: any;
   items?: any | [any];
+  __langid?: string;
 }
 
 
@@ -239,6 +240,11 @@ export namespace sanitize {
       } else if (key.endsWith('!')) {
         property.optional = false;
         key = key.slice(0, -1);
+      }
+      if (key.includes('+')) {
+        const [a] = key.split('+', 1);
+        property.__langid = key;
+        key = a;
       }
       properties[key] = parseSanitization(property, value);
     });
@@ -467,6 +473,11 @@ export namespace validate {
       } else if (key.endsWith('!')) {
         property.optional = false;
         key = key.slice(0, -1);
+      }
+      if (key.includes('+')) {
+        const [a] = key.split('+', 1);
+        property.__langid = key;
+        key = a;
       }
       properties[key] = parseValidation(property, value);
     });

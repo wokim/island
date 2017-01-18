@@ -338,3 +338,32 @@ describe('sanitize', () => {
     }});
   });
 });
+
+describe('__langid', () => {
+  it('should be copied on sanitization', () => {
+    const result = island.sanitize.sanitize({
+      'id+uniqueid': String,
+      'roomid+very+good+room!': island.sanitize.ObjectId
+    });
+    expect(result).toEqual({
+      type: 'object',
+      properties: {
+        'id': {type: 'string', optional: true, __langid: 'id+uniqueid'},
+        'roomid': {type: '$oid', optional: false, __langid: 'roomid+very+good+room'}
+      }
+    });
+  });
+  it('should be copied on validation', () => {
+    const result = island.validate.validate({
+      'id+uniqueid?': String,
+      'roomid+very+good+room': island.validate.ObjectId
+    });
+    expect(result).toEqual({
+      type: 'object',
+      properties: {
+        'id': {type: 'string', optional: true, __langid: 'id+uniqueid'},
+        'roomid': {type: '$oid', optional: false, __langid: 'roomid+very+good+room'}
+      }
+    });
+  });
+});
