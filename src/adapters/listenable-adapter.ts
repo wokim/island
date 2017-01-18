@@ -1,7 +1,9 @@
 import * as Bluebird from 'bluebird';
-import AbstractAdapter, { IAbstractAdapter } from './abstract-adapter';
+
 import AbstractController from '../controllers/abstract-controller';
 import { FatalError, ISLAND } from '../utils/error';
+import AbstractAdapter, { IAbstractAdapter } from './abstract-adapter';
+
 /**
  * IListenableAdapter
  * @interface
@@ -53,7 +55,7 @@ export default class ListenableAdapter<T, U> extends AbstractAdapter<T, U> imple
   public async destroy(): Promise<any> {
     await Promise.all(this._controllers.map(c => Bluebird.try(() => c.destroy())));
     await Promise.all(this._controllers.map(c => Bluebird.try(() => c.onDestroy())));
-    
+
     this._controllersClasses = [];
     this._controllers = [];
   }

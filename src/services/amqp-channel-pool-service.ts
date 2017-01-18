@@ -1,12 +1,13 @@
-import * as _ from 'lodash';
 import * as amqp from 'amqplib';
 import * as Bluebird from 'bluebird';
-import { logger } from '../utils/logger';
+import * as _ from 'lodash';
 import * as util from 'util';
+
+import { logger } from '../utils/logger';
 
 export interface AmqpOptions {
   url: string;
-  socketOptions?: {noDelay?: boolean, heartbeat?: number};
+  socketOptions?: { noDelay?: boolean, heartbeat?: number };
   poolSize?: number;
 }
 
@@ -31,14 +32,14 @@ export class AmqpChannelPoolService {
   async initialize(options: AmqpOptions): Promise<void> {
     options.poolSize = options.poolSize || AmqpChannelPoolService.DEFAULT_POOL_SIZE;
     this.options = options;
-    logger.info(`connecting to broker ${util.inspect(options, {colors: true})}`);
+    logger.info(`connecting to broker ${util.inspect(options, { colors: true })}`);
     try {
       const connection = await amqp.connect(options.url, options.socketOptions);
-      
+
       logger.info(`connected to ${options.url}`);
       this.connection = connection;
       this.initResolver.resolve();
-    } catch(e) { this.initResolver.reject(e)};
+    } catch (e) { this.initResolver.reject(e); }
 
     return Promise.resolve(this.initResolver.promise);
   }
@@ -63,7 +64,7 @@ export class AmqpChannelPoolService {
       return;
     }
     if (reusable && this.idleChannels.length < this.options.poolSize) {
-      this.idleChannels.push({channel:channel, date: +new Date()});
+      this.idleChannels.push({ channel, date: +new Date() });
       return;
     }
     return channel.close();
@@ -82,24 +83,25 @@ export class AmqpChannelPoolService {
 
   private async createChannel(): Promise<amqp.Channel> {
     const channel = await this.connection.createChannel();
-      
+
     this.setChannelEventHandler(channel);
     this.openChannels.push(channel);
-    return channel; 
+    return channel;
   }
 
   private setChannelEventHandler(channel: amqp.Channel) {
     channel
       .on('error', err => {
         logger.notice('amqp channel error:', err);
-        err.stack && logger.debug(err.stack);
+        if (err.stack) {
+          logger.debug(err.stack);
+        }
       })
       .on('close', () => {
         _.remove(this.idleChannels, (cur: ChannelInfo) => {
-          return cur.channel == channel;
+          return cur.channel === channel;
         });
         _.pull(this.openChannels, channel);
       });
   }
 }
-

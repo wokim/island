@@ -10,10 +10,10 @@ export interface ISession {
   };
   publisher: string;
   nx?: {
-    accountid:string; // xxxxxxxx@(nx|daum|naver)
-    nexonid:string; // for nexon shop API
-    channelinguid:string; // for nexon session login
-    cc:string;
+    accountid: string; // xxxxxxxx@(nx|daum|naver)
+    nexonid: string; // for nexon shop API
+    channelinguid: string; // for nexon session login
+    cc: string;
   };
   tc?: {
     qqid: number;

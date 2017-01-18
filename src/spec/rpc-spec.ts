@@ -1,17 +1,20 @@
+// tslint:disable-next-line
 require('source-map-support').install();
-import RPCService, {RpcRequest} from '../services/rpc-service';
-import { RpcOptions } from '../controllers/rpc-decorator';
+
 import Bluebird = require('bluebird');
+
+import { RpcOptions } from '../controllers/rpc-decorator';
+import paramSchemaInspector from '../middleware/schema.middleware';
 import { AmqpChannelPoolService } from '../services/amqp-channel-pool-service';
+import RPCService, { RpcRequest } from '../services/rpc-service';
 import { TraceLog } from '../utils/tracelog';
-import paramSchemaInspector from '../middleware/schema.middleware'
 
 describe('RPC test:', () => {
   const rpcService = new RPCService('haha');
   const amqpChannelPool = new AmqpChannelPoolService();
   beforeAll(done => {
     const url = process.env.RABBITMQ_HOST || 'amqp://rabbitmq:5672';
-    return amqpChannelPool.initialize({url})
+    return amqpChannelPool.initialize({ url })
       .then(() => rpcService.initialize(amqpChannelPool))
       .then(() => done());
   });
@@ -19,13 +22,13 @@ describe('RPC test:', () => {
   afterAll(done => {
     rpcService.purge()
       .then(() => amqpChannelPool.purge())
-      .then(() => TraceLog.purge())      
+      .then(() => TraceLog.purge())
       .then(done)
       .catch(done.fail);
   });
 
   it('rpc test #1: rpc call', done => {
-    return rpcService.register('testMethod', (msg) => {
+    return rpcService.register('testMethod', msg => {
       expect(msg).toBe('hello');
       return Promise.resolve('world');
     }, 'rpc').then(() => {
@@ -48,7 +51,7 @@ describe('RPC test:', () => {
   });
 
   it('rpc test #4: reject test', done => {
-    return rpcService.register('testMethod', (msg) => {
+    return rpcService.register('testMethod', msg => {
       expect(msg).toBe('hello');
       return Promise.reject(new Error('custom error'));
     }, 'rpc').then(() => {
@@ -60,7 +63,7 @@ describe('RPC test:', () => {
   });
 
   it('rpc test #5: 메시지를 하나 처리하고 있는 사이에 삭제 시도', done => {
-    return rpcService.register('testMethod', (msg) => {
+    return rpcService.register('testMethod', msg => {
       return new Promise((resolve, reject) => {
         setTimeout(() => resolve('world'), parseInt(msg, 10));
       });
@@ -79,13 +82,13 @@ describe('RPC test:', () => {
 
   it('rpc test #6: 등록해두고 모조리 다 취소시키기', done => {
     return Promise.all([
-      rpcService.register('AAA', (msg) => {
+      rpcService.register('AAA', msg => {
         return new Promise((resolve, reject) => {
           rpcService.purge();
           setTimeout(() => resolve('world'), parseInt(msg, 10));
         });
       }, 'rpc'),
-      rpcService.register('BBBB', (msg) => {
+      rpcService.register('BBBB', msg => {
         return new Promise((resolve, reject) => {
           setTimeout(() => resolve('world'), parseInt(msg, 10));
         });
@@ -99,20 +102,22 @@ describe('RPC test:', () => {
 
   it('rpc test #7: rpc call with sanitizatioin, validation', done => {
     // Sanitization Schema
-    let sanitization = {
+    const sanitization = {
       type: 'string'
     };
     // Validation Schema
-    let validation = {
+    const validation = {
       type: 'string'
     };
 
-    let rpcoptions:RpcOptions = {schema:{
-      query:{sanitization:sanitization, validation:validation}, 
-      result:{sanitization:sanitization, validation:validation}}
+    const rpcoptions: RpcOptions = {
+      schema: {
+        query: { sanitization, validation },
+        result: { sanitization, validation }
+      }
     };
-    
-    return rpcService.register('testMethod', (msg) => {
+
+    return rpcService.register('testMethod', msg => {
       expect(msg).toBe('hello');
       return Promise.resolve('world');
     }, 'rpc', rpcoptions).then(() => {
@@ -121,46 +126,48 @@ describe('RPC test:', () => {
         done();
       });
     });
-  })
+  });
 
   it('rpc test #8: rpc call with paramSchemaInspector', done => {
     // Validation Schema
-    let validation = {
+    const validation = {
       type: 'string'
     };
-    let rpcoptions:RpcOptions = {schema:{
-      query:{sanitization:{}, validation:validation}, 
-      result:{sanitization:{}, validation:validation}}
+    const rpcoptions: RpcOptions = {
+      schema: {
+        query: { sanitization: {}, validation },
+        result: { sanitization: {}, validation }
+      }
     };
-    let req:RpcRequest = {
-      name: 'test',
+    const req: RpcRequest = {
       msg: {},
+      name: 'test',
       options: rpcoptions
-    }
-    
+    };
+
     return Bluebird.try(() => {
-      paramSchemaInspector(req);    
+      paramSchemaInspector(req);
     })
-    .catch(err => {
-      console.log("rpc paramSchemaInspector test : ", err);
-      return;
-    })
-    .then(done, done.fail);   
-  })
+      .catch(err => {
+        console.log('rpc paramSchemaInspector test : ', err);
+        return;
+      })
+      .then(done, done.fail);
+  });
 
   it('should unregister handlers if it failed to send a message', done => {
     const usingChannel = amqpChannelPool.usingChannel;
     (amqpChannelPool as any).usingChannel = cb => {
       cb({
-        sendToQueue: (name, content, options) => { throw new Error('haha') }
-      })
+        sendToQueue: (name, content, options) => { throw new Error('haha'); }
+      });
     };
 
     rpcService.invoke<string, string>('testMethod', 'hello')
       .then(() => {
         expect(true).toEqual(false);
       })
-      .catch((e) => {
+      .catch(e => {
         expect(e.message).toEqual('haha');
       })
       .then(() => {

@@ -1,18 +1,17 @@
 import * as Bluebird from 'bluebird';
 import { AmqpChannelPoolService } from '../services/amqp-channel-pool-service';
 
-
 export interface LogSource {
   node: string;
   context: string;
   island: string;
-  type: 'rpc' | 'event' | 'endpoint'
+  type: 'rpc' | 'event' | 'endpoint';
 }
 
 const TRACE_QUEUE_NAME_OPTIONS: any = {
+  autoDelete: true,
   durable: false,
-  exclusive: false,
-  autoDelete: true 
+  exclusive: false
 };
 
 export class TraceLog {
@@ -21,11 +20,19 @@ export class TraceLog {
     if (!process.env.ISLAND_TRACEMQ_HOST) return;
     if (TraceLog.channelPool) return;
     TraceLog.channelPool = new AmqpChannelPoolService();
-    
+
     await TraceLog.channelPool.initialize({url: process.env.ISLAND_TRACEMQ_HOST});
     return await TraceLog.channelPool.usingChannel(channel => {
-      return channel.assertQueue(process.env.ISLAND_TRACEMQ_QUEUE || 'trace', TRACE_QUEUE_NAME_OPTIONS)
+      return channel.assertQueue(process.env.ISLAND_TRACEMQ_QUEUE || 'trace', TRACE_QUEUE_NAME_OPTIONS);
     });
+  }
+
+  static async purge(): Promise<any> {
+    if (!TraceLog.channelPool) return;
+
+    await TraceLog.channelPool.purge();
+    delete(TraceLog.channelPool);
+    return Promise.resolve();
   }
 
   data: {
@@ -41,24 +48,24 @@ export class TraceLog {
     to?: LogSource;
   } = {ts: {}};
 
-  constructor (tattoo: string, created: number) {
+  constructor(tattoo: string, created: number) {
     this.data.tattoo = tattoo;
     this.data.ts.c = created;
     this.data.ts.r = +(new Date());
   }
-  
+
   set size(size: number) {
     this.data.size = size;
   }
-  
+
   set from(from: LogSource) {
     this.data.from = from;
   }
-  
+
   set to(to: LogSource) {
     this.data.to = to;
   }
-  
+
   end(error?: Error) {
     this.data.ts.e = +(new Date());
     this.data.error = !!error;
@@ -67,19 +74,11 @@ export class TraceLog {
   shoot(): Promise<any> {
     if (!TraceLog.channelPool) return Promise.resolve();
     return Promise.resolve(Bluebird.try(() => {
-      let content = new Buffer(JSON.stringify(this.data), 'utf8');
-      let queueName = process.env.ISLAND_TRACEMQ_QUEUE || 'trace';
+      const content = new Buffer(JSON.stringify(this.data), 'utf8');
+      const queueName = process.env.ISLAND_TRACEMQ_QUEUE || 'trace';
       return TraceLog.channelPool.usingChannel(channel => {
         return Promise.resolve(channel.sendToQueue(queueName, content));
       });
     }));
-  }
-
-  static async purge(): Promise<any> {
-    if (!TraceLog.channelPool) return;
-    
-    await TraceLog.channelPool.purge();
-    delete(TraceLog.channelPool);
-    return Promise.resolve();
   }
 }

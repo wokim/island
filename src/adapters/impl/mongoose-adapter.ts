@@ -1,6 +1,7 @@
 import * as mongoose from 'mongoose';
-import AbstractAdapter from '../abstract-adapter';
+
 import { FatalError, ISLAND } from '../../utils/error';
+import AbstractAdapter from '../abstract-adapter';
 
 export interface MongooseAdapterOptions {
   uri: string;
@@ -29,7 +30,7 @@ export default class MongooseAdapter extends AbstractAdapter<mongoose.Connection
         connection.removeAllListeners();
         resolve();
       });
-      connection.once('error', (err) => {
+      connection.once('error', err => {
         reject(err);
       });
     });

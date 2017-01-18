@@ -9,84 +9,77 @@ describe('PushService test : ', () => {
   let msgpack: MessagePack;
   msgpack = MessagePack.getInst();
 
-  let destination_exchange = 'dddddd_ex';
-  let destination_queue = 'dddddd_que';
-  let source_queue = "ssssss_que";
-  let source_exchange = "ssssss_ex";
+  const destinationExchange = 'dddddd_ex';
+  const destinationQueue = 'dddddd_que';
+  const sourceQueue = 'ssssss_que';
+  const sourceExchange = 'ssssss_ex';
 
-  beforeAll(done => {    
+  beforeAll(done => {
     const url = process.env.RABBITMQ_HOST || 'amqp://rabbitmq:5672';
-    
-    return amqpChannelPool.initialize({url})
+
+    return amqpChannelPool.initialize({ url })
       .then(() => pushService.initialize(amqpChannelPool))
       .then(() =>
         amqpChannelPool.usingChannel(channel => {
-          channel.assertQueue(source_queue, {} );
-          channel.assertQueue(destination_queue, {} );
-          channel.assertExchange(destination_exchange, 'fanout', {durable: true, autoDelete: true} );
-          return channel.assertExchange(source_exchange, 'fanout', {durable: true, autoDelete: true} );
+          channel.assertQueue(sourceQueue, {});
+          channel.assertQueue(destinationQueue, {});
+          channel.assertExchange(destinationExchange, 'fanout', { durable: true, autoDelete: true });
+          return channel.assertExchange(sourceExchange, 'fanout', { durable: true, autoDelete: true });
         })
-        .then(() => amqpChannelPool.usingChannel(channel => {
-          channel.bindQueue(destination_queue, destination_exchange, '');
-          return channel.bindQueue(source_queue, source_exchange, '');
-        }))
-        .then(() => {
-          return pushService.bindExchange(destination_exchange, source_exchange);
-        }) 
+          .then(() => amqpChannelPool.usingChannel(channel => {
+            channel.bindQueue(destinationQueue, destinationExchange, '');
+            return channel.bindQueue(sourceQueue, sourceExchange, '');
+          }))
+          .then(() => {
+            return pushService.bindExchange(destinationExchange, sourceExchange);
+          })
       )
       .then(() => done());
   });
 
   afterAll(done => {
-    pushService.unbindExchange(destination_exchange, source_exchange)
-    .then(() =>
-      pushService.deleteExchange(destination_exchange)
-    )
-    .then(() => 
-        pushService.deleteExchange(source_exchange)
-    )
-    .then(() =>
-      pushService.purge()
-    )
-    .then(() => amqpChannelPool.purge())
-    .then(done)
-    .catch(done.fail);
+    pushService.unbindExchange(destinationExchange, sourceExchange)
+      .then(() =>
+        pushService.deleteExchange(destinationExchange)
+      )
+      .then(() =>
+        pushService.deleteExchange(sourceExchange)
+      )
+      .then(() =>
+        pushService.purge()
+      )
+      .then(() => amqpChannelPool.purge())
+      .then(done)
+      .catch(done.fail);
   });
-  
 
   it('push test #1: unicast test', done => {
-    let msg = 'testMessage';
-    //let pattern = "pattern";
+    const msg = 'testMessage';
     amqpChannelPool.usingChannel(channel => {
-        return channel.consume(destination_queue, (content) => {        
-            //console.log("========= dest_que : ", msgpack.decode(content.content));  
-            expect(msgpack.decode(content.content)).toBe('testMessage');
-        })
+      return channel.consume(destinationQueue, content => {
+        expect(msgpack.decode(content.content)).toBe('testMessage');
+      });
     }).then(() => {
-        //console.log("========= send : ", msg);  
-        return pushService.unicast(source_exchange, msg);
+      return pushService.unicast(sourceExchange, msg);
     })
-    .then(done, done.fail);
+      .then(done, done.fail);
   });
 
   it('push test #2: multicast test', done => {
-    let msg = 'testMessage';
-    //let pattern = "pattern";
+    const msg = 'testMessage';
     amqpChannelPool.usingChannel(channel => {
-        return channel.consume(destination_queue, (content) => {        
-            //console.log("========= dest_que : ", msgpack.decode(content.content));  
-            expect(msgpack.decode(content.content)).toBe('testMessage');
-        })
+      return channel.consume(destinationQueue, content => {
+        expect(msgpack.decode(content.content)).toBe('testMessage');
+      });
     }).then(() => {
-        //console.log("========= send : ", msg);  
-        return pushService.multicast(source_exchange, msg);
+      return pushService.multicast(sourceExchange, msg);
     })
-    .then(done, done.fail);
+      .then(done, done.fail);
   });
 
   it('push test #3: msgpack Error test', () => {
     expect(() => {
-        new MessagePack();
+      return new MessagePack();
     }).toThrow();
   });
 
@@ -95,31 +88,29 @@ describe('PushService test : ', () => {
       msgpack.encode(undefined);
     }).toThrow();
   });
- 
+
   it('push test #5: msgpack Encode Date test', done => {
-    let content = new Date();
-    //console.log("------ date : ", content);
+    const content = new Date();
     return Bluebird.try(() => {
       msgpack.encode(content);
     })
-    .catch(err => {
-      console.log("msgpack Encode Date test : ", err);
-      return;
-    })
-    .then(done, done.fail); 
+      .catch(err => {
+        console.log('msgpack Encode Date test : ', err);
+        return;
+      })
+      .then(done, done.fail);
   });
 
   it('push test #6: msgpack Encode Error test', done => {
-    let content = new Error("test Err");
-    //console.log("------ Err : ", content);
+    const content = new Error('test Err');
     return Bluebird.try(() => {
       msgpack.encode(content);
     })
-    .catch(err => {
-      console.log("msgpack Encode Error test : ", err);
-      return;
-    })
-    .then(done, done.fail); 
+      .catch(err => {
+        console.log('msgpack Encode Error test : ', err);
+        return;
+      })
+      .then(done, done.fail);
   });
-  
+
 });

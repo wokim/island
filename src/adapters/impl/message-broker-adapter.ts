@@ -1,6 +1,6 @@
-import RabbitMqAdapter from './rabbitmq-adapter';
 import MessageBrokerService from '../../services/message-broker-service';
 import { FatalError, ISLAND } from '../../utils/error';
+import RabbitMqAdapter from './rabbitmq-adapter';
 
 export default class MessageBrokerAdapter extends RabbitMqAdapter<MessageBrokerService> {
   /**
@@ -19,7 +19,7 @@ export default class MessageBrokerAdapter extends RabbitMqAdapter<MessageBrokerS
   }
 
   public async destroy() {
-    await super.destroy()
+    await super.destroy();
     return this._adaptee.purge();
   }
 }

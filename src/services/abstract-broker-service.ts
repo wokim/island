@@ -1,6 +1,7 @@
 import * as amqp from 'amqplib';
-import MessagePack from '../utils/msgpack';
+
 import { FatalError, ISLAND } from '../utils/error';
+import MessagePack from '../utils/msgpack';
 
 export interface IConsumerInfo {
   channel: amqp.Channel;
@@ -11,7 +12,8 @@ export default class AbstractBrokerService {
   protected msgpack: MessagePack;
   protected initialized: boolean;
 
-  public constructor(protected connection: amqp.Connection, protected options: { rpcTimeout?: number, serviceName?: string } = {}) {
+  public constructor(protected connection: amqp.Connection,
+                     protected options: { rpcTimeout?: number, serviceName?: string } = {}) {
     this.msgpack = MessagePack.getInst();
   }
 
@@ -19,23 +21,8 @@ export default class AbstractBrokerService {
     return Promise.reject(new FatalError(ISLAND.FATAL.F0011_NOT_INITIALIZED_EXCEPTION, 'Not initialized exception'));
   }
 
-  private getChannel() {
-    return Promise.resolve(this.connection.createChannel());
-  }
-
-  private async call(handler: (channel: amqp.Channel) => any, ignoreClosingChannel?: boolean) {
-    const channel = await this.getChannel();
-    channel.on('error', err => {
-      console.log('channel error:', err);
-      err.stack && console.log(err.stack);
-    });
-    const ok = await handler(channel);
-    
-    if (!ignoreClosingChannel) channel.close();
-    return ok;
-  }
-
-  protected declareExchange(name: string, type: string, options: amqp.Options.AssertExchange): Promise<amqp.Replies.AssertExchange> {
+  protected declareExchange(name: string, type: string,
+                            options: amqp.Options.AssertExchange): Promise<amqp.Replies.AssertExchange> {
     return this.call((channel: amqp.Channel) => channel.assertExchange(name, type, options));
   }
 
@@ -74,30 +61,50 @@ export default class AbstractBrokerService {
           await handler(msg);
           channel.ack(msg);
         } catch (error) {
-          if (error['type'] && parseInt(error['type']) === 503) {
-          setTimeout(() => {
-            channel.nack(msg);
-          }, 1000);
-          return;
+          if (error.type && parseInt(error.type, 10) === 503) {
+            setTimeout(() => {
+              channel.nack(msg);
+            }, 1000);
+            return;
           }
           throw error;
         }
-      // if (!(options && options.noAck)) {
-      //   channel.ack(msg);  // delivery-tag 가 channel 내에서만 유효하기 때문에 여기서 해야됨.
-      // }
+        // if (!(options && options.noAck)) {
+        //   channel.ack(msg);  // delivery-tag 가 channel 내에서만 유효하기 때문에 여기서 해야됨.
+        // }
       };
       return channel.consume(key, myHandler, options || {})
-        .then(result => ({channel, tag: result.consumerTag}));
+        .then(result => ({ channel, tag: result.consumerTag }));
     }, true);
   }
 
   protected async _cancel(consumerInfo: IConsumerInfo): Promise<amqp.Replies.Empty> {
     const result = await consumerInfo.channel.cancel(consumerInfo.tag);
     await consumerInfo.channel.close();
-    return result
+    return result;
   }
 
   protected _publish(exchange: any, routingKey: any, content: any, options?: any) {
     return this.call((channel: amqp.Channel) => channel.publish(exchange, routingKey, content, options));
+  }
+
+  private getChannel() {
+    return Promise.resolve(this.connection.createChannel());
+  }
+
+  private async call(handler: (channel: amqp.Channel) => any, ignoreClosingChannel?: boolean) {
+    const channel = await this.getChannel();
+    channel.on('error', err => {
+      console.log('channel error:', err);
+      if (err.stack) {
+        console.log(err.stack);
+      }
+    });
+    const ok = await handler(channel);
+
+    if (!ignoreClosingChannel) {
+      channel.close();
+    }
+    return ok;
   }
 }

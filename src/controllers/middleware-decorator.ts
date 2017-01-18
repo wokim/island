@@ -27,7 +27,7 @@ export class Response extends events.EventEmitter {
 }
 
 export function middleware(...middlewares: ((req, res, next) => any)[]) {
-  return function middlewareDecorator(target, key, descriptor) {
+  return (target, key, descriptor) => {
     const originalMethod = descriptor.value;
     descriptor.value = (...args) => {
       const {req, res} = {req: args[0], res: new Response()};

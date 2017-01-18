@@ -8,8 +8,7 @@ export interface Event<T> {
 
 export class BaseEvent<T> implements Event<T> {
   publishedAt: Date;
-  constructor(public key: string,
-              public args: T) {
+  constructor(public key: string, public args: T) {
   }
 }
 
@@ -73,23 +72,23 @@ export class PatternSubscriber extends Subscriber {
     return this.pattern;
   }
 
-  private convertRoutingKeyPatternToRegexp(pattern: string): RegExp {
-    const regexPattern = pattern
-      .replace('.', '\\.')        // dot(.) is separator
-      .replace('*', '\\w+')       // star(*) means one word exactly
-      .replace('#', '[\\w\\.]*'); // hash(#) means zero or more words, including dot(.)
-    return new RegExp(`^${regexPattern}$`);
-  }
-
   isRoutingKeyMatched(routingKey: string): boolean {
     return this.regExp.test(routingKey);
   }
 
   handleEvent(content: any, msg: Message): Promise<any> {
     return Promise.resolve(this.handler({
-      key: msg.fields.routingKey, 
       args: content,
+      key: msg.fields.routingKey,
       publishedAt: new Date(msg.properties.timestamp || 0)
     }));
+  }
+
+  private convertRoutingKeyPatternToRegexp(pattern: string): RegExp {
+    const regexPattern = pattern
+      .replace('.', '\\.')        // dot(.) is separator
+      .replace('*', '\\w+')       // star(*) means one word exactly
+      .replace('#', '[\\w\\.]*'); // hash(#) means zero or more words, including dot(.)
+    return new RegExp(`^${regexPattern}$`);
   }
 }

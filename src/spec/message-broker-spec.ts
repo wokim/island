@@ -1,11 +1,12 @@
-import MessageBrokerService from '../services/message-broker-service';
 import * as amqp from 'amqplib';
 import Promise = require('bluebird');
 
+import MessageBrokerService from '../services/message-broker-service';
+
 describe('msg-broker test:', () => {
-  var brokerService1: MessageBrokerService;
-  var brokerService2: MessageBrokerService;
-  var connection: amqp.Connection;
+  let brokerService1: MessageBrokerService;
+  let brokerService2: MessageBrokerService;
+  let connection: amqp.Connection;
   beforeAll(done => {
     amqp.connect(process.env.RABBITMQ_HOST || 'amqp://192.168.99.100:5672')
       .then((conn: amqp.Connection) => {
@@ -20,14 +21,14 @@ describe('msg-broker test:', () => {
       });
   });
 
-  var pattern = 'aaa.bbb.ccc';
+  const pattern = 'aaa.bbb.ccc';
 
   it('can send a message', done => {
     brokerService1.subscribe(pattern, msg => {
       expect(msg.hello).toBe('world');
       brokerService1.unsubscribe(pattern).then(() => done());
     })
-      .then((res) => brokerService2.publish(pattern, {hello: 'world'}))
+      .then(res => brokerService2.publish(pattern, { hello: 'world' }))
       .catch(err => done.fail(err));
   });
 
@@ -36,7 +37,7 @@ describe('msg-broker test:', () => {
       expect(msg.hello).toBe('world');
       brokerService1.unsubscribe('#.ccc').then(() => done());
     }).then(() => {
-      brokerService2.publish(pattern, {hello: 'world'});
+      brokerService2.publish(pattern, { hello: 'world' });
     }).catch(err => done.fail(err));
   });
 
@@ -45,7 +46,7 @@ describe('msg-broker test:', () => {
       expect(msg.hello).toBe('world');
       brokerService1.unsubscribe('*.bbb.ccc').then(() => done());
     }).then(() => {
-      brokerService2.publish(pattern, {hello: 'world'});
+      brokerService2.publish(pattern, { hello: 'world' });
     }).catch(err => done.fail(err));
   });
 
@@ -54,9 +55,9 @@ describe('msg-broker test:', () => {
       expect(msg.hello).toBe('world');
       brokerService1.unsubscribeFanout('#.ccc').then(() => done());
     }).then(() => {
-      brokerService2.publish(pattern, {hello: 'world'});
+      brokerService2.publish(pattern, { hello: 'world' });
     }).catch(err => done.fail(err));
-  })
+  });
 
   afterAll(done => {
     brokerService1.purge()

@@ -1,18 +1,19 @@
 import * as amqp from 'amqplib';
 import * as Bluebird from 'bluebird';
-import * as _  from 'lodash';
+import * as _ from 'lodash';
 import * as uuid from 'uuid';
-import AbstractBrokerService, { IConsumerInfo } from './abstract-broker-service';
-import reviver from '../utils/reviver';
-import { LogicError, FatalError, ISLAND } from '../utils/error';
+
+import { FatalError, ISLAND, LogicError } from '../utils/error';
 import { logger } from '../utils/logger';
+import reviver from '../utils/reviver';
+import AbstractBrokerService, { IConsumerInfo } from './abstract-broker-service';
 
 export default class MessageBrokerService extends AbstractBrokerService {
   private static EXCHANGE_NAME: string = 'MESSAGE_BROKER_EXCHANGE';
   private roundRobinEventQ: string;
   private fanoutEventQ: string;
   private consumerInfos: IConsumerInfo[] = [];
-  private handlers: {[pattern: string]: Handler} = {};
+  private handlers: { [pattern: string]: Handler } = {};
 
   constructor(connection: amqp.Connection, serviceName: string) {
     super(connection);
@@ -22,13 +23,15 @@ export default class MessageBrokerService extends AbstractBrokerService {
 
   async initialize(): Promise<void> {
     if (this.initialized) return;
-    if (!this.roundRobinEventQ) throw new FatalError(ISLAND.FATAL.F0012_ROUND_ROBIN_EVENT_Q_IS_NOT_DEFINED, 'roundRobinEventQ is not defined');
-    
-    await this.declareExchange(MessageBrokerService.EXCHANGE_NAME, 'topic', {durable: true});
-    await this.declareQueue(this.roundRobinEventQ, {durable: true, exclusive: false});
-    await this.declareQueue(this.fanoutEventQ, {exclusive: true, autoDelete: true});
+    if (!this.roundRobinEventQ) {
+      throw new FatalError(ISLAND.FATAL.F0012_ROUND_ROBIN_EVENT_Q_IS_NOT_DEFINED, 'roundRobinEventQ is not defined');
+    }
 
-    this.initialized = true;   
+    await this.declareExchange(MessageBrokerService.EXCHANGE_NAME, 'topic', { durable: true });
+    await this.declareQueue(this.roundRobinEventQ, { durable: true, exclusive: false });
+    await this.declareQueue(this.fanoutEventQ, { exclusive: true, autoDelete: true });
+
+    this.initialized = true;
   }
 
   async startConsume(): Promise<void> {
@@ -45,14 +48,14 @@ export default class MessageBrokerService extends AbstractBrokerService {
   async subscribe(pattern: string, handler?: Handler): Promise<void> {
     await this.checkInitialized();
     await this.bindQueue(this.roundRobinEventQ, MessageBrokerService.EXCHANGE_NAME, pattern);
-    
-    if (handler) this.handlers[pattern] = handler;  
+
+    if (handler) this.handlers[pattern] = handler;
   }
 
   async unsubscribe(pattern: string): Promise<void> {
     await this.checkInitialized();
     await this.unbindQueue(this.roundRobinEventQ, MessageBrokerService.EXCHANGE_NAME, pattern);
-    
+
     delete this.handlers[pattern];
   }
 
@@ -79,24 +82,24 @@ export default class MessageBrokerService extends AbstractBrokerService {
       { timestamp: +new Date() }
     );
   }
-  
+
   private async checkInitialized(): Promise<void> {
-    
+
     if (!this.initialized) throw new FatalError(ISLAND.FATAL.F0013_NOT_INITIALIZED, 'not initialized');
-   
+
   }
 
   private onMessage(msg: any, routingKey: string) {
     _.keys(this.handlers).forEach(pattern => {
       const matcher = this.matcher(pattern);
-      Bluebird.try(()=>{
+      Bluebird.try(() => {
         if (matcher.test(routingKey)) this.handlers[pattern](msg, routingKey);
       }).catch(e => {
         logger.debug('[handle msg error]', e);
-        const error:any = new LogicError(ISLAND.LOGIC.L0006_HANDLE_MESSAGE_ERROR, e.message);
+        const error: any = new LogicError(ISLAND.LOGIC.L0006_HANDLE_MESSAGE_ERROR, e.message);
         logger.debug(error.stack);
         throw e;
-      })
+      });
     });
   }
 
@@ -117,9 +120,9 @@ export default class MessageBrokerService extends AbstractBrokerService {
           handler(decodedParams, msg.fields.routingKey);
         } catch (e) {
           this.publish('log.eventError', {
+            error: e,
             event: msg.fields.routingKey,
-            params: decodedParams || null,
-            error: e
+            params: decodedParams || null
           });
         }
         return Promise.resolve(0);

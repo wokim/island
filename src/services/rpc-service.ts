@@ -1,19 +1,18 @@
-const cls = require('continuation-local-storage');
+import * as cls from 'continuation-local-storage';
 
+import * as amqp from 'amqplib';
 import * as Bluebird from 'bluebird';
 import * as _ from 'lodash';
 import * as os from 'os';
-import * as amqp from 'amqplib';
 import uuid = require('uuid');
 
-import { AmqpChannelPoolService } from './amqp-channel-pool-service';
-import { sanitize, validate } from '../middleware/schema.middleware';
 import { RpcOptions } from '../controllers/rpc-decorator';
-
+import { sanitize, validate } from '../middleware/schema.middleware';
+import { AbstractError, AbstractFatalError, AbstractLogicError, FatalError, ISLAND, LogicError } from '../utils/error';
 import { logger } from '../utils/logger';
-import { TraceLog } from '../utils/tracelog';
 import reviver from '../utils/reviver';
-import { AbstractError, AbstractLogicError, AbstractFatalError, ISLAND, LogicError, FatalError } from '../utils/error';
+import { TraceLog } from '../utils/tracelog';
+import { AmqpChannelPoolService } from './amqp-channel-pool-service';
 
 const RPC_EXEC_TIMEOUT_MS = parseInt(process.env.ISLAND_RPC_EXEC_TIMEOUT_MS, 10) || 25000;
 const RPC_WAIT_TIMEOUT_MS = parseInt(process.env.ISLAND_RPC_WAIT_TIMEOUT_MS, 10) || 60000;
@@ -44,9 +43,9 @@ export interface RpcRequest {
 class RpcResponse {
   static encode(body: any, serviceName: string): Buffer {
     const res: IRpcResponse = {
-      version: 1,
+      body,
       result: body instanceof Error ? false : true,
-      body: body
+      version: 1
     };
 
     return new Buffer(JSON.stringify(res, (k, v: AbstractError | number | boolean) => {
@@ -54,17 +53,17 @@ class RpcResponse {
       if (v instanceof Error) {
         const e = v as AbstractError;
         return {
-          name: e.name,
-          message: e.message,
-          stack: e.stack,
-          statusCode: e.statusCode,
-          errorType: e.errorType,
-          errorCode: e.errorCode,
-          errorNumber: e.errorNumber,
-          errorKey: e.errorKey,
           debugMsg: e.debugMsg,
+          errorCode: e.errorCode,
+          errorKey: e.errorKey,
+          errorNumber: e.errorNumber,
+          errorType: e.errorType,
           extra: e.extra,
-          occurredIn: serviceName
+          message: e.message,
+          name: e.name,
+          occurredIn: serviceName,
+          stack: e.stack,
+          statusCode: e.statusCode
         };
       }
       return v;
@@ -96,7 +95,7 @@ class RpcResponse {
         result = new AbstractFatalError(err.errorNumber, err.debugMsg, err.occurredIn, enumObj);
         break;
       default:
-        result = new AbstractError('ETC', 1, err.message, err.occurredIn, {1: 'F0001'});
+        result = new AbstractError('ETC', 1, err.message, err.occurredIn, { 1: 'F0001' });
         result.name = 'ETCError';
     }
 
@@ -113,7 +112,7 @@ function enterScope(properties: any, func): Promise<any> {
   return new Promise((resolve, reject) => {
     const ns = cls.getNamespace('app');
     ns.run(() => {
-      _.each(properties, (value, key) => {
+      _.each(properties, (value, key: string) => {
         ns.set(key, value);
       });
       Bluebird.try(func).then(resolve).catch(reject);
@@ -129,16 +128,15 @@ export enum RpcHookType {
   POST_RPC
 }
 
-
 export default class RPCService {
   private consumerInfosMap: { [name: string]: IConsumerInfo } = {};
   private responseQueue: string;
   private responseConsumerInfo: IConsumerInfo;
-  private reqExecutors: {[corrId: string]: (msg: Message) => Promise<any>} = {};
-  private reqTimeouts: {[corrId: string]: any} = {};
+  private reqExecutors: { [corrId: string]: (msg: Message) => Promise<any> } = {};
+  private reqTimeouts: { [corrId: string]: any } = {};
   private channelPool: AmqpChannelPoolService;
   private serviceName: string;
-  private hooks: {[key: string]: RpcHook[]};
+  private hooks: { [key: string]: RpcHook[] };
 
   constructor(serviceName?: string) {
     this.serviceName = serviceName || 'unknown';
@@ -168,40 +166,8 @@ export default class RPCService {
     await TraceLog.initialize();
 
     this.channelPool = channelPool;
-    await channelPool.usingChannel(channel => channel.assertQueue(this.responseQueue, {exclusive: true}));
+    await channelPool.usingChannel(channel => channel.assertQueue(this.responseQueue, { exclusive: true }));
     this.responseConsumerInfo = await this._consume(this.responseQueue, consumer, 'RequestExecutors', {});
-  }
-
-  protected async _consume(key: string, handler: (msg) => Promise<any>, tag: string, options?: any):
-      Promise<IConsumerInfo> {
-    const channel = await this.channelPool.acquireChannel();
-    await channel.prefetch(+process.env.RPC_PREFETCH || 1000);
-    const result = await channel.consume(key, async (msg) => {
-      try {
-        await handler(msg);
-        channel.ack(msg);
-      } catch (error) {
-        if (error.statusCode && parseInt(error.statusCode, 10) === 503) {
-          // Requeue the message when it has a chance
-          setTimeout(() => {
-            channel.nack(msg);
-          }, 1000);
-          return;
-        }
-        // Discard the message
-        channel.ack(msg);
-
-        this.channelPool.usingChannel(channel => {
-          const content = RpcResponse.encode(error, this.serviceName);
-          const headers = msg.properties.headers;
-          const correlationId = msg.properties.correlationId;
-          const properties: amqp.Options.Publish = { correlationId, headers };
-          return Promise.resolve(channel.sendToQueue(msg.properties.replyTo, content, properties));
-        });
-      }
-    }, options || {});
-
-    return {channel: channel, tag: result.consumerTag};
   }
 
   public _publish(exchange: any, routingKey: any, content: any, options?: any) {
@@ -220,12 +186,14 @@ export default class RPCService {
     this.hooks[type].push(hook);
   }
 
-
   // [TODO] register의 consumer와 _consume의 anonymous function을 하나로 합쳐야 한다.
   // 무척 헷갈림 @kson //2016-08-09
   // [TODO] Endpoint도 동일하게 RpcService.register를 부르는데, rpcOptions는 Endpoint가 아닌 RPC만 전달한다
   // 포함 관계가 잘못됐다. 애매하다. @kson //2016-08-09
-  public async register(name: string, handler: (req: any) => Promise<any>, type: 'endpoint' | 'rpc', rpcOptions?: RpcOptions): Promise<void> {
+  public async register(name: string,
+                        handler: (req: any) => Promise<any>,
+                        type: 'endpoint' | 'rpc',
+                        rpcOptions?: RpcOptions): Promise<void> {
     const consumer = (msg: Message) => {
       if (!msg.properties.replyTo) throw ISLAND.FATAL.F0026_MISSING_REPLYTO_IN_RPC;
       const replyTo = msg.properties.replyTo;
@@ -236,7 +204,7 @@ export default class RPCService {
       log.size = msg.content.byteLength;
       log.from = headers.from;
       log.to = { node: process.env.HOSTNAME, context: name, island: this.serviceName, type: 'rpc' };
-      return enterScope({RequestTrackId: tattoo, Context: name, Type: 'rpc'}, () => {
+      return enterScope({ RequestTrackId: tattoo, Context: name, Type: 'rpc' }, () => {
         let content = JSON.parse(msg.content.toString('utf8'), reviver);
         if (rpcOptions) {
           if (_.get(rpcOptions, 'schema.query.sanitization')) {
@@ -249,31 +217,31 @@ export default class RPCService {
           }
         }
 
-        logger.debug(`Got ${name} with ${JSON.stringify(content)}`)
+        logger.debug(`Got ${name} with ${JSON.stringify(content)}`);
 
         const dohook = async (type: RpcHookType, content) => {
           if (this.hooks[type]) {
             return Bluebird.reduce(this.hooks[type], async (content, hook) => await hook(content), content);
           }
           return content;
-        }
+        };
         // Should wrap with Bluebird.try while handler sometimes returns ES6 Promise which doesn't support timeout.
         const options: amqp.Options.Publish = { correlationId: msg.properties.correlationId, headers };
         return Bluebird.try(async () => {
           const req = content;
-          if (type == 'endpoint') {
+          if (type === 'endpoint') {
             return await dohook(RpcHookType.PRE_ENDPOINT, req);
-          } else { //rpc
+          } else { // rpc
             return await dohook(RpcHookType.PRE_RPC, req);
           }
         })
-          .then((req) => handler(req))
-          .then(async (res) => {
-            if (type == 'endpoint') {
+          .then(req => handler(req))
+          .then(async res => {
+            if (type === 'endpoint') {
               return await dohook(RpcHookType.POST_ENDPOINT, res);
             } else { // rpc
               return await dohook(RpcHookType.POST_RPC, res);
-            }           
+            }
           })
           .then(res => {
             logger.debug(`responses ${JSON.stringify(res)}`);
@@ -301,12 +269,13 @@ export default class RPCService {
               err.extra = { island: this.serviceName, name, req: content };
             }
             const extra = err.extra;
-            logger.error(`Got an error during ${extra.island}/${extra.name} with ${JSON.stringify(extra.req)} - ${err.stack}`);
+            logger.error(`Got an error during ${extra.island}/${extra.name}` +
+              ` with ${JSON.stringify(extra.req)} - ${err.stack}`);
             return this.channelPool.usingChannel(channel => {
               return Promise.resolve(channel.sendToQueue(replyTo, RpcResponse.encode(err, this.serviceName), options));
             }).then(() => {
               throw err;
-            })
+            });
           })
           .finally(() => {
             log.shoot();
@@ -316,7 +285,7 @@ export default class RPCService {
 
     // NOTE: 컨슈머가 0개 이상에서 0개가 될 때 자동으로 삭제된다.
     // 단 한번도 컨슈머가 등록되지 않는다면 영원히 삭제되지 않는데 그런 케이스는 없음
-    await this.channelPool.usingChannel(channel => channel.assertQueue(name, {durable: false, autoDelete: true}));
+    await this.channelPool.usingChannel(channel => channel.assertQueue(name, { durable: false, autoDelete: true }));
     this.consumerInfosMap[name] = await this._consume(name, consumer, 'SomeoneCallsMe');
   }
 
@@ -324,14 +293,9 @@ export default class RPCService {
     const consumerInfo = this.consumerInfosMap[name];
     if (!consumerInfo) return Promise.resolve();
     const ok = await this._cancel(consumerInfo);
-      
-    delete this.consumerInfosMap[name];
-    return ok;  
-  }
 
-  protected async _cancel(consumerInfo: IConsumerInfo): Promise<void> {
-    await consumerInfo.channel.cancel(consumerInfo.tag);
-    await this.channelPool.releaseChannel(consumerInfo.channel);
+    delete this.consumerInfosMap[name];
+    return ok;
   }
 
   public async invoke<T, U>(name: string, msg: T, opts?: any): Promise<U>;
@@ -348,14 +312,14 @@ export default class RPCService {
     };
     const content = new Buffer(JSON.stringify(msg), 'utf8');
     const options: amqp.Options.Publish = {
-      headers,
       correlationId,
-      timestamp: +(new Date()),
+      expiration: `${RPC_WAIT_TIMEOUT_MS}`, // [FIXME] https://github.com/louy/typed-amqplib/pull/1
+      headers,
       replyTo: this.responseQueue,
-      expiration: `${RPC_WAIT_TIMEOUT_MS}` // [FIXME] https://github.com/louy/typed-amqplib/pull/1
+      timestamp: +(new Date())
     };
     const p = this.markTattoo(name, correlationId, tattoo, ns, opts)
-      .catch((err) => {
+      .catch(err => {
         err.tattoo = tattoo;
         throw err;
       });
@@ -371,6 +335,43 @@ export default class RPCService {
       throw e;
     }
     return await p;
+  }
+
+  protected async _consume(key: string, handler: (msg) => Promise<any>, tag: string, options?: any):
+    Promise<IConsumerInfo> {
+    const channel = await this.channelPool.acquireChannel();
+    await channel.prefetch(+process.env.RPC_PREFETCH || 1000);
+    const result = await channel.consume(key, async msg => {
+      try {
+        await handler(msg);
+        channel.ack(msg);
+      } catch (error) {
+        if (error.statusCode && parseInt(error.statusCode, 10) === 503) {
+          // Requeue the message when it has a chance
+          setTimeout(() => {
+            channel.nack(msg);
+          }, 1000);
+          return;
+        }
+        // Discard the message
+        channel.ack(msg);
+
+        this.channelPool.usingChannel(channel => {
+          const content = RpcResponse.encode(error, this.serviceName);
+          const headers = msg.properties.headers;
+          const correlationId = msg.properties.correlationId;
+          const properties: amqp.Options.Publish = { correlationId, headers };
+          return Promise.resolve(channel.sendToQueue(msg.properties.replyTo, content, properties));
+        });
+      }
+    }, options || {});
+
+    return { channel, tag: result.consumerTag };
+  }
+
+  protected async _cancel(consumerInfo: IConsumerInfo): Promise<void> {
+    await consumerInfo.channel.cancel(consumerInfo.tag);
+    await this.channelPool.releaseChannel(consumerInfo.channel);
   }
 
   private markTattoo(name: string, corrId: any, tattoo: any, ns: any, opts: any): Promise<any> {
@@ -397,7 +398,7 @@ export default class RPCService {
         const res = RpcResponse.decode(msg.content);
         if (!res.result) return reject(res.body);
         if (opts && opts.withRawdata) {
-          return resolve({body: res.body, raw: msg.content});
+          return resolve({ body: res.body, raw: msg.content });
         }
         return resolve(res.body);
       });

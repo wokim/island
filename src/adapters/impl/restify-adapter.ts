@@ -1,7 +1,8 @@
 import * as restify from 'restify';
+
+import { FatalError, ISLAND } from '../../utils/error';
 import ListenableAdapter from '../listenable-adapter';
 import queryParser from './middlewares/restify-query-parser';
-import { FatalError, ISLAND } from '../../utils/error';
 
 export interface RestifyAdapterOptions {
   serverOptions?: restify.ServerOptions;
@@ -31,10 +32,10 @@ export default class RestifyAdapter extends ListenableAdapter<restify.Server, Re
     server.use(restify.dateParser());
     server.use(queryParser());
     server.use(restify.bodyParser({
+      // https://github.com/restify/node-restify/issues/789 <-
+      mapParams: false,
       // TODO: export below params to external configuation file
-      maxBodySize: 0,
-      // https://github.com/restify/node-restify/issues/789 <- 
-      mapParams: false
+      maxBodySize: 0
     }));
 
     this._adaptee = server;
@@ -48,7 +49,7 @@ export default class RestifyAdapter extends ListenableAdapter<restify.Server, Re
   public listen() {
     return new Promise<void>((resolve, reject) => {
       if (!this.options) throw new FatalError(ISLAND.FATAL.F0025_MISSING_ADAPTER_OPTIONS);
-      this.adaptee.listen(this.options.port, (err) => {
+      this.adaptee.listen(this.options.port, err => {
         if (err) return reject(err);
         resolve();
       });

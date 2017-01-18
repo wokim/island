@@ -5,8 +5,7 @@ import { TraceLog } from '../utils/tracelog';
 
 class BaseEvent<T> implements Event<T> {
   publishedAt: Date;
-  constructor(public key: string,
-              public args: T) {
+  constructor(public key: string, public args: T) {
   }
 }
 
@@ -23,19 +22,19 @@ class TestPatternEvent extends BaseEvent<string> {
 }
 
 describe('EventService', () => {
-  let amqpChannelPool = new AmqpChannelPoolService();
-  let eventService = new EventService(`event-service-spec`);
+  const amqpChannelPool = new AmqpChannelPoolService();
+  const eventService = new EventService(`event-service-spec`);
 
   beforeAll(done => {
     amqpChannelPool.initialize({
-        url: process.env.RABBITMQ_HOST || 'amqp://rabbitmq:5672',
-      })
+      url: process.env.RABBITMQ_HOST || 'amqp://rabbitmq:5672'
+    })
       .then(() => eventService.initialize(amqpChannelPool))
       .then(() => eventService.startConsume())
       .then(done)
       .catch(done.fail);
   });
-  
+
   it('can publish an event', done => {
     eventService.publishEvent(new TestEvent('aaa'))
       .then(done)
@@ -44,9 +43,9 @@ describe('EventService', () => {
 
   it('can subscribe the event', done => {
     eventService.subscribeEvent(TestEvent, (event: TestEvent) => {
-        expect(event.args).toBe('bbb');
-        setTimeout(done, 500);
-      })
+      expect(event.args).toBe('bbb');
+      setTimeout(done, 500);
+    })
       .then(() => eventService.publishEvent(new TestEvent('bbb')))
       .catch(done.fail);
   });
@@ -57,19 +56,19 @@ describe('EventService', () => {
 
   it('can subscribe the event by a pattern', done => {
     eventService.subscribePattern('test.pattern', (event: TestPatternEvent) => {
-        expect(event.key).toBe('test.pattern');
-        setTimeout(done, 500);
-      })
+      expect(event.key).toBe('test.pattern');
+      setTimeout(done, 500);
+    })
       .then(() => eventService.publishEvent(new TestPatternEvent('ccc')))
       .catch(done.fail);
   });
 
   it('can subscribe the event by an wildcard pattern', done => {
     eventService.subscribePattern('test.*', (event: TestPatternEvent) => {
-        expect(event.key).toBe('test.pattern');
-        expect(event.args).toBe('wildcard');
-        setTimeout(done, 500);
-      })
+      expect(event.key).toBe('test.pattern');
+      expect(event.args).toBe('wildcard');
+      setTimeout(done, 500);
+    })
       .then(() => eventService.publishEvent(new TestPatternEvent('wildcard')))
       .catch(done.fail);
   });
@@ -77,7 +76,7 @@ describe('EventService', () => {
   afterAll(done => {
     eventService.purge()
       .then(() => amqpChannelPool.purge())
-      .then(() => TraceLog.purge())  
+      .then(() => TraceLog.purge())
       .then(done)
       .catch(done.fail);
   });
@@ -86,14 +85,14 @@ describe('EventService', () => {
 describe('PatternSubscriber', () => {
   describe('isRoutingKeyMatched', () => {
     it('should test a pattern with plain text', () => {
-      let s = new PatternSubscriber(event => {
+      const s = new PatternSubscriber(event => {
       }, 'aaa.aaa.aaa');
       expect(s.isRoutingKeyMatched('aaa.aaa.aaa')).toBeTruthy();
       expect(s.isRoutingKeyMatched('aaa.aaa.bbb')).toBeFalsy();
     });
 
     it('should test a pattern using *', () => {
-      let s = new PatternSubscriber(event => {
+      const s = new PatternSubscriber(event => {
       }, 'aaa.aaa.*');
       expect(s.isRoutingKeyMatched('aaa.aaa.aaa')).toBeTruthy();
       expect(s.isRoutingKeyMatched('aaa.aaa.bbb')).toBeTruthy();
@@ -102,7 +101,7 @@ describe('PatternSubscriber', () => {
     });
 
     it('should test a pattern using #', () => {
-      let s = new PatternSubscriber(event => {
+      const s = new PatternSubscriber(event => {
       }, 'aaa.#');
       expect(s.isRoutingKeyMatched('aaa.aaa.aaa')).toBeTruthy();
       expect(s.isRoutingKeyMatched('aaa.bbb.bbb')).toBeTruthy();
@@ -112,4 +111,3 @@ describe('PatternSubscriber', () => {
     });
   });
 });
-

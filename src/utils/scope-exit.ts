@@ -30,7 +30,7 @@ export class ScopeExit {
       } else {
         tasks = this.tasksOnRejected;
       }
-      for (let task of tasks) {
+      for (const task of tasks) {
         await task();
       }
     });

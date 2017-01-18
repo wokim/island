@@ -5,22 +5,22 @@ import StaticDataLoader from './staticdata-loader';
  * @class
  */
 export default class StaticDataFactory {
-  private static staticData: { [name: string]: any } = {};
-
   /**
    * Retrieves the wrapped static-data object of given loader.
    *
    * @param Class
    * @returns {any}
    */
-  public static get<T>(Class: typeof StaticDataLoader) {
-    var name: string = (<any>Class.prototype.constructor).name;
-    var instance = <StaticDataLoader<T>>this.staticData[name];
+  public static get<T>(subClass: typeof StaticDataLoader) {
+    const name: string = (subClass.prototype.constructor as any).name;
+    let instance = this.staticData[name] as StaticDataLoader<T>;
 
     if (!instance) {
-      this.staticData[name] = instance = new Class<T>();
+      this.staticData[name] = instance = new subClass<T>();
       instance.initialize();
     }
     return instance.Object;
   }
+
+  private static staticData: { [name: string]: any } = {};
 }

@@ -1,11 +1,11 @@
 import { AmqpChannelPoolService } from '../services/amqp-channel-pool-service';
 
 describe('AmqpChannelPool', () => {
-  let amqpChannelPool = new AmqpChannelPoolService();
+  const amqpChannelPool = new AmqpChannelPoolService();
 
   beforeAll(done => {
     amqpChannelPool.initialize({
-        url: process.env.RABBITMQ_HOST || 'amqp://rabbitmq:5672',
+        url: process.env.RABBITMQ_HOST || 'amqp://rabbitmq:5672'
       })
       .then(done)
       .catch(done.fail);
@@ -15,7 +15,7 @@ describe('AmqpChannelPool', () => {
     amqpChannelPool.acquireChannel()
       .then(channel => {
         expect(channel).not.toBeUndefined();
-        let exchange = `spec.temp.${+new Date()}`;
+        const exchange = `spec.temp.${+new Date()}`;
         Promise.resolve(channel.assertExchange(exchange, 'fanout', {autoDelete: true}))
           .then(() => channel.deleteExchange(exchange))
           .then(() => amqpChannelPool.releaseChannel(channel));
@@ -26,7 +26,7 @@ describe('AmqpChannelPool', () => {
 
   it('can use channel disposer', done => {
     amqpChannelPool.usingChannel(channel => {
-        let exchange = `spec.temp.${+new Date()}`;
+        const exchange = `spec.temp.${+new Date()}`;
         return channel.assertExchange(exchange, 'fanout', {autoDelete: true})
           .then(() => channel.deleteExchange(exchange));
       })
