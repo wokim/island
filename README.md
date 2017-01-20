@@ -1,6 +1,6 @@
-This is a branch for preparing release 1.0 - check the [milestone](https://github.com/spearhead-ea/island/milestone/1)
+This is a branch for preparing release 1.2 - check the [milestone](https://github.com/spearhead-ea/island/milestone/1)
 
-# island v1.0
+# island v1.2
 
 An opinionated, full-stacked Microservices framework for [node](http://nodejs.org), powered by [TypeScript](https://github.com/microsoft/typescript).
 
@@ -74,6 +74,12 @@ $ npm install island --save
   - Track communications per each request
   - Chain contexts with UUID per each request
 
+## v1.2
+
+### Changes
+
+  - Support to expand langid from property name for @validate @sanitize [#69](https://github.com/spearhead-ea/island/issues/68)
+  - Fix singleton bug [#64](https://github.com/spearhead-ea/island/pull/67)
 
 ## v1.0
 
