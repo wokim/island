@@ -176,8 +176,8 @@ The current lead maintainer is [Kei Son](https://github.com/heycalmdown)
 [npm-url]: http://badge.fury.io/js/island
 [david-image]: https://david-dm.org/spearhead-ea/island/status.svg
 [david-url]: https://david-dm.org/spearhead-ea/island
-[coveralls-image]: https://coveralls.io/repos/github/spearhead-ea/island/badge.svg?branch=release-1.0
-[coveralls-url]: https://coveralls.io/github/spearhead-ea/island?branch=release-1.0
+[coveralls-image]: https://coveralls.io/repos/github/spearhead-ea/island/badge.svg?branch=master
+[coveralls-url]: https://coveralls.io/github/spearhead-ea/island?branch=master
 [codeclimate-coverage]: https://codeclimate.com/github/spearhead-ea/island/badges/coverage.svg
 [codeclimate-gpa]: https://codeclimate.com/github/spearhead-ea/island/badges/gpa.svg
 [codeclimate-issue]: https://codeclimate.com/github/spearhead-ea/island/badges/issue_count.svg
