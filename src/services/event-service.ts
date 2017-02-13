@@ -2,7 +2,7 @@ const cls = require('continuation-local-storage');
 import * as _ from 'lodash';
 import * as Bluebird from 'bluebird';
 import * as amqp from 'amqplib';
-import * as uuid from 'node-uuid';
+import * as uuid from 'uuid';
 
 import { Events } from '../utils/event';
 import { AmqpChannelPoolService } from './amqp-channel-pool-service';

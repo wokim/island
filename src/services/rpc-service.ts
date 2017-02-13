@@ -4,7 +4,7 @@ import * as Bluebird from 'bluebird';
 import * as _ from 'lodash';
 import * as os from 'os';
 import * as amqp from 'amqplib';
-import uuid = require('node-uuid');
+import uuid = require('uuid');
 
 import { AmqpChannelPoolService } from './amqp-channel-pool-service';
 import { sanitize, validate } from '../middleware/schema.middleware';

@@ -1,7 +1,7 @@
 import * as amqp from 'amqplib';
 import * as Bluebird from 'bluebird';
 import * as _  from 'lodash';
-import * as uuid from 'node-uuid';
+import * as uuid from 'uuid';
 import AbstractBrokerService, { IConsumerInfo } from './abstract-broker-service';
 import reviver from '../utils/reviver';
 import { LogicError, FatalError, ISLAND } from '../utils/error';
