@@ -359,9 +359,17 @@ export default class RPCService {
         err.tattoo = tattoo;
         throw err;
       });
-    await this.channelPool.usingChannel(channel => {
-      return Promise.resolve(channel.sendToQueue(name, content, options));
-    });
+
+    try {
+      await this.channelPool.usingChannel(channel => {
+        return Promise.resolve(channel.sendToQueue(name, content, options));
+      });
+    } catch (e) {
+      clearTimeout(this.reqTimeouts[correlationId]);
+      delete this.reqTimeouts[correlationId];
+      delete this.reqExecutors[correlationId];
+      throw e;
+    }
     return await p;
   }
 
