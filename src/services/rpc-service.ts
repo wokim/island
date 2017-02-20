@@ -354,14 +354,23 @@ export default class RPCService {
       replyTo: this.responseQueue,
       expiration: `${RPC_WAIT_TIMEOUT_MS}` // [FIXME] https://github.com/louy/typed-amqplib/pull/1
     };
-    await this.channelPool.usingChannel(channel => {
-      return Promise.resolve(channel.sendToQueue(name, content, options));
-    });
-    return await this.markTattoo(name, correlationId, tattoo, ns, opts)
-    .catch((err) => {
-      err.tattoo = tattoo;
-      throw err;
-    })
+    const p = this.markTattoo(name, correlationId, tattoo, ns, opts)
+      .catch((err) => {
+        err.tattoo = tattoo;
+        throw err;
+      });
+
+    try {
+      await this.channelPool.usingChannel(channel => {
+        return Promise.resolve(channel.sendToQueue(name, content, options));
+      });
+    } catch (e) {
+      clearTimeout(this.reqTimeouts[correlationId]);
+      delete this.reqTimeouts[correlationId];
+      delete this.reqExecutors[correlationId];
+      throw e;
+    }
+    return await p;
   }
 
   private markTattoo(name: string, corrId: any, tattoo: any, ns: any, opts: any): Promise<any> {

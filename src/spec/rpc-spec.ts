@@ -148,4 +148,26 @@ describe('RPC test:', () => {
     .then(done, done.fail);   
   })
 
+  it('should unregister handlers if it failed to send a message', done => {
+    const usingChannel = amqpChannelPool.usingChannel;
+    (amqpChannelPool as any).usingChannel = cb => {
+      cb({
+        sendToQueue: (name, content, options) => { throw new Error('haha') }
+      })
+    };
+
+    rpcService.invoke<string, string>('testMethod', 'hello')
+      .then(() => {
+        expect(true).toEqual(false);
+      })
+      .catch((e) => {
+        expect(e.message).toEqual('haha');
+      })
+      .then(() => {
+        expect((rpcService as any).reqTimeouts).toEqual({});
+        expect((rpcService as any).reqExecutors).toEqual({});
+        amqpChannelPool.usingChannel = usingChannel;
+        done();
+      });
+  });
 });
