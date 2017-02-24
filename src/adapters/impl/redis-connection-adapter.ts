@@ -1,5 +1,5 @@
-import redis = require('redis');
 import Promise = require('bluebird');
+import redis = require('redis-bluebird');
 import AbstractAdapter from '../abstract-adapter';
 import { FatalError, ISLAND } from '../../utils/error';
 

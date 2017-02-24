@@ -47,6 +47,7 @@
     "uuid": "^3.0.1",
     "qs": "^6.2.1",
     "redis": "^2.6.2",
+    "redis-bluebird": "http://github.com/heycalmdown/redis-bluebird/tarball/master",
     "reflect-metadata": "^0.1.8",
     "restify": "^4.1.1",
     "schema-inspector": "^1.6.6",
@@ -60,6 +61,7 @@
     "gulp-jasmine": "^2.4.1",
     "gulp-sourcemaps": "^1.6.0",
     "remap-istanbul": "^0.6.4",
-    "std-mocks": "^1.0.1"
+    "std-mocks": "^1.0.1",
+    "typescript": "<2.2"
   }
 }
