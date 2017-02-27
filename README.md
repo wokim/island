@@ -1,6 +1,4 @@
-This is a branch for preparing release 1.2 - check the [milestone](https://github.com/spearhead-ea/island/milestone/1)
-
-# island v1.2
+# island v1.4
 
 An opinionated, full-stacked Microservices framework for [node](http://nodejs.org), powered by [TypeScript](https://github.com/microsoft/typescript).
 
