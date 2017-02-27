@@ -83,6 +83,7 @@ export default class Islet {
    */
   private async initialize() {
     try {
+      await this.onPrepare();
       await Promise.all(_.values<IAbstractAdapter>(this.adapters).map(adapter => adapter.initialize()));
       process.once('SIGTERM', this.destroy.bind(this));
       bindImpliedServices(this.adapters);
@@ -100,6 +101,7 @@ export default class Islet {
     };
   }
 
+  protected onPrepare() {}
   protected onInitialized() {}
   protected onDestroy() {}
   protected onStarted() {}
