@@ -1,4 +1,5 @@
 require('source-map-support').install();
+require('dns-consul');
 
 const cls = require('continuation-local-storage');
 const ns = cls.getNamespace('app') || cls.createNamespace('app');
