@@ -1,4 +1,4 @@
-# island v1.4
+# island v1.5
 
 An opinionated, full-stacked Microservices framework for [node](http://nodejs.org), powered by [TypeScript](https://github.com/microsoft/typescript).
 
