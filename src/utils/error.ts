@@ -1,4 +1,4 @@
-export type ErrorType = 'LOGIC' | 'FATAL' | 'ETC';
+export type ErrorType = 'EXPECTED' | 'LOGIC' | 'FATAL' | 'ETC';
 
 export class AbstractError extends Error {
   public statusCode: number;
@@ -22,6 +22,16 @@ export class AbstractError extends Error {
     this.errorCode = `${islandName}.${errorType}.${enumObj[errorNumber]}`;
     this.reason = debugMsg;
     this.result = false;
+  }
+}
+
+export class AbstractExpectedError extends AbstractError {
+  constructor(errorNumber: number,
+              debugMsg: string,
+              islandName: string,
+              enumObj: any) {
+    super('EXPECTED', errorNumber, debugMsg || '', islandName, enumObj);
+    this.name = 'ExpectedError';
   }
 }
 
