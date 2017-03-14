@@ -99,9 +99,7 @@ export class EventService {
         }
       })()
     };
-    for (const field in err) {
-      errorLog[field] = err[field];
-    }
+    _.assign(errorLog, err);
     return this.publishEvent(new BaseEvent('log.error', errorLog));
   }
 
