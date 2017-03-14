@@ -84,10 +84,10 @@ export class EventService {
   }
 
   private async sendErrorLog(err: Error, msg: Message): Promise<any> {
+    logger.error(`error on handling event`, err);
     if ('ExpectedError' === err.name) return;
     if ('log.error' === msg.fields.routingKey) return; // preventing loop
 
-    logger.error(`error on handling event`, err);
     const errorLog = {
       message: err.message,
       stack: err.stack,
