@@ -1,7 +1,8 @@
 import Promise = require('bluebird');
 import redis = require('redis-bluebird');
-import AbstractAdapter from '../abstract-adapter';
+
 import { FatalError, ISLAND } from '../../utils/error';
+import AbstractAdapter from '../abstract-adapter';
 
 export interface RedisAdapterOptions {
   port: number;

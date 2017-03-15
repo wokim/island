@@ -4,16 +4,16 @@ import { logger } from '../utils/logger';
 
 import * as inversify from 'inversify';
 
-let inject = function (target: any, key: string, index: number) {
+const inject = (target: any, key: string, index: number) => {
   if (!Reflect.hasOwnMetadata('design:paramtypes', target)) {
     logger.error('metadata required');
     return;
   }
-  let paramTypes = Reflect.getMetadata('design:paramtypes', target);
+  const paramTypes = Reflect.getMetadata('design:paramtypes', target);
   return inversify.inject(paramTypes[index])(target, key, index);
 };
 
-let injectable = function (target: any) {
+const injectable = (target: any) => {
   if (Reflect.hasOwnMetadata('inversify:paramtypes', target) === true) {
     return;
   }
@@ -55,14 +55,14 @@ class Baz {
 }
 
 class Bar {
-  constructor (@inject private foo: Foo) {
+  constructor( @inject private foo: Foo) {
   }
 
   letFooSay() { return this.foo.say(); }
 }
 
 describe('inversify', () => {
-  let kernelWrapper = new KernelWrapper();
+  const kernelWrapper = new KernelWrapper();
   beforeAll(() => {
     kernelWrapper.bindClass(Foo);
     kernelWrapper.bindClassNamed(Foo, Foo, 'foo');
@@ -72,7 +72,7 @@ describe('inversify', () => {
   });
 
   it(`should inject Foo into Bar`, () => {
-    let bar = kernelWrapper.get(Bar);
+    const bar = kernelWrapper.get(Bar);
     expect(bar.letFooSay()).toBe('foo');
   });
 
@@ -80,4 +80,3 @@ describe('inversify', () => {
     expect(kernelWrapper.get<Baz>('Baz')).toEqual(jasmine.any(Baz));
   });
 });
-

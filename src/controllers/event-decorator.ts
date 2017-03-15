@@ -1,8 +1,9 @@
 import * as Bluebird from 'bluebird';
+
 import { SubscriptionOptions } from '../services/event-service';
 import { Event, EventHandler } from '../services/event-subscriber';
+import { DEFAULT_SUBSCRIPTIONS, EventSubscription } from '../utils/event';
 import AbstractController from './abstract-controller';
-import { EventSubscription, DEFAULT_SUBSCRIPTIONS } from '../utils/event';
 
 interface PatternSubscription {
   pattern: string;
@@ -18,12 +19,12 @@ interface PatternSubscriptionContainer {
   _patternSubscriptions: PatternSubscription[];
 }
 
-
 export function eventController(target: typeof AbstractController) {
   const _onInitialized = target.prototype.onInitialized;
-  target.prototype.onInitialized = async function() {
+  // tslint:disable-next-line
+  target.prototype.onInitialized = async function () {
     const result = await _onInitialized.apply(this);
-      
+
     const constructor = target as typeof AbstractController &
       EventSubscriptionContainer<Event<any>, any> & PatternSubscriptionContainer;
 
@@ -34,12 +35,12 @@ export function eventController(target: typeof AbstractController) {
       .then(() => Bluebird.map(constructor._patternSubscriptions || [], ({pattern, handler, options}) => {
         return this.server.subscribePattern(pattern, handler.bind(this), options);
       }))
-      .then(() => result);    
+      .then(() => result);
   };
 }
 
 export function subscribeEvent<T extends Event<U>, U>(eventClass: new (args: U) => T, options?: SubscriptionOptions) {
-  return function eventSubscriberDecorator(target: any, propertyKey: string, desc: PropertyDescriptor) {
+  return (target: any, propertyKey: string, desc: PropertyDescriptor) => {
     const constructor = target.constructor as Function & EventSubscriptionContainer<T, U>;
     constructor._eventSubscriptions = constructor._eventSubscriptions || [];
     constructor._eventSubscriptions.push({
@@ -51,7 +52,7 @@ export function subscribeEvent<T extends Event<U>, U>(eventClass: new (args: U) 
 }
 
 export function subscribePattern(pattern: string, options?: SubscriptionOptions) {
-  return function patternSubscriberDecorator(target: any, propertyKey: string, desc: PropertyDescriptor) {
+  return (target: any, propertyKey: string, desc: PropertyDescriptor) => {
     const constructor = target.constructor as Function & PatternSubscriptionContainer;
     constructor._patternSubscriptions = constructor._patternSubscriptions || [];
     constructor._patternSubscriptions.push({

@@ -1,10 +1,14 @@
+// tslint:disable-next-line
 require('source-map-support').install();
 require('dns-consul');
 
-const cls = require('continuation-local-storage');
+import * as cls from 'continuation-local-storage';
 const ns = cls.getNamespace('app') || cls.createNamespace('app');
+
+// tslint:disable
 require('cls-mongoose')(ns);
 require('cls-bluebird')(ns);
+// tslint:enable
 
 export import mongoose = require('mongoose');
 mongoose.Promise = Promise as any;
@@ -58,7 +62,6 @@ export {
 } from './controllers/middleware-decorator';
 export { eventController, subscribeEvent, subscribePattern } from './controllers/event-decorator';
 
-
 // models
 /**
  * @deprecated
@@ -86,7 +89,7 @@ export { default as MessagePack } from './utils/msgpack';
 export { default as StaticDataLoader } from './utils/staticdata-loader';
 export { default as StaticDataFactory } from './utils/staticdata-factory';
 export {
-  jasmineAsyncAdapter as spec, 
+  jasmineAsyncAdapter as spec,
   createSpyObjWithAllMethods as spyAll,
   resetSpyObjWithCallsCount as resetCallsCount
 } from './utils/jasmine-async-support';

@@ -3,7 +3,7 @@ import { FatalError } from '../utils/error';
 
 function fakeDecorate(decorator) {
   const target = {constructor: {}};
-  decorator(target, null, {value: {options: {}}})
+  decorator(target, null, {value: {options: {}}});
   return (target.constructor as any)._endpointMethods[0];
 }
 
@@ -35,7 +35,7 @@ describe('@endpoint', () => {
     expect(() => fakeDecorate(island.endpoint.get('get /test')).name).toThrowError(FatalError, /.*REDECLARED.*/);
     expect(() => fakeDecorate(island.endpoint.get('POST /test')).name).toThrowError(FatalError, /.*REDECLARED.*/);
   });
-  it('auth, admin, devonly Test ', () => {    
+  it('auth, admin, devonly Test ', () => {
     expect(fakeDecorate2(island.auth(10))).toEqual({ options: { level: 10 } });
     expect(fakeDecorate2(island.admin)).toEqual({ options: { level: 9, admin: true } });
     expect(fakeDecorate2(island.devonly)).toEqual({ options: { developmentOnly: true } });

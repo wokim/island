@@ -1,6 +1,6 @@
-import AbstractAdapter from '../abstract-adapter';
 import { AmqpChannelPoolService, AmqpOptions } from '../../services/amqp-channel-pool-service';
 import { FatalError, ISLAND } from '../../utils/error';
+import AbstractAdapter from '../abstract-adapter';
 
 export class AmqpChannelPoolAdapter extends AbstractAdapter<AmqpChannelPoolService, AmqpOptions> {
   initialize(): Promise<void> {
@@ -11,6 +11,6 @@ export class AmqpChannelPoolAdapter extends AbstractAdapter<AmqpChannelPoolServi
 
   destroy(): void {
     // TODO: should wait until other services stops using AmqpChannelPoolService
-    //this.adaptee.purge();
+    // this.adaptee.purge();
   }
 }

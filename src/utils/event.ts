@@ -1,7 +1,7 @@
-import { Loggers } from 'island-loggers'
+import { Loggers } from 'island-loggers';
 
-import { BaseEvent, Event, EventHandler } from '../services/event-subscriber';
 import { SubscriptionOptions } from '../services/event-service';
+import { BaseEvent, Event, EventHandler } from '../services/event-subscriber';
 
 export interface EventSubscription<T extends Event<U>, U> {
   eventClass: new (args: U) => T;
@@ -38,7 +38,7 @@ export namespace Events {
       super('logger.type.changed', args);
     }
   }
-  
+
   export class SystemNodeStarted extends BaseEvent<Arguments.SystemNodeStarted> {
     constructor(args: Arguments.SystemNodeStarted) {
       super('system.node.started', args);
@@ -55,4 +55,4 @@ export const DEFAULT_SUBSCRIPTIONS: EventSubscription<Event<any>, any>[] = [{
     handler: (event: Events.LoggerTypeChanged) => Loggers.switchType(event.args.type),
     options: {everyNodeListen: true}
   }
-]
+];

@@ -1,6 +1,7 @@
 import * as amqp from 'amqplib';
-import ListenableAdapter from '../listenable-adapter';
+
 import { FatalError, ISLAND } from '../../utils/error';
+import ListenableAdapter from '../listenable-adapter';
 
 export interface RabbitMqAdapterOptions {
   url: string;

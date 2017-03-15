@@ -1,9 +1,9 @@
+import { RpcRequest } from '../services/rpc-service';
+import { ISLAND, LogicError } from '../utils/error';
 import { logger } from '../utils/logger';
 import translateSchemaType from './schema-types';
-import { RpcRequest } from '../services/rpc-service';
-import { LogicError, ISLAND } from '../utils/error';
 
-const inspector = require('schema-inspector');
+import inspector = require('schema-inspector');
 
 export function sanitize(subschema, target) {
   if (!subschema) return target;
@@ -33,4 +33,3 @@ export default function paramSchemaInspector(req: RpcRequest) {
   }
   logger.debug(`RPC schema verified, RPC: ${req.name}`);
 }
-
