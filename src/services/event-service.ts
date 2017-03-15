@@ -3,11 +3,17 @@ import * as _ from 'lodash';
 import * as Bluebird from 'bluebird';
 import * as amqp from 'amqplib';
 import * as uuid from 'uuid';
-
 import { Events } from '../utils/event';
 import { AmqpChannelPoolService } from './amqp-channel-pool-service';
-import { Message, Event, EventHandler, Subscriber, EventSubscriber, PatternSubscriber } from './event-subscriber';
-
+import {
+  Message,
+  Event,
+  EventHandler,
+  Subscriber,
+  EventSubscriber,
+  PatternSubscriber,
+  BaseEvent
+} from './event-subscriber';
 import { TraceLog } from '../utils/tracelog';
 import { logger } from '../utils/logger';
 import reviver from '../utils/reviver';
@@ -67,20 +73,7 @@ export class EventService {
           return;
         }
         Bluebird.resolve(this.handleMessage(msg))
-          .catch(e => {
-            logger.error(`error on handling event`, e);
-            let params = msg.content;
-            try {
-              params = JSON.parse(msg.content.toString('utf8'), reviver);
-            } catch (e) {
-            }
-            const buffer = new Buffer(JSON.stringify({
-              event: msg.fields.routingKey,
-              params: params,
-              error: e
-            }), 'utf8');
-            return this._publish(EventService.EXCHANGE_NAME, 'log.eventError', buffer, {});
-          })
+          .catch(e => this.sendErrorLog(e, msg))
           .finally(() => {
             channel.ack(msg);
             //todo: fix me. we're doing ACK always even if promise rejected.
@@ -88,6 +81,26 @@ export class EventService {
           });
     }));
     // TODO: save channel and consumer tag
+  }
+
+  private async sendErrorLog(err: Error, msg: Message): Promise<any> {
+    logger.error(`error on handling event`, err);
+    if ('ExpectedError' === err.name) return;
+    if ('log.error' === msg.fields.routingKey) return; // preventing loop
+
+    const errorLog = {
+      message: err.message,
+      stack: err.stack,
+      params: (() => {
+        try {
+          return JSON.parse(msg.content.toString('utf8'), reviver);
+        } catch (e) {
+          return msg.content;
+        }
+      })()
+    };
+    _.assign(errorLog, err);
+    return this.publishEvent(new BaseEvent('log.error', errorLog));
   }
 
   private handleMessage(msg: Message): Promise<any> {

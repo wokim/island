@@ -90,7 +90,13 @@ export {
   createSpyObjWithAllMethods as spyAll,
   resetSpyObjWithCallsCount as resetCallsCount
 } from './utils/jasmine-async-support';
-export { ErrorType, AbstractError, AbstractFatalError, AbstractLogicError } from './utils/error';
+export {
+  ErrorType,
+  AbstractError,
+  AbstractExpectedError,
+  AbstractFatalError,
+  AbstractLogicError
+} from './utils/error';
 export { Events } from './utils/event';
 
 export { Di, ObjectWrapper, ObjectFactory } from 'island-di';
