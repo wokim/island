@@ -44,7 +44,7 @@ export function rpc(rpcOptions?: RpcOptions) {
 export function rpcController(registerer?: {registerRpc: (name: string, value: any) => Promise<any>}) {
   return target => {
     const _onInitialized = target.prototype.onInitialized;
-    target.prototype.onInitialized = async () => {
+    target.prototype.onInitialized = async function () {
       await Promise.all(_.map(target._endpointMethods, (v: Rpc) => {
         const developmentOnly = _.get(v, 'options.developmentOnly');
         if (developmentOnly && process.env.NODE_ENV !== 'development') return Promise.resolve();
@@ -56,7 +56,7 @@ export function rpcController(registerer?: {registerRpc: (name: string, value: a
       return _onInitialized.apply(this);
     };
     const _onDestroy = target.prototype.onDestroy;
-    target.prototype.onDestroy = async () => {
+    target.prototype.onDestroy = async function () {
       await Promise.all(_.map(target._endpointMethods, (__, name) => {
           logger.info('stop serving', name);
           // TODO: IslandKeeper.unregisterRpc
