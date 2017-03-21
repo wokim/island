@@ -59,6 +59,7 @@ describe('Schema-types test:', () => {
       .then(done, done.fail);
   });
 
+  /* reserved word 'type'
   it('schema-type test #4: translate : $numberOrQuery', done => {
     const schema = {
       type: '$numberOrQuery'
@@ -84,7 +85,7 @@ describe('Schema-types test:', () => {
       })
       .then(done, done.fail);
   });
-
+*/
   it(`should convert query sanitization`, () => {
     const result = sanitize(island.sanitize.sanitize({
       'aid?': island.sanitize.ObjectId,
