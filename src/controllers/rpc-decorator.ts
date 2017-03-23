@@ -44,6 +44,7 @@ export function rpc(rpcOptions?: RpcOptions) {
 export function rpcController(registerer?: {registerRpc: (name: string, value: any) => Promise<any>}) {
   return target => {
     const _onInitialized = target.prototype.onInitialized;
+    // tslint:disable-next-line
     target.prototype.onInitialized = async function () {
       await Promise.all(_.map(target._endpointMethods, (v: Rpc) => {
         const developmentOnly = _.get(v, 'options.developmentOnly');
@@ -56,6 +57,7 @@ export function rpcController(registerer?: {registerRpc: (name: string, value: a
       return _onInitialized.apply(this);
     };
     const _onDestroy = target.prototype.onDestroy;
+    // tslint:disable-next-line
     target.prototype.onDestroy = async function () {
       await Promise.all(_.map(target._endpointMethods, (__, name) => {
           logger.info('stop serving', name);
