@@ -40,7 +40,7 @@
         "ordered-imports": true,
         "one-line": [ true, "check-catch", "check-finally", "check-open-brace", "check-whitespace", "check-else" ],
         "one-variable-per-declaration": [true, "ignore-for-loop"],
-        "only-arrow-functions": [true, "allow-declarations"],
+        // "only-arrow-functions": [true, "allow-declarations"],
         "prefer-const": true,
         "prefer-for-of": true,
         // "promise-function-async": true,
