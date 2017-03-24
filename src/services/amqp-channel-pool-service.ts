@@ -8,7 +8,7 @@ import { logger } from '../utils/logger';
 export interface AmqpOptions {
   url: string;
   socketOptions?: { noDelay?: boolean, heartbeat?: number };
-  poolSize?: number;
+  poolSize?: number ;
 }
 
 export interface ChannelInfo {
@@ -63,7 +63,7 @@ export class AmqpChannelPoolService {
     if (!_.includes(this.openChannels, channel)) {
       return;
     }
-    if (reusable && this.idleChannels.length < this.options.poolSize) {
+    if (reusable && this.idleChannels.length < Number(this.options.poolSize)) {
       this.idleChannels.push({ channel, date: +new Date() });
       return;
     }

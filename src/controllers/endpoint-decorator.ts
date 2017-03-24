@@ -25,9 +25,9 @@ export interface EndpointOptions {
 }
 
 export interface EndpointQuotaOptions {
-  refts?: number;
+  refSecs?: number;
   limit?: number;
-  bants?: number;
+  banSecs?: number;
 }
 
 export interface EndpointSchemaOptions {
@@ -631,7 +631,7 @@ function pushSafe(object, arrayName, element) {
 export function quota(ref:number, limit:number, ban:number) {
   return (target, key, desc: PropertyDescriptor) => {
     const options = desc.value.options = (desc.value.options || {}) as EndpointOptions;
-    options.quota = { refts : Number(ref), limit : Number(limit), bants : Number(ban)};
+    options.quota = { refSecs : Number(ref), limit : Number(limit), banSecs : Number(ban)};
     
     if (desc.value.endpoints) {
       desc.value.endpoints.forEach(e => _.merge(e.options, options));
