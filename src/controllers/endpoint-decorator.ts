@@ -25,7 +25,6 @@ export interface EndpointOptions {
 }
 
 export interface EndpointQuotaOptions {
-  refSecs?: number;
   limit?: number;
   banSecs?: number;
 }
@@ -626,12 +625,12 @@ function pushSafe(object, arrayName, element) {
 // endpoint에 quota를 설정한다.
 //
 // [EXAMPLE]
-// @island.quota(1, 2, 3)
+// @island.quota(1, 2)
 // @island.endpoint('...')
-export function quota(ref:number, limit:number, ban:number) {
+export function quota(limit:number, ban:number) {
   return (target, key, desc: PropertyDescriptor) => {
     const options = desc.value.options = (desc.value.options || {}) as EndpointOptions;
-    options.quota = { refSecs : Number(ref), limit : Number(limit), banSecs : Number(ban)};
+    options.quota = { limit : Number(limit), banSecs : Number(ban)};
     
     if (desc.value.endpoints) {
       desc.value.endpoints.forEach(e => _.merge(e.options, options));
