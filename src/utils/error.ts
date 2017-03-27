@@ -1,4 +1,4 @@
-export type ErrorType = 'EXPECTED' | 'LOGIC' | 'FATAL' | 'MANYREQUESTS' | 'ETC';
+export type ErrorType = 'EXPECTED' | 'LOGIC' | 'FATAL' | 'ETC';
 
 export class AbstractError extends Error {
   public statusCode: number;
@@ -55,16 +55,6 @@ export class AbstractFatalError extends AbstractError {
   }
 }
 
-export class AbstractManyRequestsError extends AbstractError {
-  constructor(errorNumber: number,
-              debugMsg: string,
-              islandName: string,
-              enumObj: any) {
-    super('MANYREQUESTS', errorNumber, debugMsg || '', islandName, enumObj);
-    this.name = 'ManyRequestsError';
-  }
-}
-
 export class LogicError extends AbstractLogicError {
   constructor(errorNumber: ISLAND.LOGIC, debugMsg?: string) {
     super(errorNumber, debugMsg || '', 'ISLAND', ISLAND.LOGIC);
@@ -73,12 +63,6 @@ export class LogicError extends AbstractLogicError {
 
 export class FatalError extends AbstractFatalError {
   constructor(errorNumber: ISLAND.FATAL, debugMsg?: string) {
-    super(errorNumber, debugMsg || '', 'ISLAND', ISLAND.FATAL);
-  }
-}
-
-export class ManyRequestsError extends AbstractManyRequestsError {
-  constructor(errorNumber: ISLAND.MANYREQUESTS, debugMsg?: string) {
     super(errorNumber, debugMsg || '', 'ISLAND', ISLAND.FATAL);
   }
 }
@@ -113,9 +97,5 @@ export namespace ISLAND {
     F0024_ENDPOINT_METHOD_REDECLARED          = 24,
     F0025_MISSING_ADAPTER_OPTIONS             = 25,
     F0026_MISSING_REPLYTO_IN_RPC              = 26
-  }
-
-  export enum MANYREQUESTS {
-      M0001_QUOTA = 1
   }
 }
