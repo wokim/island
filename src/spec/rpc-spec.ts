@@ -116,12 +116,11 @@ describe('RPC test:', () => {
         result: { sanitization, validation }
       }
     };
-
-    return rpcService.register('testMethod', msg => {
+    return rpcService.register('testMethod2', msg => {
       expect(msg).toBe('hello');
       return Promise.resolve('world');
     }, 'rpc', rpcoptions).then(() => {
-      return rpcService.invoke<string, string>('testMethod', 'hello').then(res => {
+      return rpcService.invoke<string, string>('testMethod2', 'hello').then(res => {
         expect(res).toBe('world');
         done();
       });
