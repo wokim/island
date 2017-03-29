@@ -702,6 +702,7 @@ function makeEndpointDecorator(method?: string) {
 export function endpointController(registerer?: { registerEndpoint: (name: string, value: any) => Promise<any> }) {
   return target => {
     const _onInitialized = target.prototype.onInitialized;
+    // tslint:disable-next-line
     target.prototype.onInitialized = async function () {
       await Promise.all(_.map(target._endpointMethods, (v: Endpoint) => {
         const developmentOnly = _.get(v, 'options.developmentOnly');
@@ -717,6 +718,7 @@ export function endpointController(registerer?: { registerEndpoint: (name: strin
     };
 
     const _onDestroy = target.prototype.onDestroy;
+    // tslint:disable-next-line
     target.prototype.onDestroy = async function () {
       await Promise.all(_.map(target._endpointMethods, (v: Endpoint) => {
         logger.info(`stop serving ${v.name}`);
