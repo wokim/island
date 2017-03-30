@@ -41,6 +41,7 @@ export interface RpcRequest {
 }
 
 class RpcResponse {
+  static reviver: ((k, v) => any) | undefined = reviver;
   static encode(body: any, serviceName: string): Buffer {
     const res: IRpcResponse = {
       body,
@@ -73,7 +74,7 @@ class RpcResponse {
   static decode(msg: Buffer): IRpcResponse {
     if (!msg) return { version: 0, result: false };
     try {
-      const res: IRpcResponse = JSON.parse(msg.toString('utf8'), reviver);
+      const res: IRpcResponse = JSON.parse(msg.toString('utf8'), RpcResponse.reviver);
       if (!res.result) res.body = this.getAbstractError(res.body);
 
       return res;
@@ -128,6 +129,10 @@ export enum RpcHookType {
   POST_RPC
 }
 
+export interface InitializeOptions {
+  noReviver: boolean;
+}
+
 export default class RPCService {
   private consumerInfosMap: { [name: string]: IConsumerInfo } = {};
   private responseQueue: string;
@@ -143,7 +148,10 @@ export default class RPCService {
     this.hooks = {};
   }
 
-  public async initialize(channelPool: AmqpChannelPoolService): Promise<any> {
+  public async initialize(channelPool: AmqpChannelPoolService, opts?: InitializeOptions): Promise<any> {
+    if (opts && opts.noReviver) {
+      RpcResponse.reviver = undefined;
+    }
     // NOTE: live docker 환경에서는 같은 hostname + process.pid 조합이 유일하지 않을 수 있다
     // docker 내부의 process id 는 1인 경우가 대부분이며 host=net으로 실행시키는 경우 hostname도 동일할 수 있다.
     this.responseQueue = `rpc.res.${this.serviceName}.${os.hostname()}.${uuid.v4()}`;

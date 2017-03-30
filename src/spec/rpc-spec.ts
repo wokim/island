@@ -7,6 +7,7 @@ import { RpcOptions } from '../controllers/rpc-decorator';
 import paramSchemaInspector from '../middleware/schema.middleware';
 import { AmqpChannelPoolService } from '../services/amqp-channel-pool-service';
 import RPCService, { RpcRequest } from '../services/rpc-service';
+import { jasmineAsyncAdapter as spec } from '../utils/jasmine-async-support';
 import { TraceLog } from '../utils/tracelog';
 
 describe('RPC test:', () => {
@@ -177,4 +178,37 @@ describe('RPC test:', () => {
         done();
       });
   });
+});
+
+describe('RPC with reviver', async () => {
+  const url = process.env.RABBITMQ_HOST || 'amqp://rabbitmq:5672';
+  const rpcService = new RPCService('haha');
+  const amqpChannelPool = new AmqpChannelPoolService();
+
+  async function invokeTest(opts?) {
+    await rpcService.initialize(amqpChannelPool, opts);
+    await rpcService.register('testMethod', msg => Promise.resolve(new Date().toISOString()), 'rpc');
+    return await rpcService.invoke<string, any>('testMethod', 'hello');
+  }
+
+  beforeEach(spec(async () => {
+    await amqpChannelPool.initialize({ url });
+  }));
+
+  afterEach(spec(async () => {
+    await amqpChannelPool.purge();
+    await TraceLog.purge();
+    await rpcService.purge();
+  }));
+
+  it('should convert an ISODate string to Date', spec(async () => {
+    const res = await invokeTest();
+    expect(typeof res).toEqual('object');
+    expect(res instanceof Date).toBeTruthy();
+  }));
+  it('should keep an ISODate string as string with noReviver', spec(async () => {
+    const res = await invokeTest({ noReviver: true });
+    expect(typeof res).toEqual('string');
+    expect(res instanceof Date).toBeFalsy();
+  }));
 });
