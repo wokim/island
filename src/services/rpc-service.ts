@@ -16,6 +16,8 @@ import { AmqpChannelPoolService } from './amqp-channel-pool-service';
 
 const RPC_EXEC_TIMEOUT_MS = parseInt(process.env.ISLAND_RPC_EXEC_TIMEOUT_MS, 10) || 25000;
 const RPC_WAIT_TIMEOUT_MS = parseInt(process.env.ISLAND_RPC_WAIT_TIMEOUT_MS, 10) || 60000;
+const SERVICE_LOAD_TIME_MS = parseInt(process.env.ISLAND_SERVICE_LOAD_TIME_MS, 10) || 60000;
+const RPC_QUEUE_EXPIRES_MS = RPC_WAIT_TIMEOUT_MS + SERVICE_LOAD_TIME_MS;
 
 export interface IConsumerInfo {
   channel: amqp.Channel;
@@ -293,7 +295,10 @@ export default class RPCService {
 
     // NOTE: 컨슈머가 0개 이상에서 0개가 될 때 자동으로 삭제된다.
     // 단 한번도 컨슈머가 등록되지 않는다면 영원히 삭제되지 않는데 그런 케이스는 없음
-    await this.channelPool.usingChannel(channel => channel.assertQueue(name, { durable: false, autoDelete: true }));
+    await this.channelPool.usingChannel(channel => channel.assertQueue(name, {
+                arguments : {'x-expires': RPC_QUEUE_EXPIRES_MS},
+                durable   : false
+    }));
     this.consumerInfosMap[name] = await this._consume(name, consumer, 'SomeoneCallsMe');
   }
 

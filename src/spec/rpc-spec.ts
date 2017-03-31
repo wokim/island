@@ -1,5 +1,7 @@
 // tslint:disable-next-line
 require('source-map-support').install();
+process.env.ISLAND_RPC_WAIT_TIMEOUT_MS = 3000;
+process.env.ISLAND_SERVICE_LOAD_TIME_MS = 1000;
 
 import Bluebird = require('bluebird');
 
@@ -117,12 +119,11 @@ describe('RPC test:', () => {
         result: { sanitization, validation }
       }
     };
-
-    return rpcService.register('testMethod', msg => {
+    return rpcService.register('testSchemaMethod', msg => {
       expect(msg).toBe('hello');
       return Promise.resolve('world');
     }, 'rpc', rpcoptions).then(() => {
-      return rpcService.invoke<string, string>('testMethod', 'hello').then(res => {
+      return rpcService.invoke<string, string>('testSchemaMethod', 'hello').then(res => {
         expect(res).toBe('world');
         done();
       });
@@ -177,6 +178,30 @@ describe('RPC test:', () => {
         amqpChannelPool.usingChannel = usingChannel;
         done();
       });
+  });
+
+  it('should keeping a constant queue during restart the service', done => {
+    return rpcService.register('testMethod3', msg => {
+      return Promise.resolve('world');
+    }, 'rpc').then(() => {
+      return rpcService.purge()
+        .then(() => amqpChannelPool.purge())
+        .then(() => TraceLog.purge());
+    }).then(() => {
+      const url = process.env.RABBITMQ_HOST || 'amqp://rabbitmq:5672';
+      return amqpChannelPool.initialize({ url })
+        .then(() => rpcService.initialize(amqpChannelPool));
+    }).then(() => {
+      setTimeout(() => {
+          return rpcService.register('testMethod3', msg => {
+            return Promise.resolve('world');
+          }, 'rpc');
+        }, parseInt(process.env.ISLAND_RPC_WAIT_TIMEOUT_MS, 10) / 2);
+      return rpcService.invoke<string, string>('testMethod3', 'hello').then(res => {
+        expect(res).toBe('world');
+        done();
+      });
+    });
   });
 });
 
