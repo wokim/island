@@ -63,7 +63,7 @@ export class AmqpChannelPoolService {
     if (!_.includes(this.openChannels, channel)) {
       return;
     }
-    if (reusable && this.idleChannels.length < Number(this.options.poolSize)) {
+    if (reusable && this.idleChannels.length < (this.options.poolSize as number)) {
       this.idleChannels.push({ channel, date: +new Date() });
       return;
     }
