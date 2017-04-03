@@ -627,15 +627,14 @@ function pushSafe(object, arrayName, element) {
 // [EXAMPLE]
 // @island.quota(1, 2)
 // @island.endpoint('...')
-export function quota(limit:number, banSecs:number) {
+export function quota(limit: number, banSecs: number) {
   return (target, key, desc: PropertyDescriptor) => {
     const options = desc.value.options = (desc.value.options || {}) as EndpointOptions;
     options.quota = { limit : Number(limit), banSecs : Number(banSecs)};
-    
     if (desc.value.endpoints) {
       desc.value.endpoints.forEach(e => _.merge(e.options, options));
     }
-  }
+  };
 }
 
 interface Endpoint {
