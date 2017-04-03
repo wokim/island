@@ -156,10 +156,10 @@ export class EventService {
     const headers = msg.properties.headers;
     const tattoo = headers && headers.tattoo;
     const content = JSON.parse(msg.content.toString('utf8'), reviver);
-    logger.debug(`${msg.fields.routingKey}`, content, msg.properties.headers);
     const subscribers = this.subscribers.filter(subscriber => subscriber.isRoutingKeyMatched(msg.fields.routingKey));
     const promise = Bluebird.map(subscribers, subscriber => {
       return enterScope({ RequestTrackId: tattoo, Context: msg.fields.routingKey, Type: 'event' }, () => {
+        logger.debug(`${msg.fields.routingKey}`, content, msg.properties.headers);
         const log = new TraceLog(tattoo, msg.properties.timestamp || 0);
         log.size = msg.content.byteLength;
         log.from = headers.from;
