@@ -23,6 +23,9 @@ export interface IConsumerInfo {
   channel: amqp.Channel;
   tag: string;
   options?: RpcOptions;
+  key: string;
+  consumer: (msg: any) => Promise<void>;
+  consumerOpts: any;
 }
 
 interface Message {
@@ -302,13 +305,24 @@ export default class RPCService {
     this.consumerInfosMap[name] = await this._consume(name, consumer, 'SomeoneCallsMe');
   }
 
+  public async pause(name: string) {
+    const consumerInfo = this.consumerInfosMap[name];
+    if (!consumerInfo) return;
+    await consumerInfo.channel.cancel(consumerInfo.tag);
+  }
+
+  public async resume(name: string) {
+    const consumerInfo = this.consumerInfosMap[name];
+    if (!consumerInfo) return;
+    await consumerInfo.channel.consume(consumerInfo.key, consumerInfo.consumer);
+  }
+
   public async unregister(name: string) {
     const consumerInfo = this.consumerInfosMap[name];
-    if (!consumerInfo) return Promise.resolve();
-    const ok = await this._cancel(consumerInfo);
+    if (!consumerInfo) return;
 
+    await this._cancel(consumerInfo);
     delete this.consumerInfosMap[name];
-    return ok;
   }
 
   public async invoke<T, U>(name: string, msg: T, opts?: any): Promise<U>;
@@ -350,11 +364,12 @@ export default class RPCService {
     return await p;
   }
 
-  protected async _consume(key: string, handler: (msg) => Promise<any>, tag: string, options?: any):
+  protected async _consume(key: string, handler: (msg) => Promise<any>, tag: string, consumerOpts?: any):
     Promise<IConsumerInfo> {
     const channel = await this.channelPool.acquireChannel();
     await channel.prefetch(+process.env.RPC_PREFETCH || 1000);
-    const result = await channel.consume(key, async msg => {
+
+    const consumer = async msg => {
       try {
         await handler(msg);
         channel.ack(msg);
@@ -366,6 +381,7 @@ export default class RPCService {
           }, 1000);
           return;
         }
+
         // Discard the message
         channel.ack(msg);
 
@@ -377,9 +393,10 @@ export default class RPCService {
           return Promise.resolve(channel.sendToQueue(msg.properties.replyTo, content, properties));
         });
       }
-    }, options || {});
+    };
+    const result = await channel.consume(key, consumer, consumerOpts || {});
 
-    return { channel, tag: result.consumerTag };
+    return { channel, tag: result.consumerTag, key, consumer, consumerOpts };
   }
 
   protected async _cancel(consumerInfo: IConsumerInfo): Promise<void> {
