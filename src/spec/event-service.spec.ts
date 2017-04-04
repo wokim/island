@@ -1,7 +1,10 @@
 import { AmqpChannelPoolService } from '../services/amqp-channel-pool-service';
-import { EventService } from '../services/event-service';
+import { EventHookType, EventService } from '../services/event-service';
 import { Event, PatternSubscriber } from '../services/event-subscriber';
+import { jasmineAsyncAdapter as spec } from '../utils/jasmine-async-support';
 import { TraceLog } from '../utils/tracelog';
+
+import Bluebird = require('bluebird');
 
 class BaseEvent<T> implements Event<T> {
   publishedAt: Date;
@@ -74,7 +77,8 @@ describe('EventService', () => {
   });
 
   afterAll(done => {
-    eventService.purge()
+    Bluebird.delay(500)
+      .then(() => eventService.purge())
       .then(() => amqpChannelPool.purge())
       .then(() => TraceLog.purge())
       .then(done)
@@ -110,4 +114,46 @@ describe('PatternSubscriber', () => {
       expect(s.isRoutingKeyMatched('ccc.aaa.bbb')).toBeFalsy();
     });
   });
+});
+
+describe('Event-hook', () => {
+  const amqpChannelPool = new AmqpChannelPoolService();
+  const eventService = new EventService(`event-service-spec`);
+
+  beforeEach(spec(async () => {
+    await amqpChannelPool.initialize({
+      url: process.env.RABBITMQ_HOST || 'amqp://rabbitmq:5672'
+    });
+    await eventService.initialize(amqpChannelPool);
+    await eventService.startConsume();
+  }));
+
+  afterEach(spec(async () => {
+    await Bluebird.delay(500);
+    await amqpChannelPool.purge();
+    await TraceLog.purge();
+    await eventService.purge();
+  }));
+
+  it('could change the event parameter', spec(async () => {
+    eventService.registerHook(EventHookType.EVENT, p => {
+      return Promise.resolve('x' + p);
+    });
+    await eventService.subscribeEvent(TestEvent, (event: TestEvent) => {
+      expect(event.args).toBe('xbbb');
+    });
+    await eventService.publishEvent(new TestEvent('bbb'));
+  }));
+
+  it('could reference the error object', spec(async () => {
+    eventService.registerHook(EventHookType.ERROR, e => {
+      expect(e.message).toMatch(/custom-event-error/);
+      return Promise.resolve(e);
+    });
+
+    await eventService.subscribeEvent(TestEvent, (event: TestEvent) => {
+      throw new Error('custom-event-error');
+    });
+    await eventService.publishEvent(new TestEvent('bbb'));
+  }));
 });
