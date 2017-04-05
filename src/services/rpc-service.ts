@@ -16,11 +16,16 @@ import { AmqpChannelPoolService } from './amqp-channel-pool-service';
 
 const RPC_EXEC_TIMEOUT_MS = parseInt(process.env.ISLAND_RPC_EXEC_TIMEOUT_MS, 10) || 25000;
 const RPC_WAIT_TIMEOUT_MS = parseInt(process.env.ISLAND_RPC_WAIT_TIMEOUT_MS, 10) || 60000;
+const SERVICE_LOAD_TIME_MS = parseInt(process.env.ISLAND_SERVICE_LOAD_TIME_MS, 10) || 60000;
+const RPC_QUEUE_EXPIRES_MS = RPC_WAIT_TIMEOUT_MS + SERVICE_LOAD_TIME_MS;
 
 export interface IConsumerInfo {
   channel: amqp.Channel;
   tag: string;
   options?: RpcOptions;
+  key: string;
+  consumer: (msg: any) => Promise<void>;
+  consumerOpts: any;
 }
 
 interface Message {
@@ -41,6 +46,7 @@ export interface RpcRequest {
 }
 
 class RpcResponse {
+  static reviver: ((k, v) => any) | undefined = reviver;
   static encode(body: any, serviceName: string): Buffer {
     const res: IRpcResponse = {
       body,
@@ -73,7 +79,7 @@ class RpcResponse {
   static decode(msg: Buffer): IRpcResponse {
     if (!msg) return { version: 0, result: false };
     try {
-      const res: IRpcResponse = JSON.parse(msg.toString('utf8'), reviver);
+      const res: IRpcResponse = JSON.parse(msg.toString('utf8'), RpcResponse.reviver);
       if (!res.result) res.body = this.getAbstractError(res.body);
 
       return res;
@@ -128,6 +134,10 @@ export enum RpcHookType {
   POST_RPC
 }
 
+export interface InitializeOptions {
+  noReviver: boolean;
+}
+
 export default class RPCService {
   private consumerInfosMap: { [name: string]: IConsumerInfo } = {};
   private responseQueue: string;
@@ -143,7 +153,10 @@ export default class RPCService {
     this.hooks = {};
   }
 
-  public async initialize(channelPool: AmqpChannelPoolService): Promise<any> {
+  public async initialize(channelPool: AmqpChannelPoolService, opts?: InitializeOptions): Promise<any> {
+    if (opts && opts.noReviver) {
+      RpcResponse.reviver = undefined;
+    }
     // NOTE: live docker 환경에서는 같은 hostname + process.pid 조합이 유일하지 않을 수 있다
     // docker 내부의 process id 는 1인 경우가 대부분이며 host=net으로 실행시키는 경우 hostname도 동일할 수 있다.
     this.responseQueue = `rpc.res.${this.serviceName}.${os.hostname()}.${uuid.v4()}`;
@@ -285,17 +298,31 @@ export default class RPCService {
 
     // NOTE: 컨슈머가 0개 이상에서 0개가 될 때 자동으로 삭제된다.
     // 단 한번도 컨슈머가 등록되지 않는다면 영원히 삭제되지 않는데 그런 케이스는 없음
-    await this.channelPool.usingChannel(channel => channel.assertQueue(name, { durable: false, autoDelete: true }));
+    await this.channelPool.usingChannel(channel => channel.assertQueue(name, {
+                arguments : {'x-expires': RPC_QUEUE_EXPIRES_MS},
+                durable   : false
+    }));
     this.consumerInfosMap[name] = await this._consume(name, consumer, 'SomeoneCallsMe');
+  }
+
+  public async pause(name: string) {
+    const consumerInfo = this.consumerInfosMap[name];
+    if (!consumerInfo) return;
+    await consumerInfo.channel.cancel(consumerInfo.tag);
+  }
+
+  public async resume(name: string) {
+    const consumerInfo = this.consumerInfosMap[name];
+    if (!consumerInfo) return;
+    await consumerInfo.channel.consume(consumerInfo.key, consumerInfo.consumer);
   }
 
   public async unregister(name: string) {
     const consumerInfo = this.consumerInfosMap[name];
-    if (!consumerInfo) return Promise.resolve();
-    const ok = await this._cancel(consumerInfo);
+    if (!consumerInfo) return;
 
+    await this._cancel(consumerInfo);
     delete this.consumerInfosMap[name];
-    return ok;
   }
 
   public async invoke<T, U>(name: string, msg: T, opts?: any): Promise<U>;
@@ -337,11 +364,12 @@ export default class RPCService {
     return await p;
   }
 
-  protected async _consume(key: string, handler: (msg) => Promise<any>, tag: string, options?: any):
+  protected async _consume(key: string, handler: (msg) => Promise<any>, tag: string, consumerOpts?: any):
     Promise<IConsumerInfo> {
     const channel = await this.channelPool.acquireChannel();
     await channel.prefetch(+process.env.RPC_PREFETCH || 1000);
-    const result = await channel.consume(key, async msg => {
+
+    const consumer = async msg => {
       try {
         await handler(msg);
         channel.ack(msg);
@@ -353,6 +381,7 @@ export default class RPCService {
           }, 1000);
           return;
         }
+
         // Discard the message
         channel.ack(msg);
 
@@ -364,9 +393,10 @@ export default class RPCService {
           return Promise.resolve(channel.sendToQueue(msg.properties.replyTo, content, properties));
         });
       }
-    }, options || {});
+    };
+    const result = await channel.consume(key, consumer, consumerOpts || {});
 
-    return { channel, tag: result.consumerTag };
+    return { channel, tag: result.consumerTag, key, consumer, consumerOpts };
   }
 
   protected async _cancel(consumerInfo: IConsumerInfo): Promise<void> {

@@ -1,5 +1,7 @@
 // tslint:disable-next-line
 require('source-map-support').install();
+process.env.ISLAND_RPC_WAIT_TIMEOUT_MS = 3000;
+process.env.ISLAND_SERVICE_LOAD_TIME_MS = 1000;
 
 import Bluebird = require('bluebird');
 
@@ -7,6 +9,7 @@ import { RpcOptions } from '../controllers/rpc-decorator';
 import paramSchemaInspector from '../middleware/schema.middleware';
 import { AmqpChannelPoolService } from '../services/amqp-channel-pool-service';
 import RPCService, { RpcRequest } from '../services/rpc-service';
+import { jasmineAsyncAdapter as spec } from '../utils/jasmine-async-support';
 import { TraceLog } from '../utils/tracelog';
 
 describe('RPC test:', () => {
@@ -21,119 +24,93 @@ describe('RPC test:', () => {
 
   afterAll(done => {
     rpcService.purge()
+      .then(() => Bluebird.delay(100)) // to have time to send ack
       .then(() => amqpChannelPool.purge())
       .then(() => TraceLog.purge())
       .then(done)
       .catch(done.fail);
   });
 
-  it('rpc test #1: rpc call', done => {
-    return rpcService.register('testMethod', msg => {
+  it('rpc test #1: rpc call', spec(async () => {
+    await rpcService.register('testMethod', msg => {
       expect(msg).toBe('hello');
       return Promise.resolve('world');
-    }, 'rpc').then(() => {
-      return rpcService.invoke<string, string>('testMethod', 'hello').then(res => {
-        expect(res).toBe('world');
-        done();
-      });
-    });
-  });
+    }, 'rpc');
+    const res = await rpcService.invoke<string, string>('testMethod', 'hello');
+    expect(res).toBe('world');
+  }));
 
-  it('rpc test #2: rpc call again', done => {
-    return rpcService.invoke<string, string>('testMethod', 'hello').then(res => {
-      expect(res).toBe('world');
-      done();
-    });
-  });
+  it('rpc test #2: rpc call again', spec(async () => {
+    const res = await rpcService.invoke<string, string>('testMethod', 'hello');
+    expect(res).toBe('world');
+  }));
 
-  it('rpc test #3: purge', done => {
-    return rpcService.unregister('testMethod').then(() => done()).catch(err => done.fail(err));
-  });
+  it('rpc test #3: purge', spec(async () => {
+    await rpcService.unregister('testMethod');
+  }));
 
-  it('rpc test #4: reject test', done => {
-    return rpcService.register('testMethod', msg => {
-      expect(msg).toBe('hello');
-      return Promise.reject(new Error('custom error'));
-    }, 'rpc').then(() => {
-      return rpcService.invoke<string, string>('testMethod', 'hello').catch((err: Error) => {
-        expect(err.message).toBe(`code: haha.ETC.F0001, msg: custom error'`);
-        rpcService.unregister('testMethod').then(() => done()).catch(err => done.fail(err));
-      });
-    });
-  });
+  it('rpc test #4: reject test', spec(async ()  => {
+    await rpcService.register('testMethod', msg => {
+      throw new Error('custom error');
+    }, 'rpc');
+    try {
+      await rpcService.invoke<string, string>('testMethod', 'hello');
+    } catch (e) {
+      expect(e.message).toBe(`code: haha.ETC.F0001, msg: custom error'`);
+    }
+    await rpcService.unregister('testMethod');
+  }));
 
-  it('rpc test #5: 메시지를 하나 처리하고 있는 사이에 삭제 시도', done => {
-    return rpcService.register('testMethod', msg => {
-      return new Promise((resolve, reject) => {
-        setTimeout(() => resolve('world'), parseInt(msg, 10));
-      });
-    }, 'rpc').then(() => {
-      const promises = [
-        rpcService.invoke('testMethod', 1000),
-        rpcService.invoke('testMethod', 100).then(res => {
-          // 하나는 아직 처리중인데 unregister 시도를 해본다
-          rpcService.unregister('testMethod');
+  it('rpc test #5: should prevent to get new RPC request safely', spec(async () => {
+    await rpcService.register('testMethod', async msg => {
+      await Bluebird.delay(msg);
+      return msg;
+    }, 'rpc');
+    const promises = [
+      rpcService.invoke('testMethod', 100),
+      rpcService.invoke('testMethod', 10)
+        .then(async res => {
+          await rpcService.pause('testMethod');
           return res;
         })
-      ];
-      Promise.all(promises).then(() => done()).catch(done.fail);
-    });
-  });
+    ];
+    const res = await Promise.all(promises);
+    expect(res[0]).toEqual(100);
+    expect(res[1]).toEqual(10);
+  }));
 
-  it('rpc test #6: 등록해두고 모조리 다 취소시키기', done => {
-    return Promise.all([
-      rpcService.register('AAA', msg => {
-        return new Promise((resolve, reject) => {
-          rpcService.purge();
-          setTimeout(() => resolve('world'), parseInt(msg, 10));
-        });
+  it('rpc test #6: 등록해두고 모조리 다 취소시키기', spec(async () => {
+    await Promise.all([
+      rpcService.register('AAA', async msg => {
+        await rpcService.purge();
+        await Bluebird.delay(msg);
+        return Promise.resolve('world');
       }, 'rpc'),
-      rpcService.register('BBBB', msg => {
-        return new Promise((resolve, reject) => {
-          setTimeout(() => resolve('world'), parseInt(msg, 10));
-        });
+      rpcService.register('BBBB', async msg => {
+        await Bluebird.delay(msg);
+        return Promise.resolve('world');
       }, 'rpc')
-    ]).then(() => {
-      return rpcService.invoke('AAA', 2000);
-    }).then(() => {
-      done();
-    }).catch(done.fail);
-  }, 10000);
+    ]);
+    await rpcService.invoke('AAA', 500);
+  }));
 
-  it('rpc test #7: rpc call with sanitizatioin, validation', done => {
-    // Sanitization Schema
-    const sanitization = {
-      type: 'string'
-    };
-    // Validation Schema
-    const validation = {
-      type: 'string'
-    };
-
-    const rpcoptions: RpcOptions = {
+  it('rpc test #7: rpc call with sanitizatioin, validation', spec(async () => {
+    const sanitization  = { type: 'string' };
+    const validation    = { type: 'string' };
+    const rpcOptions: RpcOptions = {
       schema: {
-        query: { sanitization, validation },
+        query:  { sanitization, validation },
         result: { sanitization, validation }
       }
     };
+    await rpcService.register('testSchemaMethod', msg => Promise.resolve('world'), 'rpc', rpcOptions);
+    const res = await rpcService.invoke<string, string>('testSchemaMethod', 'hello');
+    expect(res).toBe('world');
+  }));
 
-    return rpcService.register('testMethod', msg => {
-      expect(msg).toBe('hello');
-      return Promise.resolve('world');
-    }, 'rpc', rpcoptions).then(() => {
-      return rpcService.invoke<string, string>('testMethod', 'hello').then(res => {
-        expect(res).toBe('world');
-        done();
-      });
-    });
-  });
-
-  it('rpc test #8: rpc call with paramSchemaInspector', done => {
-    // Validation Schema
-    const validation = {
-      type: 'string'
-    };
-    const rpcoptions: RpcOptions = {
+  it('rpc test #8: rpc call with paramSchemaInspector', spec(async () => {
+    const validation = { type: 'string' };
+    const rpcOptions: RpcOptions = {
       schema: {
         query: { sanitization: {}, validation },
         result: { sanitization: {}, validation }
@@ -142,20 +119,15 @@ describe('RPC test:', () => {
     const req: RpcRequest = {
       msg: {},
       name: 'test',
-      options: rpcoptions
+      options: rpcOptions
     };
 
-    return Bluebird.try(() => {
+    expect(() => {
       paramSchemaInspector(req);
-    })
-      .catch(err => {
-        console.log('rpc paramSchemaInspector test : ', err);
-        return;
-      })
-      .then(done, done.fail);
-  });
+    }).toThrowError(/.*L0002_WRONG_PARAMETER_SCHEMA.*/);
+  }));
 
-  it('should unregister handlers if it failed to send a message', done => {
+  it('should unregister handlers if it failed to send a message', spec(async () => {
     const usingChannel = amqpChannelPool.usingChannel;
     (amqpChannelPool as any).usingChannel = cb => {
       cb({
@@ -163,18 +135,75 @@ describe('RPC test:', () => {
       });
     };
 
-    rpcService.invoke<string, string>('testMethod', 'hello')
-      .then(() => {
-        expect(true).toEqual(false);
-      })
-      .catch(e => {
-        expect(e.message).toEqual('haha');
-      })
-      .then(() => {
-        expect((rpcService as any).reqTimeouts).toEqual({});
-        expect((rpcService as any).reqExecutors).toEqual({});
-        amqpChannelPool.usingChannel = usingChannel;
-        done();
-      });
-  });
+    try {
+      await rpcService.invoke<string, string>('testMethod', 'hello');
+      expect(true).toEqual(false);
+    } catch (e) {
+      expect(e.message).toEqual('haha');
+    }
+    expect((rpcService as any).reqTimeouts).toEqual({});
+    expect((rpcService as any).reqExecutors).toEqual({});
+    amqpChannelPool.usingChannel = usingChannel;
+  }));
+
+  it('should keeping a constant queue during restart the service', spec(async () => {
+    await rpcService.register('testMethod3', msg => Promise.resolve('world'), 'rpc');
+    await rpcService.purge();
+    await amqpChannelPool.purge();
+    await TraceLog.purge();
+
+    const url = process.env.RABBITMQ_HOST || 'amqp://rabbitmq:5672';
+    await amqpChannelPool.initialize({ url });
+    await rpcService.initialize(amqpChannelPool);
+    const p = rpcService.invoke<string, string>('testMethod3', 'hello');
+    await Bluebird.delay(parseInt(process.env.ISLAND_RPC_WAIT_TIMEOUT_MS, 10) / 2);
+    await rpcService.register('testMethod3', msg => Promise.resolve('world'), 'rpc');
+    const res = await p;
+    expect(res).toBe('world');
+  }));
+
+  it('should be able to pause and resume', spec(async () => {
+    await rpcService.register('testPause', msg => Promise.resolve(msg + ' world'), 'rpc');
+    await rpcService.pause('testPause');
+
+    const p = rpcService.invoke<string, string>('testPause', 'hello');
+    await rpcService.resume('testPause');
+    const res = await p;
+    expect(res).toBe('hello world');
+  }));
+});
+
+describe('RPC with reviver', async () => {
+  const url = process.env.RABBITMQ_HOST || 'amqp://rabbitmq:5672';
+  const rpcService = new RPCService('haha');
+  const amqpChannelPool = new AmqpChannelPoolService();
+
+  async function invokeTest(opts?) {
+    await rpcService.initialize(amqpChannelPool, opts);
+    await rpcService.register('testMethod', msg => Promise.resolve(new Date().toISOString()), 'rpc');
+    return await rpcService.invoke<string, any>('testMethod', 'hello');
+  }
+
+  beforeEach(spec(async () => {
+    await amqpChannelPool.initialize({ url });
+  }));
+
+  afterEach(spec(async () => {
+    await Bluebird.delay(100);
+    await amqpChannelPool.purge();
+    await TraceLog.purge();
+    await rpcService.purge();
+  }));
+
+  it('should convert an ISODate string to Date', spec(async () => {
+    const res = await invokeTest();
+    expect(typeof res).toEqual('object');
+    expect(res instanceof Date).toBeTruthy();
+  }));
+
+  it('should keep an ISODate string as string with noReviver', spec(async () => {
+    const res = await invokeTest({ noReviver: true });
+    expect(typeof res).toEqual('string');
+    expect(res instanceof Date).toBeFalsy();
+  }));
 });
