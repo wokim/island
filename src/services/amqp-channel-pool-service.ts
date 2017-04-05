@@ -8,7 +8,7 @@ import { logger } from '../utils/logger';
 export interface AmqpOptions {
   url: string;
   socketOptions?: { noDelay?: boolean, heartbeat?: number };
-  poolSize?: number;
+  poolSize?: number ;
 }
 
 export interface ChannelInfo {

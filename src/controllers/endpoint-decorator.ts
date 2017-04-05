@@ -21,6 +21,12 @@ export interface EndpointOptions {
   level?: number;
   admin?: boolean;
   ensure?: number;
+  quota?: EndpointQuotaOptions;
+}
+
+export interface EndpointQuotaOptions {
+  limit?: number;
+  banSecs?: number;
 }
 
 export interface EndpointSchemaOptions {
@@ -614,6 +620,21 @@ export function mangle(name) {
 function pushSafe(object, arrayName, element) {
   const array = object[arrayName] = object[arrayName] || [];
   array.push(element);
+}
+
+// endpoint에 quota를 설정한다.
+//
+// [EXAMPLE]
+// @island.quota(1, 2)
+// @island.endpoint('...')
+export function quota(limit: number, banSecs: number) {
+  return (target, key, desc: PropertyDescriptor) => {
+    const options = desc.value.options = (desc.value.options || {}) as EndpointOptions;
+    options.quota = { limit : Number(limit), banSecs : Number(banSecs)};
+    if (desc.value.endpoints) {
+      desc.value.endpoints.forEach(e => _.merge(e.options, options));
+    }
+  };
 }
 
 interface Endpoint {
