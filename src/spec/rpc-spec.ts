@@ -8,7 +8,7 @@ import Bluebird = require('bluebird');
 import { RpcOptions } from '../controllers/rpc-decorator';
 import paramSchemaInspector from '../middleware/schema.middleware';
 import { AmqpChannelPoolService } from '../services/amqp-channel-pool-service';
-import RPCService, { RpcRequest } from '../services/rpc-service';
+import RPCService, { RpcHookType, RpcRequest } from '../services/rpc-service';
 import { jasmineAsyncAdapter as spec } from '../utils/jasmine-async-support';
 import { TraceLog } from '../utils/tracelog';
 
@@ -205,5 +205,110 @@ describe('RPC with reviver', async () => {
     const res = await invokeTest({ noReviver: true });
     expect(typeof res).toEqual('string');
     expect(res instanceof Date).toBeFalsy();
+  }));
+});
+
+describe('RPC-hook', () => {
+  const url = process.env.RABBITMQ_HOST || 'amqp://rabbitmq:5672';
+  const rpcService = new RPCService('haha');
+  const amqpChannelPool = new AmqpChannelPoolService();
+
+  beforeEach(spec(async () => {
+    await amqpChannelPool.initialize({ url });
+    await rpcService.initialize(amqpChannelPool);
+  }));
+
+  afterEach(spec(async () => {
+    await Bluebird.delay(100);
+    await amqpChannelPool.purge();
+    await TraceLog.purge();
+    await rpcService.purge();
+  }));
+
+  it('could change the request body by pre-hook', spec(async () => {
+    rpcService.registerHook(RpcHookType.PRE_RPC, content => Promise.resolve('hi, ' + content));
+    await rpcService.register('testMethod', msg => Promise.resolve(msg + ' world'), 'rpc');
+    const res = await rpcService.invoke('testMethod', 'hello');
+    expect(res).toEqual('hi, hello world');
+  }));
+
+  it('could change the response body by post-hook', spec(async () => {
+    rpcService.registerHook(RpcHookType.POST_RPC, content => {
+      content.__fixed = true;
+      return Promise.resolve(content);
+    });
+    await rpcService.register('testMethod', msg => Promise.resolve({[msg]: 'world'}), 'rpc');
+    const res = await rpcService.invoke('testMethod', 'hello');
+    expect(res).toEqual({__fixed: true, hello: 'world'});
+  }));
+
+  it('could add multiple pre-hooks', spec(async () => {
+    rpcService.registerHook(RpcHookType.PRE_RPC, content => Promise.resolve('hi, ' + content));
+    rpcService.registerHook(RpcHookType.PRE_RPC, content => Promise.resolve('hey, ' + content));
+    await rpcService.register('testMethod', msg => Promise.resolve(msg + ' world'), 'rpc');
+    const res = await rpcService.invoke('testMethod', 'hello');
+    expect(res).toEqual('hey, hi, hello world');
+  }));
+
+  it('could add multiple post-hooks', spec(async () => {
+    rpcService.registerHook(RpcHookType.POST_RPC, content => Promise.resolve({first: content}));
+    rpcService.registerHook(RpcHookType.POST_RPC, content => Promise.resolve({second: content}));
+    await rpcService.register('testMethod', msg => Promise.resolve({[msg]: 'world'}), 'rpc');
+    const res = await rpcService.invoke('testMethod', 'hello');
+    expect(res).toEqual({second: {first: {hello: 'world'}}});
+  }));
+
+  it('should share the hooks with every RPCs', spec(async () => {
+    rpcService.registerHook(RpcHookType.PRE_RPC, content => Promise.resolve('hi-' + content));
+    rpcService.registerHook(RpcHookType.PRE_RPC, content => Promise.resolve('hey-' + content));
+    rpcService.registerHook(RpcHookType.POST_RPC, content => Promise.resolve({first: content}));
+    rpcService.registerHook(RpcHookType.POST_RPC, content => Promise.resolve({second: content}));
+    await rpcService.register('world', msg => Promise.resolve({[msg]: 'world'}), 'rpc');
+    await rpcService.register('hell', msg => Promise.resolve({[msg]: 'hell'}), 'rpc');
+
+    expect(await rpcService.invoke('world', 'hello'))
+      .toEqual({second: {first: {'hey-hi-hello': 'world'}}});
+
+    expect(await rpcService.invoke('hell', 'damn'))
+      .toEqual({second: {first: {'hey-hi-damn': 'hell'}}});
+  }));
+
+  it('could change the error object before respond', spec(async () => {
+    rpcService.registerHook(RpcHookType.PRE_RPC_ERROR, e => {
+      e.extra = 'pre-hooked';
+      return Promise.resolve(e);
+    });
+    await rpcService.register('world', msg => Promise.reject(new Error('custom error')), 'rpc');
+
+    try {
+      await rpcService.invoke('world', 'hello');
+      expect(true).toEqual(false);
+    } catch (e) {
+      expect(e.message).toMatch(/custom error/);
+      expect(e.extra).toEqual('pre-hooked');
+    }
+  }));
+
+  it('could not change the error object with POST_RPC_ERROR', spec(async () => {
+    let haveBeenCalled = false;
+    rpcService.registerHook(RpcHookType.PRE_RPC_ERROR, e => {
+      e.extra = 'pre-hooked';
+      return Promise.resolve(e);
+    });
+    rpcService.registerHook(RpcHookType.POST_RPC_ERROR, e => {
+      e.extra = 'post-hooked';
+      haveBeenCalled = true;
+      return Promise.resolve(e);
+    });
+    await rpcService.register('world', msg => Promise.reject(new Error('custom error')), 'rpc');
+
+    try {
+      await rpcService.invoke('world', 'hello');
+      expect(true).toEqual(false);
+    } catch (e) {
+      await Bluebird.delay(1);
+      expect(e.extra).toEqual('pre-hooked');
+      expect(haveBeenCalled).toBeTruthy();
+    }
   }));
 });

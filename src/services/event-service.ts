@@ -20,6 +20,12 @@ import {
   Subscriber
 } from './event-subscriber';
 
+export type EventHook = (obj) => Promise<any>;
+export enum EventHookType {
+  EVENT,
+  ERROR
+}
+
 function enterScope(properties: any, func): Promise<any> {
   return new Promise((resolve, reject) => {
     const ns = cls.getNamespace('app');
@@ -39,6 +45,7 @@ export class EventService {
   private fanoutQ: string;
   private subscribers: Subscriber[] = [];
   private serviceName: string;
+  private hooks: { [key: string]: EventHook[] } = {};
 
   constructor(serviceName: string) {
     this.serviceName = serviceName;
@@ -68,6 +75,8 @@ export class EventService {
 
   purge(): Promise<any> {
     // TODO: cancel consume
+    this.hooks = {};
+    this.subscribers = [];
     return Promise.resolve();
   }
 
@@ -113,6 +122,12 @@ export class EventService {
         return this._publish(EventService.EXCHANGE_NAME, event.key, content, options);
       }));
   }
+
+  registerHook(type: EventHookType, hook: EventHook) {
+    this.hooks[type] = this.hooks[type] || [];
+    this.hooks[type].push(hook);
+  }
+
   private registerConsumer(channel: amqp.Channel, queue: string): Promise<any> {
     return Promise.resolve(channel.prefetch(+process.env.EVENT_PREFETCH || 1000))
       .then(() => channel.consume(queue, msg => {
@@ -152,10 +167,15 @@ export class EventService {
     return this.publishEvent(new BaseEvent('log.error', errorLog));
   }
 
-  private handleMessage(msg: Message): Promise<any> {
+  private async dohook(type: EventHookType, value) {
+    if (!this.hooks[type]) return value;
+    return Bluebird.reduce(this.hooks[type], async (value, hook) => await hook(value), value);
+  }
+
+  private async handleMessage(msg: Message): Promise<any> {
     const headers = msg.properties.headers;
     const tattoo = headers && headers.tattoo;
-    const content = JSON.parse(msg.content.toString('utf8'), reviver);
+    const content = await this.dohook(EventHookType.EVENT, JSON.parse(msg.content.toString('utf8'), reviver));
     const subscribers = this.subscribers.filter(subscriber => subscriber.isRoutingKeyMatched(msg.fields.routingKey));
     const promise = Bluebird.map(subscribers, subscriber => {
       return enterScope({ RequestTrackId: tattoo, Context: msg.fields.routingKey, Type: 'event' }, () => {
@@ -174,7 +194,8 @@ export class EventService {
           .then(() => {
             log.end();
           })
-          .catch(e => {
+          .catch(async e => {
+            e = await this.dohook(EventHookType.ERROR, e);
             log.end(e);
             throw e;
           })

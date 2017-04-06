@@ -131,7 +131,11 @@ export enum RpcHookType {
   PRE_ENDPOINT,
   POST_ENDPOINT,
   PRE_RPC,
-  POST_RPC
+  POST_RPC,
+  PRE_ENDPOINT_ERROR,
+  POST_ENDPOINT_ERROR,
+  PRE_RPC_ERROR,
+  POST_RPC_ERROR
 }
 
 export interface InitializeOptions {
@@ -191,6 +195,7 @@ export default class RPCService {
 
   public purge() {
     // TODO: cancel consume
+    this.hooks = {};
     return Promise.resolve();
   }
 
@@ -232,28 +237,22 @@ export default class RPCService {
 
         logger.debug(`Got ${name} with ${JSON.stringify(content)}`);
 
-        const dohook = async (type: RpcHookType, content) => {
-          if (this.hooks[type]) {
-            return Bluebird.reduce(this.hooks[type], async (content, hook) => await hook(content), content);
-          }
-          return content;
-        };
         // Should wrap with Bluebird.try while handler sometimes returns ES6 Promise which doesn't support timeout.
         const options: amqp.Options.Publish = { correlationId: msg.properties.correlationId, headers };
         return Bluebird.try(async () => {
           const req = content;
           if (type === 'endpoint') {
-            return await dohook(RpcHookType.PRE_ENDPOINT, req);
+            return await this.dohook(RpcHookType.PRE_ENDPOINT, req);
           } else { // rpc
-            return await dohook(RpcHookType.PRE_RPC, req);
+            return await this.dohook(RpcHookType.PRE_RPC, req);
           }
         })
           .then(req => handler(req))
           .then(async res => {
             if (type === 'endpoint') {
-              return await dohook(RpcHookType.POST_ENDPOINT, res);
+              return await this.dohook(RpcHookType.POST_ENDPOINT, res);
             } else { // rpc
-              return await dohook(RpcHookType.POST_RPC, res);
+              return await this.dohook(RpcHookType.POST_RPC, res);
             }
           })
           .then(res => {
@@ -272,7 +271,12 @@ export default class RPCService {
             });
           })
           .timeout(RPC_EXEC_TIMEOUT_MS)
-          .catch(err => {
+          .catch(async err => {
+            if (type === 'endpoint') {
+              err = await this.dohook(RpcHookType.PRE_ENDPOINT_ERROR, err);
+            } else { // rpc
+              err = await this.dohook(RpcHookType.PRE_RPC_ERROR, err);
+            }
             log.end(err);
             // 503 오류일 때는 응답을 caller에게 안보내줘야함
             if (err.statusCode && parseInt(err.statusCode, 10) === 503) {
@@ -286,7 +290,12 @@ export default class RPCService {
               ` with ${JSON.stringify(extra.req)} - ${err.stack}`);
             return this.channelPool.usingChannel(channel => {
               return Promise.resolve(channel.sendToQueue(replyTo, RpcResponse.encode(err, this.serviceName), options));
-            }).then(() => {
+            }).then(async () => {
+              if (type === 'endpoint') {
+                err = await this.dohook(RpcHookType.POST_ENDPOINT_ERROR, err);
+              } else { // rpc
+                err = await this.dohook(RpcHookType.POST_RPC_ERROR, err);
+              }
               throw err;
             });
           })
@@ -402,6 +411,11 @@ export default class RPCService {
   protected async _cancel(consumerInfo: IConsumerInfo): Promise<void> {
     await consumerInfo.channel.cancel(consumerInfo.tag);
     await this.channelPool.releaseChannel(consumerInfo.channel);
+  }
+
+  private async dohook(type: RpcHookType, value) {
+    if (!this.hooks[type]) return value;
+    return Bluebird.reduce(this.hooks[type], async (value, hook) => await hook(value), value);
   }
 
   private markTattoo(name: string, corrId: any, tattoo: any, ns: any, opts: any): Promise<any> {
