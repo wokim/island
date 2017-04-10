@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-export CONTAINER_TYPE=`grep "name" package.json |  grep -Eo "[a-z]+(-[a-z]+)?" | grep -v name`
+export CONTAINER_TYPE=`grep "name" package.json |  grep -Eo "[a-z]+((-[a-z]+)?)+" | grep -v name`
 echo "start $CONTAINER_TYPE"
 
 if [ "$1" = "--help" ]; then
