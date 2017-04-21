@@ -44,17 +44,6 @@ export default class MongooseAdapter extends AbstractAdapter<mongoose.Connection
 
   public destroy() {}
 
-//   private async dnsLookup(uri) {
-//     const mongodbUri = require('mongodb-uri');
-//     const h = mongodbUri.parse(uri);
-//     return await Promise.all(h.hosts.map(async host => {
-//       await this.convert(host.host).then(ip => { host.host = ip; });
-//     })).then(() => {
-//       const address = mongodbUri.format(h);
-//       return address;
-//     });
-//  }
-
   private async dnsLookup(uri) {
     const mongodbUri = require('mongodb-uri');
     const h = mongodbUri.parse(uri);
