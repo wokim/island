@@ -1,5 +1,6 @@
 import * as Bluebird from 'bluebird';
 import * as dns from 'dns';
+import * as mongodbUri from 'mongodb-uri';
 import * as mongoose from 'mongoose';
 
 import { FatalError, ISLAND } from '../../utils/error';
@@ -45,7 +46,6 @@ export default class MongooseAdapter extends AbstractAdapter<mongoose.Connection
   public destroy() {}
 
   private async dnsLookup(uri) {
-    const mongodbUri = require('mongodb-uri');
     const h = mongodbUri.parse(uri);
     return Bluebird.map(h.hosts, (async (host: {host: string}) => {
       await this.convert(host.host).then((ip: string) => { host.host = ip; });
