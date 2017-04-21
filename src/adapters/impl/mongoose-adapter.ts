@@ -47,16 +47,14 @@ export default class MongooseAdapter extends AbstractAdapter<mongoose.Connection
 
   private async dnsLookup(uri) {
     const h = mongodbUri.parse(uri);
-    return Bluebird.map(h.hosts, (async (host: {host: string}) => {
-      await this.convert(host.host).then((ip: string) => { host.host = ip; });
-    })).then(() => {
-      const address = mongodbUri.format(h);
-      return address;
-    });
+    await Bluebird.map(h.hosts, (async (host: {host: string}) => {
+      host.host = await this.convert(host.host);
+    }));
+    return mongodbUri.format(h);
   }
 
   private async convert(host) {
-    return await new Promise((resolve, reject) => {
+    return await new Promise<string>((resolve, reject) => {
       dns.lookup(host, (err, ip) => {
         if (err) return reject(err);
         return resolve(ip);
