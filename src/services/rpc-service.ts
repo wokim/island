@@ -225,7 +225,7 @@ export default class RPCService {
       log.from = headers.from;
       log.to = { node: process.env.HOSTNAME, context: name, island: this.serviceName, type: 'rpc' };
       return enterScope({ RequestTrackId: tattoo, Context: name, Type: 'rpc' }, () => {
-        let content = JSON.parse(msg.content.toString('utf8'), reviver);
+        let content = JSON.parse(msg.content.toString('utf8'), RpcResponse.reviver);
         if (rpcOptions) {
           if (_.get(rpcOptions, 'schema.query.sanitization')) {
             content = sanitize(rpcOptions.schema!.query!.sanitization, content);
