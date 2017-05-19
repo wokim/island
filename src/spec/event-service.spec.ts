@@ -79,8 +79,8 @@ describe('EventService', () => {
   afterAll(done => {
     Bluebird.delay(500)
       .then(() => eventService.purge())
-      .then(() => amqpChannelPool.purge())
       .then(() => TraceLog.purge())
+      .then(() => amqpChannelPool.purge())
       .then(done)
       .catch(done.fail);
   });
@@ -130,9 +130,9 @@ describe('Event-hook', () => {
 
   afterEach(spec(async () => {
     await Bluebird.delay(500);
-    await amqpChannelPool.purge();
     await TraceLog.purge();
     await eventService.purge();
+    await amqpChannelPool.purge();
   }));
 
   it('could change the event parameter', spec(async () => {

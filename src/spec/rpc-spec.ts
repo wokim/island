@@ -82,7 +82,8 @@ describe('RPC test:', () => {
   it('rpc test #6: 등록해두고 모조리 다 취소시키기', spec(async () => {
     await Promise.all([
       rpcService.register('AAA', async msg => {
-        await rpcService.purge();
+        // Note: purge 시 ongoing Rpc 가 존재 할 경우, 처리 될 때까지 대기 하기 때문에 await 을 써줄 수 없게 됨.
+        rpcService.purge();
         await Bluebird.delay(msg);
         return Promise.resolve('world');
       }, 'rpc'),
@@ -171,7 +172,7 @@ describe('RPC test:', () => {
     const res = await p;
     expect(res).toBe('hello world');
   }));
-});
+  });
 
 describe('RPC with reviver', async () => {
   const url = process.env.RABBITMQ_HOST || 'amqp://rabbitmq:5672';
@@ -190,9 +191,9 @@ describe('RPC with reviver', async () => {
 
   afterEach(spec(async () => {
     await Bluebird.delay(100);
-    await amqpChannelPool.purge();
     await TraceLog.purge();
     await rpcService.purge();
+    await amqpChannelPool.purge();
   }));
 
   it('should convert an ISODate string to Date', spec(async () => {
@@ -220,9 +221,9 @@ describe('RPC-hook', () => {
 
   afterEach(spec(async () => {
     await Bluebird.delay(100);
-    await amqpChannelPool.purge();
     await TraceLog.purge();
     await rpcService.purge();
+    await amqpChannelPool.purge();
   }));
 
   it('could change the request body by pre-hook', spec(async () => {

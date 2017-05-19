@@ -83,7 +83,9 @@ export default class Islet {
 
   protected onPrepare() {}
   protected onInitialized() {}
-  protected onDestroy() {}
+  protected onDestroy() {
+    logger.warning(`island service shut down`);
+  }
   protected onStarted() {}
 
   /**
