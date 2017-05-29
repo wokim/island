@@ -41,5 +41,7 @@ export default class RedisConnectionAdapter extends AbstractAdapter<redis.RedisC
     });
   }
 
-  public destroy() {}
+  public destroy() {
+    return this._adaptee.quit();
+  }
 }

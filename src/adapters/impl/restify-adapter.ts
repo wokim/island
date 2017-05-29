@@ -56,7 +56,8 @@ export default class RestifyAdapter extends ListenableAdapter<restify.Server, Re
     });
   }
 
-  public destroy() {
-    return super.destroy();
+  public async destroy() {
+    await super.destroy();
+    return await this.adaptee.close();
   }
 }

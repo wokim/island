@@ -101,6 +101,7 @@ export {
   AbstractLogicError
 } from './utils/error';
 export { Events } from './utils/event';
+export { IntervalHelper } from './utils/interval-helper';
 
 export { Di, ObjectWrapper, ObjectFactory } from 'island-di';
 export { Loggers } from 'island-loggers';

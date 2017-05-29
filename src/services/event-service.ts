@@ -84,7 +84,7 @@ export class EventService {
     }))
       .then((): Promise<any> => {
         this.subscribers = [];
-        if (this.onGoingEventRequestCount > 1) {
+        if (this.onGoingEventRequestCount > 0) {
           return new Promise((res, rej) => { this.purging = res; });
         }
         return Promise.resolve();

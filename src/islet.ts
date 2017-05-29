@@ -6,6 +6,8 @@ import { bindImpliedServices } from './utils/di-bind';
 import { FatalError, ISLAND } from './utils/error';
 import { logger } from './utils/logger';
 
+import { IntervalHelper } from './utils/interval-helper';
+
 /**
  * Create a new Islet.
  * @abstract
@@ -54,6 +56,8 @@ export default class Islet {
 
   /** @type {Object.<string, IAbstractAdapter>} [adapters={}] */
   private adapters: { [name: string]: IAbstractAdapter; } = {};
+  private listenAdapters: { [name: string]: IListenableAdapter; } = {};
+  private baseAdapters: { [name: string]: IAbstractAdapter; } = {};
 
   /**
    * Register the adapter.
@@ -63,6 +67,11 @@ export default class Islet {
   public registerAdapter(name: string, adapter: IAbstractAdapter) {
     if (this.adapters[name]) throw new FatalError(ISLAND.FATAL.F0002_DUPLICATED_ADAPTER, 'duplicated adapter');
     this.adapters[name] = adapter;
+    if (adapter instanceof ListenableAdapter) {
+      this.listenAdapters[name] = adapter;
+    } else {
+      this.baseAdapters[name] = adapter;
+    }
   }
 
   /**
@@ -114,7 +123,15 @@ export default class Islet {
 
   private async destroy() {
     logger.info('Waiting for process to end');
-    await Promise.all(_.values<IAbstractAdapter>(this.adapters).map(adapter => adapter.destroy()));
+    await Promise.all(_.map(this.listenAdapters, async (adapter: IListenableAdapter, key) => {
+      logger.debug('destroy : ', key);
+      await adapter.destroy();
+    }));
+    await IntervalHelper.purge();
+    await Promise.all(_.map(this.baseAdapters, async (adapter: IAbstractAdapter, key) => {
+      logger.debug('destroy : ', key);
+      await adapter.destroy();
+    }));
     this.onDestroy();
   }
 }

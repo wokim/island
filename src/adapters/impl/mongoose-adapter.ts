@@ -43,7 +43,9 @@ export default class MongooseAdapter extends AbstractAdapter<mongoose.Connection
     });
   }
 
-  public destroy() {}
+  public async destroy() {
+    return await this._adaptee.close();
+  }
 
   private async dnsLookup(uri) {
     const h = mongodbUri.parse(uri);
