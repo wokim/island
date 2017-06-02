@@ -9,6 +9,7 @@ export interface AmqpOptions {
   url: string;
   socketOptions?: { noDelay?: boolean, heartbeat?: number };
   poolSize?: number ;
+  name?: string;
 }
 
 export interface ChannelInfo {
