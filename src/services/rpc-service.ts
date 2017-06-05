@@ -140,7 +140,7 @@ export enum RpcHookType {
 }
 
 export interface InitializeOptions {
-  noReviver: boolean;
+  noReviver?: boolean;
 }
 
 export default class RPCService {
@@ -161,6 +161,8 @@ export default class RPCService {
   public async initialize(channelPool: AmqpChannelPoolService, opts?: InitializeOptions): Promise<any> {
     if (opts && opts.noReviver) {
       RpcResponse.reviver = undefined;
+    } else {
+      RpcResponse.reviver = reviver;
     }
     // NOTE: live docker 환경에서는 같은 hostname + process.pid 조합이 유일하지 않을 수 있다
     // docker 내부의 process id 는 1인 경우가 대부분이며 host=net으로 실행시키는 경우 hostname도 동일할 수 있다.
@@ -224,7 +226,7 @@ export default class RPCService {
       log.from = headers.from;
       log.to = { node: process.env.HOSTNAME, context: name, island: this.serviceName, type: 'rpc' };
       return enterScope({ RequestTrackId: tattoo, Context: name, Type: 'rpc' }, () => {
-        let content = JSON.parse(msg.content.toString('utf8'), reviver);
+        let content = JSON.parse(msg.content.toString('utf8'), RpcResponse.reviver);
         if (rpcOptions) {
           if (_.get(rpcOptions, 'schema.query.sanitization')) {
             content = sanitize(rpcOptions.schema!.query!.sanitization, content);
