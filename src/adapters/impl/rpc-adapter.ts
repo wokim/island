@@ -6,6 +6,7 @@ import { AmqpChannelPoolAdapter } from './amqp-channel-pool-adapter';
 export interface RPCAdapterOptions {
   amqpChannelPoolAdapter: AmqpChannelPoolAdapter;
   serviceName: string;
+  noReviver?: boolean;
 }
 
 export default class RPCAdapter extends ListenableAdapter<RPCService, RPCAdapterOptions> {
@@ -25,7 +26,7 @@ export default class RPCAdapter extends ListenableAdapter<RPCService, RPCAdapter
     this.hooks.forEach(hook => {
       this._adaptee.registerHook(hook.type, hook.hook);
     });
-    return this._adaptee.initialize(amqpChannelPoolService);
+    return this._adaptee.initialize(amqpChannelPoolService, { noReviver: this.options.noReviver });
   }
 
   listen(): Promise<void> {
