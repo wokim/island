@@ -172,7 +172,64 @@ describe('RPC test:', () => {
     const res = await p;
     expect(res).toBe('hello world');
   }));
-  });
+  it('should know where the rpc error occurred', spec(async () => {
+    const rpcServiceSecond = new RPCService('second');
+    await rpcServiceSecond.initialize(amqpChannelPool);
+    const rpcServiceThird = new RPCService('third');
+    await rpcServiceThird.initialize(amqpChannelPool);
+
+    await rpcServiceThird.register('third', msg => {
+      throw new Error('custom error');
+    }, 'rpc');
+    await rpcServiceSecond.register('second', async msg => {
+      await rpcServiceSecond.invoke<string, string>('third', 'hello');
+    }, 'rpc');
+    await rpcService.register('first', async msg => {
+      await rpcService.invoke<string, string>('second', 'hello');
+    }, 'rpc');
+    try {
+      await rpcServiceSecond.invoke<string, string>('first', 'hello');
+    } catch (e) {
+      await rpcServiceSecond.unregister('second');
+      await rpcServiceThird.unregister('third');
+      expect(e.errorCode).toBe('third.ETC.F0001');
+    }
+  }));
+
+  it('should confirm error occurred', spec(async () => {
+    const rpcServiceSecond = new RPCService('second');
+    await rpcServiceSecond.initialize(amqpChannelPool);
+    const rpcServiceThird = new RPCService('third');
+    await rpcServiceThird.initialize(amqpChannelPool);
+    const validation = { type: 'string' };
+    const rpcOptions: RpcOptions = {
+      schema: {
+        query: { sanitization: {}, validation },
+        result: { sanitization: {}, validation }
+      }
+    };
+
+    await rpcServiceThird.register('third', msg => Promise.resolve('hello'), 'rpc', rpcOptions);
+
+    await rpcServiceSecond.register('second', msg => {
+      return rpcServiceSecond.invoke<any, string>('third', 1234);
+    }, 'rpc');
+
+    await rpcService.register('first', msg => {
+      return rpcService.invoke<string, string>('second', 'hello');
+    }, 'rpc');
+
+    try {
+      const p = await rpcServiceSecond.invoke<string, string>('first', 'hello');
+      console.log(p);
+    } catch (e) {
+      await rpcServiceSecond.unregister('second');
+      await rpcServiceThird.unregister('third');
+      expect(e.errorCode).toBe('ISLAND.LOGIC.L0002_WRONG_PARAMETER_SCHEMA');
+      expect(e.occurredIn).toBe('third');
+    }
+  }));
+});
 
 describe('RPC with reviver', async () => {
   const url = process.env.RABBITMQ_HOST || 'amqp://rabbitmq:5672';
