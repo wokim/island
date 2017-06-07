@@ -73,7 +73,7 @@ $ npm install island --save
   - Chain contexts with UUID per each request
 
 ## v1.2
-
+ 
 ### Changes
 
   - Support to expand langid from property name for @validate @sanitize [#69](https://github.com/spearhead-ea/island/issues/68)
