@@ -152,6 +152,8 @@ export default class RPCService {
   private channelPool: AmqpChannelPoolService;
   private serviceName: string;
   private hooks: { [key: string]: RpcHook[] };
+  private onGoingRpcRequestCount: number = 0;
+  private purging: Function | null = null;
 
   constructor(serviceName?: string) {
     this.serviceName = serviceName || 'unknown';
@@ -196,10 +198,20 @@ export default class RPCService {
     });
   }
 
-  public purge() {
-    // TODO: cancel consume
+  public async purge() {
     this.hooks = {};
-    return Promise.resolve();
+    if (!this.consumerInfosMap) return Promise.resolve();
+    return Promise.all(_.map(this.consumerInfosMap, async consumerInfo => {
+      logger.info('stop serving', consumerInfo.key);
+      await this.pause(consumerInfo.key);
+      delete this.consumerInfosMap[consumerInfo.key];
+    }))
+      .then((): Promise<any> => {
+        if (this.onGoingRpcRequestCount > 0) {
+          return new Promise((res, rej) => { this.purging = res; });
+        }
+        return Promise.resolve();
+    });
   }
 
   public registerHook(type: RpcHookType, hook: RpcHook) {
@@ -222,6 +234,7 @@ export default class RPCService {
       const tattoo = headers && headers.tattoo;
       const timestamp = msg.properties.timestamp || 0;
       const log = new TraceLog(tattoo, timestamp);
+      this.onGoingRpcRequestCount++;
       log.size = msg.content.byteLength;
       log.from = headers.from;
       log.to = { node: process.env.HOSTNAME, context: name, island: this.serviceName, type: 'rpc' };
@@ -304,7 +317,10 @@ export default class RPCService {
           })
           .finally(() => {
             log.shoot();
-          });
+            if (--this.onGoingRpcRequestCount < 1 && this.purging) {
+              this.purging();
+            }
+        });
       });
     };
 
@@ -412,8 +428,8 @@ export default class RPCService {
   }
 
   protected async _cancel(consumerInfo: IConsumerInfo): Promise<void> {
-    await consumerInfo.channel.cancel(consumerInfo.tag);
-    await this.channelPool.releaseChannel(consumerInfo.channel);
+      await consumerInfo.channel.cancel(consumerInfo.tag);
+      await this.channelPool.releaseChannel(consumerInfo.channel);
   }
 
   private async dohook(type: RpcHookType, value) {

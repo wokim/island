@@ -46,6 +46,8 @@ export class EventService {
   private subscribers: Subscriber[] = [];
   private serviceName: string;
   private hooks: { [key: string]: EventHook[] } = {};
+  private onGoingEventRequestCount: number = 0;
+  private purging: Function | null = null;
 
   constructor(serviceName: string) {
     this.serviceName = serviceName;
@@ -73,11 +75,20 @@ export class EventService {
     this.publishEvent(new Events.SystemNodeStarted({ name: this.fanoutQ, island: this.serviceName }));
   }
 
-  purge(): Promise<any> {
-    // TODO: cancel consume
+  async purge(): Promise<any> {
     this.hooks = {};
-    this.subscribers = [];
-    return Promise.resolve();
+    if (!this.subscribers) return Promise.resolve();
+    return Promise.all(_.map(this.subscribers, async subscriber => {
+      logger.info('stop consuming', subscriber.getRoutingPattern());
+      await this.unsubscribe(subscriber);
+    }))
+      .then((): Promise<any> => {
+        this.subscribers = [];
+        if (this.onGoingEventRequestCount > 0) {
+          return new Promise((res, rej) => { this.purging = res; });
+        }
+        return Promise.resolve();
+      });
   }
 
   subscribeEvent<T extends Event<U>, U>(eventClass: new (args: U) => T,
@@ -136,10 +147,14 @@ export class EventService {
           // TODO: handle unexpected cancel
           return;
         }
+        this.onGoingEventRequestCount++;
         Bluebird.resolve(this.handleMessage(msg))
           .catch(e => this.sendErrorLog(e, msg))
           .finally(() => {
             channel.ack(msg);
+            if (--this.onGoingEventRequestCount < 1 && this.purging) {
+              this.purging();
+            }
             // todo: fix me. we're doing ACK always even if promise rejected.
             // todo: how can we handle the case subscribers succeeds or fails partially
           });
@@ -209,9 +224,9 @@ export class EventService {
 
   private subscribe(subscriber: Subscriber, options?: SubscriptionOptions): Promise<void> {
     options = options || {};
-    const queue = options.everyNodeListen && this.fanoutQ || this.roundRobinQ;
+    subscriber.setQueue(options.everyNodeListen && this.fanoutQ || this.roundRobinQ);
     return this.channelPool.usingChannel(channel => {
-      return channel.bindQueue(queue, EventService.EXCHANGE_NAME, subscriber.getRoutingPattern());
+      return channel.bindQueue(subscriber.getQueue(), EventService.EXCHANGE_NAME, subscriber.getRoutingPattern());
     })
       .then(() => {
         this.subscribers.push(subscriber);
@@ -224,7 +239,15 @@ export class EventService {
     });
   }
 
-  // TODO: implement unsubscribe
+  private unsubscribe(subscriber: Subscriber) {
+    const queue = subscriber.getQueue();
+    if (!queue) return;
+    return this.channelPool.usingChannel(channel => {
+      if (queue === this.roundRobinQ)
+        return channel.unbindExchange(queue, EventService.EXCHANGE_NAME, subscriber.getRoutingPattern());
+      return channel.unbindQueue(queue, EventService.EXCHANGE_NAME, subscriber.getRoutingPattern());
+    });
+  }
 }
 
 export interface SubscriptionOptions {

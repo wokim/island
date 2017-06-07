@@ -1,5 +1,4 @@
 import * as _ from 'lodash';
-import { logger } from '../utils/logger';
 
 export interface RpcOptions {
   version?: string;
@@ -55,17 +54,6 @@ export function rpcController(registerer?: {registerRpc: (name: string, value: a
         });
       }));
       return _onInitialized.apply(this);
-    };
-    const _onDestroy = target.prototype.onDestroy;
-    // tslint:disable-next-line
-    target.prototype.onDestroy = async function () {
-      await Promise.all(_.map(target._endpointMethods, (__, name) => {
-          logger.info('stop serving', name);
-          // TODO: IslandKeeper.unregisterRpc
-          // 마지막 한 아아일랜드가 내려갈 때 IslandKeeper에서도 사라져야 될텐데? @kson //2016-08-09
-          return this.server.unregister(name);
-        }));
-      return _onDestroy.apply(this);
     };
   };
 }

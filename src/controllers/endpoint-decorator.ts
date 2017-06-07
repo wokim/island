@@ -1,7 +1,6 @@
 import * as _ from 'lodash';
 
 import { FatalError, ISLAND } from '../utils/error';
-import { logger } from '../utils/logger';
 
 export enum EnsureOptions {
   TOKEN = 1,
@@ -714,16 +713,6 @@ export function endpointController(registerer?: { registerEndpoint: (name: strin
         });
       }));
       return _onInitialized.apply(this);
-    };
-
-    const _onDestroy = target.prototype.onDestroy;
-    // tslint:disable-next-line
-    target.prototype.onDestroy = async function () {
-      await Promise.all(_.map(target._endpointMethods, (v: Endpoint) => {
-        logger.info(`stop serving ${v.name}`);
-        return this.server.unregister(v.name);
-      }));
-      return _onDestroy.apply(this);
     };
   };
 }

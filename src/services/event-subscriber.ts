@@ -25,6 +25,8 @@ export interface Message {
 }
 
 export abstract class Subscriber {
+  abstract getQueue(): string;
+  abstract setQueue(queue: string): void;
   abstract getRoutingPattern(): string;
   abstract isRoutingKeyMatched(routingKey: string): boolean;
   abstract handleEvent(content: any, msg: Message): Promise<any>;
@@ -32,12 +34,21 @@ export abstract class Subscriber {
 
 export class EventSubscriber extends Subscriber {
   private key: string;
+  private queue: string;
 
   constructor(private handler: EventHandler<Event<any>>,
               private eventClass: new (args: any) => Event<any>) {
     super();
     const event = new eventClass(null);
     this.key = event.key;
+  }
+
+  getQueue(): string {
+    return this.queue;
+  }
+
+  setQueue(queue: string): void {
+    this.queue = queue;
   }
 
   getRoutingPattern(): string {
@@ -61,11 +72,20 @@ export class EventSubscriber extends Subscriber {
 
 export class PatternSubscriber extends Subscriber {
   private regExp: RegExp;
+  private queue: string;
 
   constructor(private handler: EventHandler<Event<any>>,
               private pattern: string) {
     super();
     this.regExp = this.convertRoutingKeyPatternToRegexp(pattern);
+  }
+
+  getQueue(): string {
+    return this.queue;
+  }
+
+  setQueue(queue: string): void {
+    this.queue = queue;
   }
 
   getRoutingPattern(): string {
