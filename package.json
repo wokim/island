@@ -27,6 +27,7 @@
     "@types/mongodb": "ts2.2",
     "@types/mongoose": "^4.5.41",
     "@types/msgpack5": "^3.4.0",
+    "@types/node": "7.0.29",
     "@types/qs": "^6.2.30",
     "@types/redis": "^0.12.32",
     "@types/restify": "^2.0.34",
