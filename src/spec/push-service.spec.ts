@@ -3,7 +3,6 @@ import { AmqpChannelPoolService } from '../services/amqp-channel-pool-service';
 import PushService from '../services/push-service';
 import MessagePack from '../utils/msgpack';
 
-const noMsgpack: Boolean = process.env.ISLAND_PUSH_NO_MSGPACK === true;
 describe('PushService test : ', () => {
   const pushService = new PushService();
   const amqpChannelPool = new AmqpChannelPoolService();
@@ -58,8 +57,7 @@ describe('PushService test : ', () => {
     const msg = 'testMessage';
     amqpChannelPool.usingChannel(channel => {
       return channel.consume(destinationQueue, content => {
-        const decodeData = noMsgpack && PushService.decode(content) || msgpack.decode(content.content);
-        expect(decodeData).toBe('testMessage');
+        expect(PushService.decode(content)).toBe('testMessage');
       });
     }).then(() => {
       return pushService.unicast(sourceExchange, msg);
@@ -71,8 +69,7 @@ describe('PushService test : ', () => {
     const msg = 'testMessage';
     amqpChannelPool.usingChannel(channel => {
       return channel.consume(destinationQueue, content => {
-        const decodeData = noMsgpack && PushService.decode(content) || msgpack.decode(content.content);
-        expect(decodeData).toBe('testMessage');
+        expect(PushService.decode(content)).toBe('testMessage');
       });
     }).then(() => {
       return pushService.multicast(sourceExchange, msg);
