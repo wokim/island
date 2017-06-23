@@ -1,7 +1,9 @@
+import { ISLAND, LogicError } from '../utils/error';
 import { logger } from '../utils/logger';
 import MessagePack from '../utils/msgpack';
 import { AmqpChannelPoolService } from './amqp-channel-pool-service';
 
+const noMsgpack: Boolean = process.env.ISLAND_PUSH_NO_MSGPACK === 'true';
 export default class PushService {
   // Exchange to broadcast to the entire users.
   public static broadcastExchange = {
@@ -20,6 +22,21 @@ export default class PushService {
     },
     type: 'direct'
   };
+
+  public static encode(obj): Buffer {
+    try {
+      const buf = new Buffer(JSON.stringify(obj));
+      return buf;
+    } catch (e) {
+      logger.debug('[JSON ENCODE ERROR]', e);
+      const error: any = new LogicError(ISLAND.LOGIC.L0007_JSON_ENCODE_ERROR, e.message);
+      logger.debug(error.stack);
+      throw e;
+    }
+  }
+  public static decode(buf) {
+    return JSON.parse(buf.toString());
+  }
 
   private static DEFAULT_EXCHANGE_OPTIONS: any = {
     autoDelete: true,
@@ -127,7 +144,8 @@ export default class PushService {
    */
   async unicast(pid: string, msg: any, options?: any): Promise<any> {
     return this.channelPool.usingChannel(async channel => {
-      return channel.publish(PushService.playerPushExchange.name, pid, this.msgpack.encode(msg), options);
+      const content = noMsgpack && PushService.encode(msg) || this.msgpack.encode(msg);
+      return channel.publish(PushService.playerPushExchange.name, pid, content, options);
     });
   }
 
@@ -141,7 +159,8 @@ export default class PushService {
    */
   async multicast(exchange: string, msg: any, routingKey: string = '', options?: any): Promise<any> {
     return this.channelPool.usingChannel(async channel => {
-      return channel.publish(exchange, routingKey, this.msgpack.encode(msg), options);
+      const content = noMsgpack && PushService.encode(msg) || this.msgpack.encode(msg);
+      return channel.publish(exchange, routingKey, content, options);
     });
   }
 
@@ -154,7 +173,8 @@ export default class PushService {
   async broadcast(msg: any, options?: any): Promise<any> {
     return this.channelPool.usingChannel(async channel => {
       const fanout = PushService.broadcastExchange.name;
-      return channel.publish(fanout, '', this.msgpack.encode(msg), options);
+      const content = noMsgpack && PushService.encode(msg) || this.msgpack.encode(msg);
+      return channel.publish(fanout, '', content, options);
     });
   }
 }
