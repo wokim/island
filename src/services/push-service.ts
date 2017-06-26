@@ -51,8 +51,10 @@ export default class PushService {
     switch (SERIALIZE_FORMAT_PUSH) {
       case 'json':
         obj = JSON.parse(buf.toString());
+        break;
       default:
         obj = PushService.msgpack.decode(buf);
+        break;
     }
     return obj;
   }
