@@ -26,6 +26,7 @@ export interface EndpointOptions {
 export interface EndpointQuotaOptions {
   limit?: number;
   banSecs?: number;
+  group?: string[];
 }
 
 export interface EndpointSchemaOptions {
@@ -629,7 +630,24 @@ function pushSafe(object, arrayName, element) {
 export function quota(limit: number, banSecs: number) {
   return (target, key, desc: PropertyDescriptor) => {
     const options = desc.value.options = (desc.value.options || {}) as EndpointOptions;
-    options.quota = { limit : Number(limit), banSecs : Number(banSecs)};
+    options.quota = options.quota || {};
+    options.quota.limit = Number(limit);
+    options.quota.banSecs = Number(banSecs);
+    if (desc.value.endpoints) {
+      desc.value.endpoints.forEach(e => _.merge(e.options, options));
+    }
+  };
+}
+// endpoint에 quota Group을 설정한다.
+//
+// [EXAMPLE]
+// @island.groupQuota([group1, gropu2])
+// @island.endpoint('...')
+export function groupQuota(group: string[]) {
+  return (target, key, desc: PropertyDescriptor) => {
+    const options = desc.value.options = (desc.value.options || {}) as EndpointOptions;
+    options.quota = options.quota || {};
+    options.quota.group = group;
     if (desc.value.endpoints) {
       desc.value.endpoints.forEach(e => _.merge(e.options, options));
     }
