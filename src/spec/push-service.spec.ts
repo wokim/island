@@ -57,7 +57,7 @@ describe('PushService test : ', () => {
     const msg = 'testMessage';
     amqpChannelPool.usingChannel(channel => {
       return channel.consume(destinationQueue, content => {
-        expect(msgpack.decode(content.content)).toBe('testMessage');
+        expect(PushService.decode(content)).toBe('testMessage');
       });
     }).then(() => {
       return pushService.unicast(sourceExchange, msg);
@@ -69,7 +69,7 @@ describe('PushService test : ', () => {
     const msg = 'testMessage';
     amqpChannelPool.usingChannel(channel => {
       return channel.consume(destinationQueue, content => {
-        expect(msgpack.decode(content.content)).toBe('testMessage');
+        expect(PushService.decode(content)).toBe('testMessage');
       });
     }).then(() => {
       return pushService.multicast(sourceExchange, msg);
@@ -113,4 +113,40 @@ describe('PushService test : ', () => {
       .then(done, done.fail);
   });
 
+  it('push test #7: PushService Encode test', () => {
+    const test = { test: 1 };
+    const content = PushService.encode(test);
+    const decodeData = PushService.decode(content);
+    expect(decodeData).toEqual(test);
+  });
+
+  it('push test #8: PushService Encode undefined test', () => {
+    expect(() => {
+      PushService.encode(undefined);
+    }).toThrow();
+  });
+
+  it('push test #9: PushService Encode Date test', done => {
+    const content = new Date();
+    return Bluebird.try(() => {
+      PushService.encode(content);
+    })
+      .catch(err => {
+        console.log('PushService Encode Date test : ', err);
+        return;
+      })
+      .then(done, done.fail);
+  });
+
+  it('push test #10: PushService Encode Error test', done => {
+    const content = new Error('test Err');
+    return Bluebird.try(() => {
+      PushService.encode(content);
+    })
+      .catch(err => {
+        console.log('PushService Encode Error test : ', err);
+        return;
+      })
+      .then(done, done.fail);
+  });
 });

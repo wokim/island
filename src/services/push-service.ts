@@ -1,6 +1,9 @@
+import { ISLAND, LogicError } from '../utils/error';
 import { logger } from '../utils/logger';
 import MessagePack from '../utils/msgpack';
 import { AmqpChannelPoolService } from './amqp-channel-pool-service';
+
+const SERIALIZE_FORMAT_PUSH = process.env.SERIALIZE_FORMAT_PUSH;
 
 export default class PushService {
   // Exchange to broadcast to the entire users.
@@ -20,6 +23,39 @@ export default class PushService {
     },
     type: 'direct'
   };
+  public static msgpack = MessagePack.getInst();
+
+  public static encode(obj): Buffer {
+    try {
+      let buf;
+      switch (SERIALIZE_FORMAT_PUSH) {
+        case 'json':
+          buf = new Buffer(JSON.stringify(obj));
+          break;
+        default:
+          buf = PushService.msgpack.encode(obj);
+          break;
+      }
+      return buf;
+    } catch (e) {
+      e.formatType = SERIALIZE_FORMAT_PUSH;
+      logger.debug('[JSON ENCODE ERROR]', e);
+      const error = new LogicError(ISLAND.LOGIC.L0007_PUSH_ENCODE_ERROR, e.message);
+      logger.debug(error.stack);
+      throw e;
+    }
+  }
+
+  public static decode(buf) {
+    let obj;
+    switch (SERIALIZE_FORMAT_PUSH) {
+      case 'json':
+        obj = JSON.parse(buf.toString());
+      default:
+        obj = PushService.msgpack.decode(buf);
+    }
+    return obj;
+  }
 
   private static DEFAULT_EXCHANGE_OPTIONS: any = {
     autoDelete: true,
@@ -33,11 +69,9 @@ export default class PushService {
     }
   };
 
-  private msgpack: MessagePack;
   private channelPool: AmqpChannelPoolService;
 
   constructor() {
-    this.msgpack = MessagePack.getInst();
   }
 
   public async initialize(channelPool: AmqpChannelPoolService): Promise<any> {
@@ -127,7 +161,7 @@ export default class PushService {
    */
   async unicast(pid: string, msg: any, options?: any): Promise<any> {
     return this.channelPool.usingChannel(async channel => {
-      return channel.publish(PushService.playerPushExchange.name, pid, this.msgpack.encode(msg), options);
+      return channel.publish(PushService.playerPushExchange.name, pid, PushService.encode(msg), options);
     });
   }
 
@@ -141,7 +175,7 @@ export default class PushService {
    */
   async multicast(exchange: string, msg: any, routingKey: string = '', options?: any): Promise<any> {
     return this.channelPool.usingChannel(async channel => {
-      return channel.publish(exchange, routingKey, this.msgpack.encode(msg), options);
+      return channel.publish(exchange, routingKey, PushService.encode(msg), options);
     });
   }
 
@@ -154,7 +188,7 @@ export default class PushService {
   async broadcast(msg: any, options?: any): Promise<any> {
     return this.channelPool.usingChannel(async channel => {
       const fanout = PushService.broadcastExchange.name;
-      return channel.publish(fanout, '', this.msgpack.encode(msg), options);
+      return channel.publish(fanout, '', PushService.encode(msg), options);
     });
   }
 }
