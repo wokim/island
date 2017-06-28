@@ -53,9 +53,6 @@ export default class PushService {
   }
 
   async purge(): Promise<any> {
-    return this.channelPool.usingChannel(channel => {
-      return channel.deleteExchange(PushService.broadcastExchange.name, { ifUnused: true });
-    });
   }
 
   async deleteExchange(exchange: string, options?: any): Promise<any> {
