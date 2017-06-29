@@ -1,6 +1,6 @@
 {
   "name": "island",
-  "version": "1.8.1-dev",
+  "version": "1.8.2-dev",
   "description": "A package suite for building microservice using TypeScript.",
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
@@ -51,7 +51,7 @@
     "msgpack5": "^3.4.0",
     "qs": "^6.2.1",
     "redis": "^2.6.2",
-    "redis-bluebird": "http://github.com/heycalmdown/redis-bluebird/tarball/master",
+    "redis-bluebird": "^1.0.0",
     "reflect-metadata": "^0.1.8",
     "restify": "^4.1.1",
     "schema-inspector": "^1.6.6",
