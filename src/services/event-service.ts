@@ -212,7 +212,8 @@ export class EventService {
           .catch(async e => {
             if (!e.extra || typeof e.extra === 'object') {
               e.extra = _.assign({
-                event: content,
+                args: content,
+                event: subscriber.constructor.name,
                 island: this.serviceName
               }, e.extra);
             }
