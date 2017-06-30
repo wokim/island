@@ -298,9 +298,11 @@ export default class RPCService {
             if (err.statusCode && parseInt(err.statusCode, 10) === 503) {
               throw err;
             }
-            if (!err.extra) {
-              err.extra = { island: this.serviceName, name, req: content };
-            }
+            err.extra = _.assign(err.extra || {}, {
+              island: this.serviceName,
+              name,
+              req: content
+            });
             const extra = err.extra;
             logger.error(`Got an error during ${extra.island}/${extra.name}` +
               ` with ${JSON.stringify(extra.req)} - ${err.stack}`);
