@@ -210,10 +210,12 @@ export class EventService {
             log.end();
           })
           .catch(async e => {
-            e.extra = _.assign(e.extra || {}, {
-              event: content,
-              island: this.serviceName
-            });
+            if (!e.extra || typeof e.extra === 'object') {
+              e.extra = _.assign({
+                event: content,
+                island: this.serviceName
+              }, e.extra);
+            }
             e = await this.dohook(EventHookType.ERROR, e);
             log.end(e);
             throw e;
