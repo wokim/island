@@ -213,7 +213,7 @@ export class EventService {
             if (!e.extra || typeof e.extra === 'object') {
               e.extra = _.assign({
                 args: content,
-                event: subscriber.constructor.name,
+                event: msg.fields.routingKey,
                 island: this.serviceName
               }, e.extra);
             }
