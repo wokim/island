@@ -55,7 +55,8 @@ export class RpcResponse {
     let result: AbstractError;
     const enumObj = {};
     enumObj[err.errorNumber] = err.errorKey;
-    const occurredIn = err.extra && err.extra.island || err.occurredIn;
+    err.errorCode = err.errorCode || err.occurredIn || err.extra && err.extra.island || 'UNKNOWN';
+    const [occurredIn] = err.errorCode.split('.');
     switch (err.errorType) {
       case 'LOGIC':
         result = new AbstractLogicError(err.errorNumber, err.debugMsg, occurredIn, enumObj);

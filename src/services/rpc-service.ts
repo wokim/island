@@ -9,7 +9,7 @@ import uuid = require('uuid');
 
 import { RpcOptions } from '../controllers/rpc-decorator';
 import { sanitize, validate } from '../middleware/schema.middleware';
-import { FatalError, ISLAND, LogicError } from '../utils/error';
+import { AbstractError, FatalError, ISLAND, LogicError } from '../utils/error';
 import { logger } from '../utils/logger';
 import reviver from '../utils/reviver';
 import { RpcRequest } from '../utils/rpc-request';
@@ -195,9 +195,10 @@ export default class RPCService {
             .then(err => this.earlyThrowWith503(rpcName, err, msg))
             .tap (err => log.end(err))
             .then(err => this.dohook('pre-error', type, err))
+            .then(err => this.attachExtraError(err, rpcName, parsed))
             .then(err => this.reply(replyTo, err, options))
             .then(err => this.dohook('post-error', type, err))
-            .tap (err => this.logRpcError(err, rpcName, parsed));
+            .tap (err => this.logRpcError(err));
           throw err;
         } finally {
           log.shoot();
@@ -379,10 +380,14 @@ export default class RPCService {
     return err.errorCode === 'ISLAND.FATAL.F0027_CONSUMER_IS_CANCELED';
   }
 
-  private logRpcError(err, rpcName, req) {
-    err.extra = err.extra || { island: this.serviceName, rpcName, req };
-    logger.error(`Got an error during ${err.extra.island}/${err.extra.name}` +
+  private logRpcError(err) {
+    logger.error(`Got an error during ${err.extra.island}/${err.extra.rpcName}` +
       ` with ${JSON.stringify(err.extra.req)} - ${err.stack}`);
+  }
+
+  private attachExtraError(err: AbstractError, rpcName: string, req: any) {
+    err.extra = _.defaults({}, err.extra, { island: this.serviceName, rpcName, req });
+    return err;
   }
 
   // returns value again for convenience

@@ -22,7 +22,7 @@ export class AbstractError extends Error {
     this.errorCode = `${islandName}.${errorType}.${enumObj[errorNumber]}`;
     this.reason = debugMsg;
     this.result = false;
-    this.extra = this.extra || { island: islandName };
+    this.extra = {};
   }
 }
 

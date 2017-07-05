@@ -253,6 +253,19 @@ describe('RPC test:', () => {
       expect(e.occurredIn).toBe('third');
     }
   }));
+
+  it('should show an extra info of an error', spec(async () => {
+    await rpcService.register('hoho', req => {
+      throw new FatalError(ISLAND.FATAL.F0001_ISLET_ALREADY_HAS_BEEN_REGISTERED);
+    }, 'rpc');
+
+    try {
+      await rpcService.invoke('hoho', 'asdf');
+    } catch (e) {
+      expect(e.extra.rpcName).toEqual('hoho');
+      expect(e.extra.req).toEqual('asdf');
+    }
+  }));
 });
 
 describe('RPC(isolated test)', () => {
@@ -461,7 +474,8 @@ describe('RPC-hook', () => {
 
   it('could change the error object before respond', spec(async () => {
     rpcService.registerHook(RpcHookType.PRE_RPC_ERROR, e => {
-      e.extra = 'pre-hooked';
+      e.extra = e.extra || {};
+      e.extra.message = 'pre-hooked';
       return Promise.resolve(e);
     });
     await rpcService.register('world', msg => Promise.reject(new Error('custom error')), 'rpc');
@@ -471,18 +485,20 @@ describe('RPC-hook', () => {
       expect(true).toEqual(false);
     } catch (e) {
       expect(e.message).toMatch(/custom error/);
-      expect(e.extra).toEqual('pre-hooked');
+      expect(e.extra.message).toEqual('pre-hooked');
     }
   }));
 
   it('could not change the error object with POST_RPC_ERROR', spec(async () => {
     let haveBeenCalled = false;
     rpcService.registerHook(RpcHookType.PRE_RPC_ERROR, e => {
-      e.extra = 'pre-hooked';
+      e.extra = e.extra || {};
+      e.extra.message = 'pre-hooked';
       return Promise.resolve(e);
     });
     rpcService.registerHook(RpcHookType.POST_RPC_ERROR, e => {
-      e.extra = 'post-hooked';
+      e.extra = e.extra || {};
+      e.extra.message = 'post-hooked';
       haveBeenCalled = true;
       return Promise.resolve(e);
     });
@@ -493,7 +509,7 @@ describe('RPC-hook', () => {
       expect(true).toEqual(false);
     } catch (e) {
       await Bluebird.delay(1);
-      expect(e.extra).toEqual('pre-hooked');
+      expect(e.extra.message).toEqual('pre-hooked');
       expect(haveBeenCalled).toBeTruthy();
     }
   }));
