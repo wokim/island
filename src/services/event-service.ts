@@ -210,6 +210,13 @@ export class EventService {
             log.end();
           })
           .catch(async e => {
+            if (!e.extra || typeof e.extra === 'object') {
+              e.extra = _.assign({
+                args: content,
+                event: msg.fields.routingKey,
+                island: this.serviceName
+              }, e.extra);
+            }
             e = await this.dohook(EventHookType.ERROR, e);
             log.end(e);
             throw e;

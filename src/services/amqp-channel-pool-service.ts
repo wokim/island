@@ -78,7 +78,7 @@ export class AmqpChannelPoolService {
   getChannelDisposer(): Bluebird.Disposer<amqp.Channel> {
     return Bluebird.resolve(this.acquireChannel())
       .disposer((channel: amqp.Channel) => {
-        this.releaseChannel(channel);
+        this.releaseChannel(channel, true);
       });
   }
 

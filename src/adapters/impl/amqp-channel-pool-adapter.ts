@@ -9,8 +9,8 @@ export class AmqpChannelPoolAdapter extends AbstractAdapter<AmqpChannelPoolServi
     return this._adaptee.initialize(this.options);
   }
 
-  destroy(): void {
+  async destroy(): Promise<void> {
     // TODO: should wait until other services stops using AmqpChannelPoolService
-    this._adaptee.purge();
+    return this._adaptee.purge();
   }
 }
