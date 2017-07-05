@@ -75,7 +75,8 @@ export namespace ISLAND {
     L0003_NOT_INITIALIZED_EXCEPTION = 3,
     L0004_MSG_PACK_ERROR = 4,
     L0005_MSG_PACK_ENCODE_ERROR = 5,
-    L0006_HANDLE_MESSAGE_ERROR = 6
+    L0006_HANDLE_MESSAGE_ERROR = 6,
+    L0007_PUSH_ENCODE_ERROR = 7
   }
 
   export enum FATAL {
@@ -97,6 +98,7 @@ export namespace ISLAND {
     F0023_RPC_TIMEOUT                         = 23,
     F0024_ENDPOINT_METHOD_REDECLARED          = 24,
     F0025_MISSING_ADAPTER_OPTIONS             = 25,
-    F0026_MISSING_REPLYTO_IN_RPC              = 26
+    F0026_MISSING_REPLYTO_IN_RPC              = 26,
+    F0027_CONSUMER_IS_CANCELED                = 27
   }
 }

@@ -145,7 +145,7 @@ $ RABBITMQ_HOST=localhost npm test
 | `ISLAND_LOGGER_LEVEL`        | Logger level of category `island`                                 |
 | `ISLAND_TRACEMQ_HOST`        | MQ(formatted by amqp URI) for TraceLog. If omitted it doesn't log |
 | `ISLAND_TRACEMQ_QUEUE`       | A queue name to log TraceLog                                      |
-
+| `SERIALIZE_FORMAT_PUSH`      | currently able Push format json and msgpack (Default to msgpack)  |
 
 
 ## Milestones

@@ -3,24 +3,49 @@ require('source-map-support').install();
 process.env.ISLAND_RPC_WAIT_TIMEOUT_MS = 3000;
 process.env.ISLAND_SERVICE_LOAD_TIME_MS = 1000;
 
-import Bluebird = require('bluebird');
+import * as Bluebird from 'bluebird';
 
 import { RpcOptions } from '../controllers/rpc-decorator';
 import paramSchemaInspector from '../middleware/schema.middleware';
 import { AmqpChannelPoolService } from '../services/amqp-channel-pool-service';
-import RPCService, { RpcHookType, RpcRequest } from '../services/rpc-service';
+import RPCService, { RpcHookType, RpcRequest, RpcResponse } from '../services/rpc-service';
+import { AbstractFatalError, FatalError, ISLAND } from '../utils/error';
 import { jasmineAsyncAdapter as spec } from '../utils/jasmine-async-support';
+import { logger } from '../utils/logger';
 import { TraceLog } from '../utils/tracelog';
+
+// tslint:disable-next-line no-var-requires
+const stdMocks = require('std-mocks');
+
+async function mock(func) {
+    stdMocks.use();
+    await func();
+    const output = stdMocks.flush();
+    stdMocks.restore();
+    return output;
+}
+
+describe('RpcResponse', () => {
+  it('should handle malformed response', () => {
+    const malformedJson = '{"result": true, "body": 1';
+    expect(RpcResponse.decode(new Buffer(malformedJson))).toEqual({version: 0, result: false});
+  });
+
+  it('should understand an AbstractError object', () => {
+    const error = new FatalError(ISLAND.FATAL.F0001_ISLET_ALREADY_HAS_BEEN_REGISTERED);
+    const json = JSON.stringify({result: false, body: error});
+    expect(RpcResponse.decode(new Buffer(json)).body).toEqual(jasmine.any(AbstractFatalError));
+  });
+});
 
 describe('RPC test:', () => {
   const rpcService = new RPCService('haha');
   const amqpChannelPool = new AmqpChannelPoolService();
-  beforeAll(done => {
+  beforeAll(spec(async () => {
     const url = process.env.RABBITMQ_HOST || 'amqp://rabbitmq:5672';
-    return amqpChannelPool.initialize({ url })
-      .then(() => rpcService.initialize(amqpChannelPool))
-      .then(() => done());
-  });
+    await amqpChannelPool.initialize({ url });
+    await rpcService.initialize(amqpChannelPool);
+  }));
 
   afterAll(done => {
     rpcService.purge()
@@ -79,7 +104,7 @@ describe('RPC test:', () => {
     expect(res[1]).toEqual(10);
   }));
 
-  it('rpc test #6: 등록해두고 모조리 다 취소시키기', spec(async () => {
+  it('should respond an ongoing request despite purging', spec(async () => {
     await Promise.all([
       rpcService.register('AAA', async msg => {
         // Note: purge 시 ongoing Rpc 가 존재 할 경우, 처리 될 때까지 대기 하기 때문에 await 을 써줄 수 없게 됨.
@@ -130,8 +155,8 @@ describe('RPC test:', () => {
 
   it('should unregister handlers if it failed to send a message', spec(async () => {
     const usingChannel = amqpChannelPool.usingChannel;
-    (amqpChannelPool as any).usingChannel = cb => {
-      cb({
+    (amqpChannelPool as any).usingChannel = async cb => {
+      await cb({
         sendToQueue: (name, content, options) => { throw new Error('haha'); }
       });
     };
@@ -142,8 +167,7 @@ describe('RPC test:', () => {
     } catch (e) {
       expect(e.message).toEqual('haha');
     }
-    expect((rpcService as any).reqTimeouts).toEqual({});
-    expect((rpcService as any).reqExecutors).toEqual({});
+    expect((rpcService as any).waitingResponse).toEqual({});
     amqpChannelPool.usingChannel = usingChannel;
   }));
 
@@ -228,6 +252,110 @@ describe('RPC test:', () => {
       expect(e.errorCode).toBe('ISLAND.LOGIC.L0002_WRONG_PARAMETER_SCHEMA');
       expect(e.occurredIn).toBe('third');
     }
+  }));
+});
+
+describe('RPC(isolated test)', () => {
+  const rpcService = new RPCService('haha');
+  const amqpChannelPool = new AmqpChannelPoolService();
+  beforeEach(spec(async () => {
+    const url = process.env.RABBITMQ_HOST || 'amqp://rabbitmq:5672';
+    await amqpChannelPool.initialize({ url });
+    await rpcService.initialize(amqpChannelPool);
+  }));
+
+  afterEach(done => {
+    rpcService.purge()
+      .then(() => Bluebird.delay(100)) // to have time to send ack
+      .then(() => amqpChannelPool.purge())
+      .then(() => TraceLog.purge())
+      .then(done)
+      .catch(done.fail);
+  });
+
+  it('should be canceled by timeout', spec(async () => {
+    try {
+      await rpcService.invoke('unmethod', 'arg');
+      fail();
+    } catch (e) {
+      const rs = (rpcService as any);
+      expect(e.errorCode).toEqual('ISLAND.FATAL.F0023_RPC_TIMEOUT');
+      expect(rs.timedOutOrdered.length).toEqual(1);
+      expect(rs.timedOut[rs.timedOutOrdered[0]]).toEqual('unmethod');
+    }
+  }));
+
+  it('should retry when it comes with 503 status code', spec(async () => {
+    let called = 0;
+    await rpcService.register('testMethod', msg => {
+      called++;
+      const e = new Error('custom error');
+      (e as any).statusCode = 503;
+      throw e;
+    }, 'rpc');
+    await rpcService.invoke('testMethod', 'hello').catch(e => e);
+    expect(called).toBeGreaterThanOrEqual(2);
+  }));
+
+  it('should also return a raw buffer with an option', spec(async () => {
+    await rpcService.register('testMethod', async () => {
+      return 'haha';
+    }, 'rpc');
+    const res = await rpcService.invoke<string, {body: string, raw: Buffer}>
+                        ('testMethod', 'hello', {withRawdata: true});
+    expect(res.body).toEqual('haha');
+    expect(res.raw).toEqual(jasmine.any(Buffer));
+  }));
+
+  it('should deprecate RPCService#_publish', spec(async () => {
+    const output = await mock(async () => {
+      await rpcService._publish('xexchange', 'xroutingKey', new Buffer('3'));
+    });
+    expect(output.stderr[0].split('\n')[0]).toEqual('Method `_publish` has been deprecated.');
+  }));
+
+  it('should shutdown when the response consumer is canceled', spec(async () => {
+    const rs = (rpcService as any);
+    const queue = rs.responseQueueName;
+    spyOn(rs, 'shutdown');
+    spyOn(logger, 'crit');
+    await amqpChannelPool.usingChannel(async chan => chan.deleteQueue(queue));
+    await Bluebird.delay(10);
+    expect(logger.crit)
+      .toHaveBeenCalledWith('The consumer is canceled, will lose following responses - https://goo.gl/HIgy4D');
+    expect(rs.shutdown).toHaveBeenCalled();
+  }));
+
+  it('should handle a reponse with no correlationId', spec(async () => {
+    const queue = (rpcService as any).responseQueueName;
+    spyOn(logger, 'notice');
+    await amqpChannelPool.usingChannel(async chan => chan.sendToQueue(queue, new Buffer('')));
+    await Bluebird.delay(10);
+    expect(logger.notice).toHaveBeenCalledWith('Got a response with no correlationId');
+  }));
+
+  it('should handle a response after timed out', spec(async () => {
+    const rs = (rpcService as any);
+    rs.timedOut.aaaa = 'unmethod';
+    rs.timedOutOrdered.push('aaaa');
+    const queue = rs.responseQueueName;
+    spyOn(logger, 'warning');
+    await amqpChannelPool.usingChannel(async chan => chan.sendToQueue(queue, new Buffer(''), {correlationId: 'aaaa'}));
+    await Bluebird.delay(10);
+
+    expect(logger.warning).toHaveBeenCalledWith('Got a response of `unmethod` after timed out - aaaa');
+    expect(rs.timedOutOrdered.length).toEqual(0);
+    expect(rs.timedOut).toEqual({});
+  }));
+
+  it('should handle an unknown reponse', spec(async () => {
+    const rs = (rpcService as any);
+    const queue = rs.responseQueueName;
+    spyOn(logger, 'notice');
+    await amqpChannelPool.usingChannel(async chan => chan.sendToQueue(queue, new Buffer(''), {correlationId: 'aaaa'}));
+    await Bluebird.delay(50);
+
+    expect(logger.notice).toHaveBeenCalledWith('Got an unknown response - aaaa');
   }));
 });
 
