@@ -261,7 +261,8 @@ export default class RPCService {
   // * get-a-response consumer is only one per a node and it has an exclusive queue
   protected async _consume(key: string, handler: (msg) => Promise<any>): Promise<IConsumerInfo> {
     const channel = await this.channelPool.acquireChannel();
-    await channel.prefetch(+process.env.RPC_PREFETCH || 1000);
+    const prefetchCount = await this.channelPool.getPrefetchCount();
+    await channel.prefetch(prefetchCount || +process.env.RPC_PREFETCH || 1000);
 
     const consumer = async msg => {
       try {
