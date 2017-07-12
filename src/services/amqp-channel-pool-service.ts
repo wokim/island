@@ -8,8 +8,9 @@ import { logger } from '../utils/logger';
 export interface AmqpOptions {
   url: string;
   socketOptions?: { noDelay?: boolean, heartbeat?: number };
-  poolSize?: number ;
+  poolSize?: number;
   name?: string;
+  prefetchCount?: number;
 }
 
 export interface ChannelInfo {
@@ -43,6 +44,10 @@ export class AmqpChannelPoolService {
     } catch (e) { this.initResolver.reject(e); }
 
     return Promise.resolve(this.initResolver.promise);
+  }
+
+  getPrefetchCount(): (number | undefined) {
+    return this.options.prefetchCount;
   }
 
   async waitForInit(): Promise<void> {
