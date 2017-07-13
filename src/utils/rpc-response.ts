@@ -1,4 +1,14 @@
-import { AbstractError, AbstractFatalError, AbstractLogicError } from '../utils/error';
+import * as error from '../utils/error';
+import {
+  AbstractError,
+  AbstractEtcError,
+  AbstractExpectedError,
+  AbstractFatalError,
+  AbstractLogicError,
+  ErrorLevel,
+  getIslandCode,
+  IslandLevel
+} from '../utils/error';
 import { logger } from '../utils/logger';
 import reviver from '../utils/reviver';
 
@@ -8,35 +18,46 @@ export interface IRpcResponse {
   body?: AbstractError | any;
 }
 
+function replacer(k, v: error.AbstractError | Error | number | boolean) {
+  if (v instanceof AbstractError) {
+    return {
+      message: v.message,
+      name: v.name,
+
+      code: v.code,
+      reason: v.reason,
+
+      statusCode: v.statusCode,
+      stack: v.stack,
+      extra: v.extra
+    };
+  } else if (v instanceof Error) {
+    const e = new AbstractEtcError(getIslandCode(), IslandLevel.UNKNOWN, 0, v.message);
+    e.extra = (v as any).extra || e.extra;
+    return {
+      message: e.message,
+      name: v.name,
+
+      code: e.code,
+      reason: e.reason,
+
+      stack: e.stack,
+      extra: e.extra
+    };
+  }
+  return v;
+}
+
 export class RpcResponse {
   static reviver: ((k, v) => any) | undefined = reviver;
-  static encode(body: any, serviceName: string): Buffer {
+  static encode(body: any): Buffer {
     const res: IRpcResponse = {
       body,
       result: body instanceof Error ? false : true,
       version: 1
     };
 
-    return new Buffer(JSON.stringify(res, (k, v: AbstractError | number | boolean) => {
-      // TODO instanceof Error should AbstractError
-      if (v instanceof Error) {
-        const e = v as AbstractError;
-        return {
-          debugMsg: e.debugMsg,
-          errorCode: e.errorCode,
-          errorKey: e.errorKey,
-          errorNumber: e.errorNumber,
-          errorType: e.errorType,
-          extra: e.extra,
-          message: e.message,
-          name: e.name,
-          occurredIn: e.occurredIn || serviceName,
-          stack: e.stack,
-          statusCode: e.statusCode
-        };
-      }
-      return v;
-    }), 'utf8');
+    return new Buffer(JSON.stringify(res, replacer), 'utf8');
   }
 
   static decode(msg: Buffer): IRpcResponse {
@@ -51,28 +72,27 @@ export class RpcResponse {
     }
   }
 
- static getAbstractError(err: AbstractError): AbstractError {
+  static getAbstractError(err: AbstractError): AbstractError {
     let result: AbstractError;
-    const enumObj = {};
-    enumObj[err.errorNumber] = err.errorKey;
-    err.errorCode = err.errorCode || err.occurredIn || err.extra && err.extra.island || 'UNKNOWN';
-    const [occurredIn] = err.errorCode.split('.');
-    switch (err.errorType) {
-      case 'LOGIC':
-        result = new AbstractLogicError(err.errorNumber, err.debugMsg, occurredIn, enumObj);
+    const { errorLevel, islandCode, islandLevel, errorCode } = AbstractError.splitCode(err.code);
+    switch (errorLevel) {
+      case ErrorLevel.EXPECTED:
+        result = new AbstractExpectedError(islandCode, islandLevel, errorCode, err.reason);
         break;
-      case 'FATAL':
-        result = new AbstractFatalError(err.errorNumber, err.debugMsg, occurredIn, enumObj);
+      case ErrorLevel.LOGIC:
+        result = new AbstractLogicError(islandCode, islandLevel, errorCode, err.reason);
+        break;
+      case ErrorLevel.FATAL:
+        result = new AbstractFatalError(islandCode, islandLevel, errorCode, err.reason);
         break;
       default:
-        result = new AbstractError('ETC', 1, err.message, occurredIn, { 1: 'F0001' });
-        result.name = 'ETCError';
+        result = new AbstractEtcError(islandCode, islandLevel, 1, err.reason);
+        result.name = err.name;
     }
 
     result.statusCode = err.statusCode;
     result.stack = err.stack;
     result.extra = err.extra;
-    result.occurredIn = err.occurredIn;
 
     return result;
   }

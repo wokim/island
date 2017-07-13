@@ -1,74 +1,167 @@
-export type ErrorType = 'EXPECTED' | 'LOGIC' | 'FATAL' | 'ETC';
+import * as assert from 'assert';
+import * as _ from 'lodash';
+import * as uuid from 'uuid';
 
+export type ErrorLevelName = 'EXPECTED' | 'LOGIC' | 'FATAL' | 'ETC';
+export enum ErrorLevel {
+  EXPECTED  = 1,
+  LOGIC     = 2,
+  FATAL     = 3,
+  RESERVED4 = 4,
+  RESERVED5 = 5,
+  RESERVED6 = 6,
+  RESERVED7 = 7,
+  RESERVED8 = 8,
+  ETC       = 9
+}
+
+export enum IslandLevel {
+  ISLAND    = 0,
+  ISLANDJS  = 1,
+  UNKNOWN   = 2,
+  RESERVED3 = 3,
+  RESERVED4 = 4,
+  RESERVED5 = 5,
+  RESERVED6 = 6,
+  RESERVED7 = 7,
+  RESERVED8 = 8,
+  RESERVED9 = 9
+}
+
+let islandCode = 0;
+
+export function setIslandCode(code: number) {
+  assert(0 <= code);
+  assert(code < 1000);
+  islandCode = code;
+}
+
+export function getIslandCode() {
+  return islandCode;
+}
+
+/*
+  1 0 0 1 0 0 0 0 1
+  _ _____ _ _______
+  | |     | \_ errorCode
+  | |     \_ islandLevel
+  | \_ islandCode
+  \_ errorLevel
+*/
 export class AbstractError extends Error {
-  public statusCode: number;
-  public errorCode: string;
-  public errorKey: string;
-  public result: boolean;
+  static splitCode(code) {
+    const errorLevel = Math.floor(code / 100000000);
+    const islandCode = Math.floor(code / 100000) % 1000;
+    const islandLevel = Math.floor(code / 10000) % 10 as IslandLevel;
+    const errorCode = code % 10000;
+    return {
+      errorLevel,
+      errorLevelName: ErrorLevel[errorLevel],
+      islandCode,
+      islandLevel,
+      islandLevelName: IslandLevel[islandLevel],
+      errorCode
+    };
+  }
+
+  static mergeCode(errorLevel: ErrorLevel, islandCode: number, islandLevel: IslandLevel, errorCode: number) {
+    return errorLevel * 100000000 +
+           islandCode * 100000 +
+           islandLevel * 10000 +
+           errorCode;
+  }
+
+  static ensureUuid(extra: {[key: string]: any; uuid: string}) {
+    if (extra.uuid) return extra;
+    return _.merge({}, extra, {uuid: uuid.v4()});
+  }
+
+  public code: number;
   public reason: string;
 
+  public statusCode: number;
   public stack: any;
   public extra: any;
-  public occurredIn: string;
-  public tattoo: string;
 
-  constructor(public errorType: ErrorType,
-              public errorNumber: number,
-              public debugMsg: string,
-              public islandName: string,
-              enumObj: any) {
-    super(`code: ${islandName}.${errorType}.${enumObj[errorNumber]}, msg: ${debugMsg}'`);
-    this.errorKey = enumObj[errorNumber];
-    this.errorCode = `${islandName}.${errorType}.${enumObj[errorNumber]}`;
-    this.reason = debugMsg;
-    this.result = false;
-    this.extra = {};
+  constructor(errorLevelName: ErrorLevelName,
+              islandCode: number,
+              islandLevel: IslandLevel,
+              errorCode: number,
+              reason: string) {
+    super(`${islandCode}/${islandLevel}/${errorCode}/${reason}`);
+    this.code = AbstractError.mergeCode(ErrorLevel[errorLevelName], islandCode, islandLevel, errorCode);
+    this.reason = reason;
+    this.extra = { uuid: uuid.v4() };
+  }
+
+  split() {
+    return AbstractError.splitCode(this.code);
   }
 }
 
 export class AbstractExpectedError extends AbstractError {
-  constructor(errorNumber: number,
-              debugMsg: string,
-              islandName: string,
-              enumObj: any) {
-    super('EXPECTED', errorNumber, debugMsg || '', islandName, enumObj);
+  constructor(islandCode: number,
+              islandLevel: IslandLevel,
+              errorCode: number,
+              reason: string) {
+    super('EXPECTED', islandCode, islandLevel, errorCode, reason);
     this.name = 'ExpectedError';
   }
 }
 
 export class AbstractLogicError extends AbstractError {
- constructor(errorNumber: number,
-             debugMsg: string,
-             islandName: string,
-             enumObj: any) {
-    super('LOGIC', errorNumber, debugMsg || '', islandName, enumObj);
+constructor(islandCode: number,
+            islandLevel: IslandLevel,
+            errorCode: number,
+            reason: string) {
+    super('LOGIC', islandCode, islandLevel, errorCode, reason);
     this.name = 'LogicError';
   }
 }
 
 export class AbstractFatalError extends AbstractError {
-  constructor(errorNumber: number,
-              debugMsg: string,
-              islandName: string,
-              enumObj: any) {
-    super('FATAL', errorNumber, debugMsg || '', islandName, enumObj);
+  constructor(islandCode: number,
+              islandLevel: IslandLevel,
+              errorCode: number,
+              reason: string) {
+    super('FATAL', islandCode, islandLevel, errorCode, reason);
     this.name = 'FatalError';
   }
 }
 
+export class AbstractEtcError extends AbstractError {
+  constructor(islandCode: number,
+              islandLevel: IslandLevel,
+              errorCode: number,
+              reason: string) {
+    super('ETC', islandCode, islandLevel, errorCode, reason);
+    this.name = 'EtcError';
+  }
+}
+
 export class LogicError extends AbstractLogicError {
-  constructor(errorNumber: ISLAND.LOGIC, debugMsg?: string) {
-    super(errorNumber, debugMsg || '', 'ISLAND', ISLAND.LOGIC);
+  constructor(errorCode: ISLAND.LOGIC, reason?: string) {
+    super(islandCode, IslandLevel.ISLANDJS, errorCode, reason || '');
   }
 }
 
 export class FatalError extends AbstractFatalError {
-  constructor(errorNumber: ISLAND.FATAL, debugMsg?: string) {
-    super(errorNumber, debugMsg || '', 'ISLAND', ISLAND.FATAL);
+  constructor(errorCode: ISLAND.FATAL, reason?: string) {
+    super(islandCode, IslandLevel.ISLANDJS, errorCode, reason || '');
+  }
+}
+
+export class ExpectedError extends AbstractExpectedError {
+  constructor(errorCode: ISLAND.EXPECTED, reason?: string) {
+    super(islandCode, IslandLevel.ISLANDJS, errorCode, reason || '');
   }
 }
 
 export namespace ISLAND {
+  export enum EXPECTED {
+    E0001_UNKNOWN = 1
+  }
+
   export enum LOGIC {
     L0001_PLAYER_NOT_EXIST = 1,
     L0002_WRONG_PARAMETER_SCHEMA = 2,

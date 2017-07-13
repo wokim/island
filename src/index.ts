@@ -94,11 +94,13 @@ export {
   resetSpyObjWithCallsCount as resetCallsCount
 } from './utils/jasmine-async-support';
 export {
-  ErrorType,
   AbstractError,
   AbstractExpectedError,
   AbstractFatalError,
-  AbstractLogicError
+  AbstractLogicError,
+  ErrorLevel,
+  IslandLevel,
+  setIslandCode
 } from './utils/error';
 export { Events } from './utils/event';
 export { IntervalHelper } from './utils/interval-helper';

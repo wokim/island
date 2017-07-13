@@ -31,9 +31,9 @@ describe('@endpoint', () => {
     expect(fakeDecorate(island.endpoint.del('/test')).name).toEqual('DEL /test');
   });
   it('should prevent mistakes to redeclare method', () => {
-    expect(() => fakeDecorate(island.endpoint.get('GET /test')).name).toThrowError(FatalError, /.*REDECLARED.*/);
-    expect(() => fakeDecorate(island.endpoint.get('get /test')).name).toThrowError(FatalError, /.*REDECLARED.*/);
-    expect(() => fakeDecorate(island.endpoint.get('POST /test')).name).toThrowError(FatalError, /.*REDECLARED.*/);
+    expect(() => fakeDecorate(island.endpoint.get('GET /test')).name).toThrowError(FatalError, /.*0\/1\/24.*/);
+    expect(() => fakeDecorate(island.endpoint.get('get /test')).name).toThrowError(FatalError, /.*0\/1\/24.*/);
+    expect(() => fakeDecorate(island.endpoint.get('POST /test')).name).toThrowError(FatalError, /.*0\/1\/24.*/);
   });
   it('auth, admin, devonly Test ', () => {
     expect(fakeDecorate2(island.auth(10))).toEqual({ options: { level: 10 } });

@@ -291,7 +291,7 @@ export default class RPCService {
       delete this.timedOut[this.timedOutOrdered.shift()!];
     }
     const err = new FatalError(ISLAND.FATAL.F0023_RPC_TIMEOUT,
-                               `RPC(${name} does not return in ${RPC_WAIT_TIMEOUT_MS} ms`);
+                               `RPC(${name}) does not return in ${RPC_WAIT_TIMEOUT_MS} ms`);
     err.statusCode = 504;
     throw err;
   }
@@ -378,7 +378,7 @@ export default class RPCService {
   }
 
   private isCritical(err) {
-    return err.errorCode === 'ISLAND.FATAL.F0027_CONSUMER_IS_CANCELED';
+    return err.code === 300010027; // 'FATAL.F0027_CONSUMER_IS_CANCELED';
   }
 
   private logRpcError(err) {
@@ -388,13 +388,14 @@ export default class RPCService {
 
   private attachExtraError(err: AbstractError, rpcName: string, req: any) {
     err.extra = _.defaults({}, err.extra, { island: this.serviceName, rpcName, req });
+    err.extra = AbstractError.ensureUuid(err.extra);
     return err;
   }
 
   // returns value again for convenience
   private async reply(replyTo: string, value: any, options: amqp.Options.Publish) {
     await this.channelPool.usingChannel(async channel => {
-      return channel.sendToQueue(replyTo, RpcResponse.encode(value, this.serviceName), options);
+      return channel.sendToQueue(replyTo, RpcResponse.encode(value), options);
     });
     return value;
   }

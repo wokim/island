@@ -90,6 +90,7 @@ function remapIstanbulTask() {
 }
 
 function doLint() {
+  if (process.env.npm_lifecycle_event === 'test') return;
   return gulp.src('src/**/*.ts')
     .pipe(tslint({
       formatter: 'stylish'

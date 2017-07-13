@@ -1,5 +1,6 @@
 // tslint:disable-next-line
 require('source-map-support').install();
+process.env.ISLAND_RPC_EXEC_TIMEOUT_MS = 1000;
 process.env.ISLAND_RPC_WAIT_TIMEOUT_MS = 3000;
 process.env.ISLAND_SERVICE_LOAD_TIME_MS = 1000;
 
@@ -9,7 +10,7 @@ import { RpcOptions } from '../controllers/rpc-decorator';
 import paramSchemaInspector from '../middleware/schema.middleware';
 import { AmqpChannelPoolService } from '../services/amqp-channel-pool-service';
 import RPCService, { RpcHookType, RpcRequest, RpcResponse } from '../services/rpc-service';
-import { AbstractFatalError, FatalError, ISLAND } from '../utils/error';
+import { AbstractEtcError, AbstractFatalError, AbstractLogicError, FatalError, ISLAND } from '../utils/error';
 import { jasmineAsyncAdapter as spec } from '../utils/jasmine-async-support';
 import { logger } from '../utils/logger';
 import { TraceLog } from '../utils/tracelog';
@@ -74,14 +75,51 @@ describe('RPC test:', () => {
     await rpcService.unregister('testMethod');
   }));
 
-  it('rpc test #4: reject test', spec(async ()  => {
+  it('should handle Error()', spec(async ()  => {
     await rpcService.register('testMethod', msg => {
       throw new Error('custom error');
     }, 'rpc');
     try {
       await rpcService.invoke<string, string>('testMethod', 'hello');
     } catch (e) {
-      expect(e.message).toBe(`code: haha.ETC.F0001, msg: custom error'`);
+      expect(e instanceof AbstractEtcError).toBeTruthy();
+      expect(e.code).toEqual(900020001);
+      expect(e.name).toEqual('Error');
+      expect(e.reason).toEqual('custom error');
+      expect(e.extra.uuid).not.toBeFalsy();
+    }
+    await rpcService.unregister('testMethod');
+  }));
+
+  it('should handle TypeError()', spec(async ()  => {
+    await rpcService.register('testMethod', msg => {
+      const tmp: any = (() => undefined)();
+      return tmp.xx;
+    }, 'rpc');
+    try {
+      await rpcService.invoke<string, string>('testMethod', 'hello');
+    } catch (e) {
+      expect(e instanceof AbstractEtcError).toBeTruthy();
+      expect(e.code).toEqual(900020001);
+      expect(e.name).toEqual('TypeError');
+      expect(e.reason).toEqual(`Cannot read property 'xx' of undefined`);
+    }
+    await rpcService.unregister('testMethod');
+  }));
+
+  it('should handle third-party error()', spec(async ()  => {
+    await rpcService.register('testMethod', async msg => {
+      await Bluebird.delay(100).timeout(10);
+      return 1;
+    }, 'rpc');
+    try {
+      await rpcService.invoke<string, string>('testMethod', 'hello');
+    } catch (e) {
+      expect(e instanceof AbstractEtcError).toBeTruthy();
+      expect(e.code).toEqual(900020001);
+      expect(e.name).toEqual('TimeoutError');
+      expect(e.reason).toEqual('operation timed out');
+      expect(e.extra.uuid).not.toBeFalsy();
     }
     await rpcService.unregister('testMethod');
   }));
@@ -117,7 +155,7 @@ describe('RPC test:', () => {
         return Promise.resolve('world');
       }, 'rpc')
     ]);
-    await rpcService.invoke('AAA', 500);
+    await rpcService.invoke('AAA', 50);
   }));
 
   it('rpc test #7: rpc call with sanitizatioin, validation', spec(async () => {
@@ -150,7 +188,7 @@ describe('RPC test:', () => {
 
     expect(() => {
       paramSchemaInspector(req);
-    }).toThrowError(/.*L0002_WRONG_PARAMETER_SCHEMA.*/);
+    }).toThrowError(/.*0\/1\/2.*/);
   }));
 
   it('should unregister handlers if it failed to send a message', spec(async () => {
@@ -196,10 +234,11 @@ describe('RPC test:', () => {
     const res = await p;
     expect(res).toBe('hello world');
   }));
-  it('should know where the rpc error occurred', spec(async () => {
-    const rpcServiceSecond = new RPCService('second');
+
+  it('should know where the RPC error come from', spec(async () => {
+    const rpcServiceSecond = new RPCService('second-island');
     await rpcServiceSecond.initialize(amqpChannelPool);
-    const rpcServiceThird = new RPCService('third');
+    const rpcServiceThird = new RPCService('third-island');
     await rpcServiceThird.initialize(amqpChannelPool);
 
     await rpcServiceThird.register('third', msg => {
@@ -216,14 +255,19 @@ describe('RPC test:', () => {
     } catch (e) {
       await rpcServiceSecond.unregister('second');
       await rpcServiceThird.unregister('third');
-      expect(e.errorCode).toBe('third.ETC.F0001');
+
+      expect(e instanceof AbstractEtcError).toBeTruthy();
+      expect(e.code).toEqual(900020001);
+      expect(e.name).toEqual('Error');
+      expect(e.extra.island).toBe('third-island');
+      expect(e.extra.rpcName).toBe('third');
     }
   }));
 
-  it('should confirm error occurred', spec(async () => {
-    const rpcServiceSecond = new RPCService('second');
+  it('should know where the RPC validation error come from', spec(async () => {
+    const rpcServiceSecond = new RPCService('second-island');
     await rpcServiceSecond.initialize(amqpChannelPool);
-    const rpcServiceThird = new RPCService('third');
+    const rpcServiceThird = new RPCService('third-island');
     await rpcServiceThird.initialize(amqpChannelPool);
     const validation = { type: 'string' };
     const rpcOptions: RpcOptions = {
@@ -249,8 +293,12 @@ describe('RPC test:', () => {
     } catch (e) {
       await rpcServiceSecond.unregister('second');
       await rpcServiceThird.unregister('third');
-      expect(e.errorCode).toBe('ISLAND.LOGIC.L0002_WRONG_PARAMETER_SCHEMA');
-      expect(e.occurredIn).toBe('third');
+
+      expect(e instanceof AbstractLogicError).toBeTruthy();
+      expect(e.code).toEqual(200010002); // LOGIC/UNKNOWN/ISLANDJS/0002/WRONG_PARAMETER_SCHEMA
+      expect(e.name).toEqual('LogicError');
+      expect(e.extra.island).toBe('third-island');
+      expect(e.extra.rpcName).toBe('third');
     }
   }));
 
@@ -292,9 +340,23 @@ describe('RPC(isolated test)', () => {
       fail();
     } catch (e) {
       const rs = (rpcService as any);
-      expect(e.errorCode).toEqual('ISLAND.FATAL.F0023_RPC_TIMEOUT');
+      expect(e instanceof AbstractFatalError).toBeTruthy();
+      expect(e.code).toEqual(300010023); // FATAL/UNKNOWN/ISLANDJS/0023/RPC_TIMEOUT
+      expect(e.extra.uuid).not.toBeFalsy();
       expect(rs.timedOutOrdered.length).toEqual(1);
       expect(rs.timedOut[rs.timedOutOrdered[0]]).toEqual('unmethod');
+    }
+  }));
+
+  it('should ensure the uuid of the error raised by the RPC which has been timed out', spec(async () => {
+    await rpcService.register('out', () => {
+      return rpcService.invoke('unmethod', 'arg');
+    }, 'rpc');
+    try {
+      await rpcService.invoke('out', 'abc');
+      fail();
+    } catch (e) {
+      expect(e.extra.uuid).not.toBeFalsy();
     }
   }));
 
@@ -369,6 +431,21 @@ describe('RPC(isolated test)', () => {
     await Bluebird.delay(50);
 
     expect(logger.notice).toHaveBeenCalledWith('Got an unknown response - aaaa');
+  }));
+
+  it('should keep original uuid through the RPCs', spec(async () => {
+    let uuid;
+    await rpcService.register('in', () => {
+      const e = new FatalError(ISLAND.FATAL.F0001_ISLET_ALREADY_HAS_BEEN_REGISTERED);
+      uuid = e.extra.uuid;
+      throw e;
+    }, 'rpc');
+    await rpcService.register('out', () => rpcService.invoke('in', 'a'), 'rpc');
+    try {
+      await rpcService.invoke('out', 'b');
+    } catch (e) {
+      expect(e.extra.uuid).toEqual(uuid);
+    }
   }));
 });
 
