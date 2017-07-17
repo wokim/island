@@ -9,7 +9,7 @@ import uuid = require('uuid');
 
 import { RpcOptions } from '../controllers/rpc-decorator';
 import { sanitize, validate } from '../middleware/schema.middleware';
-import { AbstractError, FatalError, ISLAND, LogicError } from '../utils/error';
+import { AbstractError, FatalError, ISLAND, LogicError, mergeIslandJsError } from '../utils/error';
 import { logger } from '../utils/logger';
 import reviver from '../utils/reviver';
 import { RpcRequest } from '../utils/rpc-request';
@@ -378,7 +378,7 @@ export default class RPCService {
   }
 
   private isCritical(err) {
-    return err.code === 300010027; // 'FATAL.F0027_CONSUMER_IS_CANCELED';
+    return err.code === mergeIslandJsError(ISLAND.FATAL.F0027_CONSUMER_IS_CANCELED);
   }
 
   private logRpcError(err) {

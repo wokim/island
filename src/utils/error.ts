@@ -28,10 +28,16 @@ export enum IslandLevel {
   RESERVED9 = 9
 }
 
-let islandCode = 0;
+function mergeCode(islandCode: number, islandLevel: IslandLevel, errorCode: number) {
+  return islandCode * 100000 +
+         islandLevel * 10000 +
+         errorCode;
+}
+
+let islandCode = 100; // UNKNOWN_ISLAND by convention
 
 export function setIslandCode(code: number) {
-  assert(0 <= code);
+  assert(100 <= code);
   assert(code < 1000);
   islandCode = code;
 }
@@ -40,23 +46,27 @@ export function getIslandCode() {
   return islandCode;
 }
 
+export function toCode(errorCode: number) {
+  return mergeCode(islandCode, IslandLevel.ISLAND, errorCode);
+}
+
+export function mergeIslandJsError(errorCode: number) {
+  return mergeCode(islandCode, IslandLevel.ISLANDJS, errorCode);
+}
+
 /*
-  1 0 0 1 0 0 0 0 1
-  _ _____ _ _______
-  | |     | \_ errorCode
-  | |     \_ islandLevel
-  | \_ islandCode
-  \_ errorLevel
+  1 0 1 0 0 0 0 1
+  _____ _ _______
+  |     | \_ errorCode
+  |     \_ islandLevel
+  \_ islandCode
 */
 export class AbstractError extends Error {
   static splitCode(code) {
-    const errorLevel = Math.floor(code / 100000000);
     const islandCode = Math.floor(code / 100000) % 1000;
     const islandLevel = Math.floor(code / 10000) % 10 as IslandLevel;
     const errorCode = code % 10000;
     return {
-      errorLevel,
-      errorLevelName: ErrorLevel[errorLevel],
       islandCode,
       islandLevel,
       islandLevelName: IslandLevel[islandLevel],
@@ -64,11 +74,8 @@ export class AbstractError extends Error {
     };
   }
 
-  static mergeCode(errorLevel: ErrorLevel, islandCode: number, islandLevel: IslandLevel, errorCode: number) {
-    return errorLevel * 100000000 +
-           islandCode * 100000 +
-           islandLevel * 10000 +
-           errorCode;
+  static mergeCode(islandCode: number, islandLevel: IslandLevel, errorCode: number) {
+    return mergeCode(islandCode, islandLevel, errorCode);
   }
 
   static ensureUuid(extra: {[key: string]: any; uuid: string}) {
@@ -83,13 +90,13 @@ export class AbstractError extends Error {
   public stack: any;
   public extra: any;
 
-  constructor(errorLevelName: ErrorLevelName,
-              islandCode: number,
+  constructor(islandCode: number,
               islandLevel: IslandLevel,
               errorCode: number,
               reason: string) {
-    super(`${islandCode}/${islandLevel}/${errorCode}/${reason}`);
-    this.code = AbstractError.mergeCode(ErrorLevel[errorLevelName], islandCode, islandLevel, errorCode);
+    const code = mergeCode(islandCode, islandLevel, errorCode);
+    super(`${code}-${reason}`);
+    this.code = code;
     this.reason = reason;
     this.extra = { uuid: uuid.v4() };
   }
@@ -104,7 +111,7 @@ export class AbstractExpectedError extends AbstractError {
               islandLevel: IslandLevel,
               errorCode: number,
               reason: string) {
-    super('EXPECTED', islandCode, islandLevel, errorCode, reason);
+    super(islandCode, islandLevel, errorCode, reason);
     this.name = 'ExpectedError';
   }
 }
@@ -114,7 +121,7 @@ constructor(islandCode: number,
             islandLevel: IslandLevel,
             errorCode: number,
             reason: string) {
-    super('LOGIC', islandCode, islandLevel, errorCode, reason);
+    super(islandCode, islandLevel, errorCode, reason);
     this.name = 'LogicError';
   }
 }
@@ -124,7 +131,7 @@ export class AbstractFatalError extends AbstractError {
               islandLevel: IslandLevel,
               errorCode: number,
               reason: string) {
-    super('FATAL', islandCode, islandLevel, errorCode, reason);
+    super(islandCode, islandLevel, errorCode, reason);
     this.name = 'FatalError';
   }
 }
@@ -134,7 +141,7 @@ export class AbstractEtcError extends AbstractError {
               islandLevel: IslandLevel,
               errorCode: number,
               reason: string) {
-    super('ETC', islandCode, islandLevel, errorCode, reason);
+    super(islandCode, islandLevel, errorCode, reason);
     this.name = 'EtcError';
   }
 }

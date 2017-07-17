@@ -5,7 +5,6 @@ import {
   AbstractExpectedError,
   AbstractFatalError,
   AbstractLogicError,
-  ErrorLevel,
   getIslandCode,
   IslandLevel
 } from '../utils/error';
@@ -18,11 +17,23 @@ export interface IRpcResponse {
   body?: AbstractError | any;
 }
 
+export interface PlainRpcError {
+  name: string;
+  message: string;
+
+  code: number;
+  reason: string;
+
+  statusCode?: number;
+  stack: string;
+  extra: any;
+}
+
 function replacer(k, v: error.AbstractError | Error | number | boolean) {
   if (v instanceof AbstractError) {
     return {
-      message: v.message,
       name: v.name,
+      message: v.message,
 
       code: v.code,
       reason: v.reason,
@@ -35,8 +46,8 @@ function replacer(k, v: error.AbstractError | Error | number | boolean) {
     const e = new AbstractEtcError(getIslandCode(), IslandLevel.UNKNOWN, 0, v.message);
     e.extra = (v as any).extra || e.extra;
     return {
-      message: e.message,
       name: v.name,
+      message: e.message,
 
       code: e.code,
       reason: e.reason,
@@ -72,17 +83,17 @@ export class RpcResponse {
     }
   }
 
-  static getAbstractError(err: AbstractError): AbstractError {
+  static getAbstractError(err: PlainRpcError): AbstractError {
     let result: AbstractError;
-    const { errorLevel, islandCode, islandLevel, errorCode } = AbstractError.splitCode(err.code);
-    switch (errorLevel) {
-      case ErrorLevel.EXPECTED:
+    const { islandCode, islandLevel, errorCode } = AbstractError.splitCode(err.code);
+    switch (err.name) {
+      case 'ExpectedError':
         result = new AbstractExpectedError(islandCode, islandLevel, errorCode, err.reason);
         break;
-      case ErrorLevel.LOGIC:
+      case 'LogicError':
         result = new AbstractLogicError(islandCode, islandLevel, errorCode, err.reason);
         break;
-      case ErrorLevel.FATAL:
+      case 'FatalError':
         result = new AbstractFatalError(islandCode, islandLevel, errorCode, err.reason);
         break;
       default:
@@ -90,7 +101,9 @@ export class RpcResponse {
         result.name = err.name;
     }
 
-    result.statusCode = err.statusCode;
+    if (err.statusCode) {
+      result.statusCode = err.statusCode;
+    }
     result.stack = err.stack;
     result.extra = err.extra;
 

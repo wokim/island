@@ -83,7 +83,7 @@ describe('RPC test:', () => {
       await rpcService.invoke<string, string>('testMethod', 'hello');
     } catch (e) {
       expect(e instanceof AbstractEtcError).toBeTruthy();
-      expect(e.code).toEqual(900020001);
+      expect(e.code).toEqual(10020001);
       expect(e.name).toEqual('Error');
       expect(e.reason).toEqual('custom error');
       expect(e.extra.uuid).not.toBeFalsy();
@@ -100,7 +100,7 @@ describe('RPC test:', () => {
       await rpcService.invoke<string, string>('testMethod', 'hello');
     } catch (e) {
       expect(e instanceof AbstractEtcError).toBeTruthy();
-      expect(e.code).toEqual(900020001);
+      expect(e.code).toEqual(10020001);
       expect(e.name).toEqual('TypeError');
       expect(e.reason).toEqual(`Cannot read property 'xx' of undefined`);
     }
@@ -116,7 +116,7 @@ describe('RPC test:', () => {
       await rpcService.invoke<string, string>('testMethod', 'hello');
     } catch (e) {
       expect(e instanceof AbstractEtcError).toBeTruthy();
-      expect(e.code).toEqual(900020001);
+      expect(e.code).toEqual(10020001);
       expect(e.name).toEqual('TimeoutError');
       expect(e.reason).toEqual('operation timed out');
       expect(e.extra.uuid).not.toBeFalsy();
@@ -188,7 +188,7 @@ describe('RPC test:', () => {
 
     expect(() => {
       paramSchemaInspector(req);
-    }).toThrowError(/.*0\/1\/2.*/);
+    }).toThrowError(/.*10010002-Wrong parameter schema.*/);
   }));
 
   it('should unregister handlers if it failed to send a message', spec(async () => {
@@ -257,7 +257,7 @@ describe('RPC test:', () => {
       await rpcServiceThird.unregister('third');
 
       expect(e instanceof AbstractEtcError).toBeTruthy();
-      expect(e.code).toEqual(900020001);
+      expect(e.code).toEqual(10020001);
       expect(e.name).toEqual('Error');
       expect(e.extra.island).toBe('third-island');
       expect(e.extra.rpcName).toBe('third');
@@ -295,7 +295,7 @@ describe('RPC test:', () => {
       await rpcServiceThird.unregister('third');
 
       expect(e instanceof AbstractLogicError).toBeTruthy();
-      expect(e.code).toEqual(200010002); // LOGIC/UNKNOWN/ISLANDJS/0002/WRONG_PARAMETER_SCHEMA
+      expect(e.code).toEqual(10010002); // UNKNOWN/ISLANDJS/0002/WRONG_PARAMETER_SCHEMA
       expect(e.name).toEqual('LogicError');
       expect(e.extra.island).toBe('third-island');
       expect(e.extra.rpcName).toBe('third');
@@ -341,7 +341,7 @@ describe('RPC(isolated test)', () => {
     } catch (e) {
       const rs = (rpcService as any);
       expect(e instanceof AbstractFatalError).toBeTruthy();
-      expect(e.code).toEqual(300010023); // FATAL/UNKNOWN/ISLANDJS/0023/RPC_TIMEOUT
+      expect(e.code).toEqual(10010023); // UNKNOWN/ISLANDJS/0023/RPC_TIMEOUT
       expect(e.extra.uuid).not.toBeFalsy();
       expect(rs.timedOutOrdered.length).toEqual(1);
       expect(rs.timedOut[rs.timedOutOrdered[0]]).toEqual('unmethod');

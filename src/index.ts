@@ -100,6 +100,7 @@ export {
   AbstractLogicError,
   ErrorLevel,
   IslandLevel,
+  toCode,
   setIslandCode
 } from './utils/error';
 export { Events } from './utils/event';
