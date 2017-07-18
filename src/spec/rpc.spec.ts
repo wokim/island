@@ -3,8 +3,11 @@ require('source-map-support').install();
 process.env.ISLAND_RPC_EXEC_TIMEOUT_MS = 1000;
 process.env.ISLAND_RPC_WAIT_TIMEOUT_MS = 3000;
 process.env.ISLAND_SERVICE_LOAD_TIME_MS = 1000;
+process.env.STATUS_EXPORT = 'true';
+process.env.STATUS_EXPORT_TIME = 3 * 1000;
 
 import * as Bluebird from 'bluebird';
+import * as fs from 'fs';
 
 import { RpcOptions } from '../controllers/rpc-decorator';
 import paramSchemaInspector from '../middleware/schema.middleware';
@@ -13,6 +16,7 @@ import RPCService, { RpcHookType, RpcRequest, RpcResponse } from '../services/rp
 import { AbstractEtcError, AbstractFatalError, AbstractLogicError, FatalError, ISLAND } from '../utils/error';
 import { jasmineAsyncAdapter as spec } from '../utils/jasmine-async-support';
 import { logger } from '../utils/logger';
+import { exporter } from '../utils/status-exporter';
 import { TraceLog } from '../utils/tracelog';
 
 // tslint:disable-next-line no-var-requires
@@ -589,5 +593,12 @@ describe('RPC-hook', () => {
       expect(e.extra.message).toEqual('pre-hooked');
       expect(haveBeenCalled).toBeTruthy();
     }
+  }));
+
+  it('should save statusfile', spec(async () => {
+    const fileName = exporter.initialize({ name: 'rpc.status.json' });
+    await exporter.saveStatusJsonFile();
+    const file = await fs.readFileSync(fileName);
+    expect(file).toBeDefined(file);
   }));
 });

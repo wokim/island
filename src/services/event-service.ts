@@ -9,6 +9,9 @@ import { Events } from '../utils/event';
 import { logger } from '../utils/logger';
 import reviver from '../utils/reviver';
 import { TraceLog } from '../utils/tracelog';
+
+import { exporter } from '../utils/status-exporter';
+
 import { AmqpChannelPoolService } from './amqp-channel-pool-service';
 import {
   BaseEvent,
@@ -148,8 +151,12 @@ export class EventService {
           // TODO: handle unexpected cancel
           return;
         }
+        const timestamp = msg.properties && msg.properties.timestamp;
+        const startedAt = +new Date();
+        exporter.collectRequestAndReceivedTime('event', startedAt - timestamp);
         this.onGoingEventRequestCount++;
         Bluebird.resolve(this.handleMessage(msg))
+          .tap(() => exporter.collectExecutedCountAndExecutedTime('event', +new Date() - startedAt))
           .catch(e => this.sendErrorLog(e, msg))
           .finally(() => {
             channel.ack(msg);

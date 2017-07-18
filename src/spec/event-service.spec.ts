@@ -1,3 +1,6 @@
+process.env.STATUS_EXPORT = 'true';
+process.env.STATUS_EXPORT_TIME = 3 * 1000;
+
 import { AmqpChannelPoolService } from '../services/amqp-channel-pool-service';
 import { EventHookType, EventService } from '../services/event-service';
 import { Event, PatternSubscriber } from '../services/event-subscriber';
@@ -156,4 +159,5 @@ describe('Event-hook', () => {
     });
     await eventService.publishEvent(new TestEvent('bbb'));
   }));
+
 });

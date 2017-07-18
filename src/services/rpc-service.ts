@@ -14,6 +14,7 @@ import { logger } from '../utils/logger';
 import reviver from '../utils/reviver';
 import { RpcRequest } from '../utils/rpc-request';
 import { IRpcResponse, RpcResponse } from '../utils/rpc-response';
+import { exporter } from '../utils/status-exporter';
 import { TraceLog } from '../utils/tracelog';
 import { AmqpChannelPoolService } from './amqp-channel-pool-service';
 
@@ -171,9 +172,11 @@ export default class RPCService {
       const { replyTo, headers, correlationId } = msg.properties;
       if (!replyTo) throw ISLAND.FATAL.F0026_MISSING_REPLYTO_IN_RPC;
 
+      const startExecutedAt = +new Date();
       const tattoo = headers && headers.tattoo;
       const timestamp = msg.properties.timestamp || 0;
       const log = createTraceLog({ tattoo, timestamp, msg, headers, rpcName, serviceName: this.serviceName });
+      exporter.collectRequestAndReceivedTime(type, +new Date() - timestamp);
       return this.enterCLS(tattoo, rpcName, async () => {
         const options = { correlationId, headers };
         const parsed = JSON.parse(msg.content.toString('utf8'), reviver);
@@ -188,7 +191,8 @@ export default class RPCService {
             .then(res => sanitizeAndValidateResult(res, rpcOptions))
             .then(res => this.reply(replyTo, res, options))
             .tap (()  => log.end())
-            .tap (res => logger.debug(`responses ${JSON.stringify(res)}`))
+            .tap (() => exporter.collectExecutedCountAndExecutedTime(type, +new Date() - startExecutedAt))
+            .tap (res => logger.debug(`responses ${JSON.stringify(res)} ${type}, ${rpcName}`))
             .timeout(RPC_EXEC_TIMEOUT_MS);
         } catch (err) {
           await Bluebird.resolve(err)
