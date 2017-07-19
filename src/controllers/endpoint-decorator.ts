@@ -21,6 +21,7 @@ export interface EndpointOptions {
   admin?: boolean;
   ensure?: number;
   quota?: EndpointQuotaOptions;
+  internal?: boolean;
 }
 
 export interface EndpointQuotaOptions {
@@ -587,7 +588,7 @@ export function auth(level: number) {
 }
 
 // - EndpointOptions#level, EndpointOptions#admin 속성의 Syntactic Sugar 이다
-//
+// - EndpointOptions#interval admin API의 호출을 내부망의 전용 gateway를 통해서만 통신할 수 있도록 한다
 // [EXAMPLE]
 // @island.endpoint('GET /v2/a', {})
 // @island.admin
@@ -596,6 +597,22 @@ export function admin(target, key, desc) {
   const options = desc.value.options = (desc.value.options || {}) as EndpointOptions;
   options.level = Math.max(options.level || 0, 9);
   options.admin = true;
+  options.internal = true;
+  if (desc.value.endpoints) {
+    desc.value.endpoints.forEach(e => {
+      _.merge(e.options, options);
+    });
+  }
+}
+
+// - admin API 이외에 내부망의 전용 gateway를 통해서만 통신해야만 하는 endpoint에 사용한다.
+//
+// [EXAMPLE]
+// @island.internal()
+// @island.endpoint('GET /v2/c', {})
+export function internal(target, key, desc) {
+  const options = desc.value.options = (desc.value.options || {}) as EndpointOptions;
+  options.internal = true;
   if (desc.value.endpoints) {
     desc.value.endpoints.forEach(e => {
       _.merge(e.options, options);
