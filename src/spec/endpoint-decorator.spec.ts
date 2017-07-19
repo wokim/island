@@ -37,7 +37,8 @@ describe('@endpoint', () => {
   });
   it('auth, admin, devonly Test ', () => {
     expect(fakeDecorate2(island.auth(10))).toEqual({ options: { level: 10 } });
-    expect(fakeDecorate2(island.admin)).toEqual({ options: { level: 9, admin: true } });
+    expect(fakeDecorate2(island.admin)).toEqual({ options: { level: 9, admin: true, internal: true } });
+    expect(fakeDecorate2(island.internal)).toEqual({ options: { internal: true } });
     expect(fakeDecorate2(island.devonly)).toEqual({ options: { developmentOnly: true } });
     expect(fakeDecorate2(island.ensure(island.EnsureOptions.SESSION))).toEqual({ options: { ensure: 2 } });
     expect(fakeDecorate2(island.nosession())).toEqual({ options: { ignoreSession: true } });
