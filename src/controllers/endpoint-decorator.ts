@@ -21,7 +21,7 @@ export interface EndpointOptions {
   admin?: boolean;
   ensure?: number;
   quota?: EndpointQuotaOptions;
-  internal?: boolean;
+  extraCase?: string[];
 }
 
 export interface EndpointQuotaOptions {
@@ -581,6 +581,8 @@ export function auth(level: number) {
   return (target, key, desc: PropertyDescriptor) => {
     const options = desc.value.options = (desc.value.options || {}) as EndpointOptions;
     options.level = Math.max(options.level || 0, level);
+    options.extraCase = options.level === 9
+      ? _.union(['internal'], options.extraCase || []) : (options.extraCase || []);
     if (desc.value.endpoints) {
       desc.value.endpoints.forEach(e => _.merge(e.options, options));
     }
@@ -597,7 +599,7 @@ export function admin(target, key, desc) {
   const options = desc.value.options = (desc.value.options || {}) as EndpointOptions;
   options.level = Math.max(options.level || 0, 9);
   options.admin = true;
-  options.internal = true;
+  options.extraCase = _.union(['internal'], options.extraCase || []);
   if (desc.value.endpoints) {
     desc.value.endpoints.forEach(e => {
       _.merge(e.options, options);
@@ -605,19 +607,22 @@ export function admin(target, key, desc) {
   }
 }
 
-// - admin API 이외에 내부망의 전용 gateway를 통해서만 통신해야만 하는 endpoint에 사용한다.
-//
-// [EXAMPLE]
-// @island.internal()
+// - 예외적인 케이스로 인해 특정 endpoint의 호출을 제어하고자 할 때 사용 한다
+// - 2017.07.21
+// - nosession, devonly도 점차적으로 extra데코레이터를 쓰도록 가이드해야 한다
+// - 향후에 옵션으로 쓰이는 녀석들 중에 grouping 가능한 것들끼리 묶어서 좀 더 잘 구현해야.. 아직은 잘 그려지지가 않음 ㅠㅠ
+// [EXAMPLE] admin API 이외에 내부망의 전용 gateway를 통해서만 통신해야만 하는 endpoint의 경우
+// @island.auth(0)
+// @island.extra(['internal'])
 // @island.endpoint('GET /v2/c', {})
-export function internal(target, key, desc) {
-  const options = desc.value.options = (desc.value.options || {}) as EndpointOptions;
-  options.internal = true;
-  if (desc.value.endpoints) {
-    desc.value.endpoints.forEach(e => {
-      _.merge(e.options, options);
-    });
-  }
+export function extra(extraCase: string[]) {
+  return (target, key, desc: PropertyDescriptor) => {
+    const options = desc.value.options = (desc.value.options || {}) as EndpointOptions;
+    options.extraCase = extraCase || [];
+    if (desc.value.endpoints) {
+      desc.value.endpoints.forEach(e => _.merge(e.options, options));
+    }
+  };
 }
 
 export function devonly(target, key, desc) {
