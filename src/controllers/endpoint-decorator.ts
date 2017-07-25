@@ -21,7 +21,7 @@ export interface EndpointOptions {
   admin?: boolean;
   ensure?: number;
   quota?: EndpointQuotaOptions;
-  extraCase?: {[key: string]: any};
+  extra?: {[key: string]: any};
 }
 
 export interface EndpointQuotaOptions {
@@ -610,10 +610,10 @@ export function admin(target, key, desc) {
 // @island.auth(0)
 // @island.extra({internal: true})
 // @island.endpoint('GET /v2/c', {})
-export function extra(extraCase: {[key: string]: any}) {
+export function extra(extra: {[key: string]: any}) {
   return (target, key, desc: PropertyDescriptor) => {
     const options = desc.value.options = (desc.value.options || {}) as EndpointOptions;
-    options.extraCase = extraCase || {};
+    options.extra = extra || {};
     if (desc.value.endpoints) {
       desc.value.endpoints.forEach(e => _.merge(e.options, options));
     }
