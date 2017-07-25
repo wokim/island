@@ -41,6 +41,7 @@ export {
   validate,
   sanitize,
   admin,
+  extra,
   auth,
   devonly,
   mangle,

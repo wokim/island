@@ -21,6 +21,7 @@ export interface EndpointOptions {
   admin?: boolean;
   ensure?: number;
   quota?: EndpointQuotaOptions;
+  extra?: {[key: string]: any};
 }
 
 export interface EndpointQuotaOptions {
@@ -587,7 +588,6 @@ export function auth(level: number) {
 }
 
 // - EndpointOptions#level, EndpointOptions#admin 속성의 Syntactic Sugar 이다
-//
 // [EXAMPLE]
 // @island.endpoint('GET /v2/a', {})
 // @island.admin
@@ -601,6 +601,23 @@ export function admin(target, key, desc) {
       _.merge(e.options, options);
     });
   }
+}
+
+// - 예외적인 케이스로 인해 특정 endpoint의 호출을 제어하고자 할 때 사용 한다
+// - 2017.07.21
+// - nosession, devonly도 점차적으로 extra 데코레이터를 쓰도록 가이드해야 한다
+// [EXAMPLE] admin API 이외에 내부망의 전용 gateway를 통해서만 통신해야만 하는 endpoint의 경우
+// @island.auth(0)
+// @island.extra({internal: true})
+// @island.endpoint('GET /v2/c', {})
+export function extra(extra: {[key: string]: any}) {
+  return (target, key, desc: PropertyDescriptor) => {
+    const options = desc.value.options = (desc.value.options || {}) as EndpointOptions;
+    options.extra = extra || {};
+    if (desc.value.endpoints) {
+      desc.value.endpoints.forEach(e => _.merge(e.options, options));
+    }
+  };
 }
 
 export function devonly(target, key, desc) {
