@@ -1,6 +1,6 @@
 {
   "name": "island",
-  "version": "1.9.0-dev.feat-errorcode2",
+  "version": "1.9.0-dev",
   "description": "A package suite for building microservice using TypeScript.",
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
@@ -45,6 +45,7 @@
     "inversify": "2.0.0-beta.5",
     "island-di": "^1.1.0",
     "island-loggers": "^1.0.0",
+    "island-status-exporter": "*",
     "lodash": "^4.16.1",
     "mongodb-uri": "0.9.7",
     "mongoose": "^4.6.1",

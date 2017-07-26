@@ -156,4 +156,5 @@ describe('Event-hook', () => {
     });
     await eventService.publishEvent(new TestEvent('bbb'));
   }));
+
 });

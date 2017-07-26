@@ -146,6 +146,9 @@ $ RABBITMQ_HOST=localhost npm test
 | `ISLAND_TRACEMQ_HOST`        | MQ(formatted by amqp URI) for TraceLog. If omitted it doesn't log |
 | `ISLAND_TRACEMQ_QUEUE`       | A queue name to log TraceLog                                      |
 | `SERIALIZE_FORMAT_PUSH`      | currently able Push format json and msgpack (Default to msgpack)  |
+| `STATUS_EXPORT`              | If it is `true`, use island-status-exporter (Defaults to false)   |
+| `STATUS_EXPORT_TIME_MS`      | Time to save file for instance status (Defaults to 10000)         |
+| `STATUS_FILE_NAME`           | island-status-exporter uses this as a name for file               |
 
 
 ## Milestones

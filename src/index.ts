@@ -106,6 +106,7 @@ export {
 } from './utils/error';
 export { Events } from './utils/event';
 export { IntervalHelper } from './utils/interval-helper';
+export { exporter } from './utils/status-exporter';
 
 export { Di, ObjectWrapper, ObjectFactory } from 'island-di';
 export { Loggers } from 'island-loggers';
