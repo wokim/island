@@ -4,7 +4,7 @@ process.env.ISLAND_RPC_EXEC_TIMEOUT_MS = 1000;
 process.env.ISLAND_RPC_WAIT_TIMEOUT_MS = 3000;
 process.env.ISLAND_SERVICE_LOAD_TIME_MS = 1000;
 process.env.STATUS_EXPORT = 'true';
-process.env.STATUS_EXPORT_TIME = 3 * 1000;
+process.env.STATUS_EXPORT_TIME_MS = 3 * 1000;
 
 import * as Bluebird from 'bluebird';
 import * as fs from 'fs';
@@ -595,10 +595,12 @@ describe('RPC-hook', () => {
     }
   }));
 
-  it('should save statusfile', spec(async () => {
-    const fileName = exporter.initialize({ name: 'rpc.status.json' });
+  it('should specify filename and instanceId', spec(async () => {
+    const fileName = exporter.initialize({ name: 'rpc', hostname: 'test' });
     await exporter.saveStatusJsonFile();
-    const file = await fs.readFileSync(fileName);
-    expect(file).toBeDefined(file);
+    const file = await fs.readFileSync(fileName, 'utf8');
+    const json = JSON.parse(file);
+    await fs.unlinkSync(fileName);
+    expect(json.instanceId).toBeDefined('test');
   }));
 });
