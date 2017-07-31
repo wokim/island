@@ -397,16 +397,27 @@ export namespace validate {
   }
 
   // tslint:disable-next-line class-name
+  export interface __Array {
+    minLength?: number;
+    maxLength?: number;
+  }
+
+  // tslint:disable-next-line class-name
   export class _Array {
     items: [ValidatePropertyTypes] | undefined;
+    minLength?: number;
+    maxLength?: number;
 
-    constructor(items: [ValidatePropertyTypes] | undefined) {
+    constructor(items: [ValidatePropertyTypes] | undefined, opts?: __Array | undefined) {
+      opts = opts || {};
       this.items = items;
+      this.minLength = opts.minLength;
+      this.maxLength = opts.maxLength;
     }
   }
 
-  export function Array(items?: [ValidatePropertyTypes]) {
-    return new _Array(items);
+  export function Array(items?: [ValidatePropertyTypes], opts?: __Array) {
+    return new _Array(items, opts);
   }
 
   export type ValidatePropertyTypes =
@@ -436,7 +447,7 @@ export namespace validate {
       property.properties = validateAsObject(value.properties);
     } else if (value instanceof _Array) {
       property.type = 'array';
-      property.items = validateAsArray(value.items);
+      property.items = validateAsArrayWithOptions(value);
     } else if (value === Any) {
       property.type = 'any';
     } else if (value === ObjectId) {
@@ -460,6 +471,22 @@ export namespace validate {
     return parseValidation(property, item);
   }
 
+  // v.Array로 선언되어 Option이 있는 경우 이 함수가 사용된다.
+  function validateAsArrayWithOptions(obj?: {items?: [ValidatePropertyTypes], opts?: __Array }) {
+    obj = obj || {};
+    if (!obj.items) return;
+    const item = obj.items[0];
+    let property: SchemaInspectorProperty = { optional: false };
+
+    _.each(obj, (value, key: string) => {
+      if (key === 'items') {
+        property = parseValidation(property, item);
+      } else {
+        property[key] = value;
+      }
+    });
+    return parseValidation(property, item);
+  }
   // validation의 optional의 기본값은 false
   // https://github.com/Atinux/schema-inspector#v_optional
   // 헷갈리니까 생략하면 기본값, !는 required, ?는 optional로 양쪽에서 동일한 규칙을 쓰도록 한다
@@ -512,6 +539,7 @@ export namespace validate {
     { [key: string]: ValidatePropertyTypes } |
     [ValidatePropertyTypes]): any {
     if (global.Array.isArray(target)) {
+      // 여기에서 체크된 Array는 option이 없는 경우이다.
       return {
         items: validateAsArray(target),
         type: 'array'

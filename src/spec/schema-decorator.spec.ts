@@ -231,6 +231,40 @@ describe('validate', () => {
       type: 'object'
     });
   });
+
+  it('should support array options - minLength', () => {
+    const result = v.validate(v.Array([Number], {minLength: 5 }));
+    expect(result).toEqual({
+      type: 'array',
+      items: {type : 'number',
+              minLength: 5,
+              optional: false
+             }
+    });
+  });
+
+  it('should support array options - maxLength', () => {
+    const result = v.validate(v.Array([Number], {maxLength: 10 }));
+    expect(result).toEqual({
+      type: 'array',
+      items: {type : 'number',
+              maxLength: 10,
+              optional: false
+             }
+    });
+  });
+
+  it('should support array options', () => {
+    const result = v.validate(v.Array([Number], {minLength: 5 , maxLength: 10 }));
+    expect(result).toEqual({
+      type: 'array',
+      items: {type : 'number',
+              minLength: 5,
+              maxLength: 10,
+              optional: false
+             }
+    });
+  });
 });
 
 describe('sanitize', () => {
