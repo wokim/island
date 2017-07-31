@@ -129,7 +129,7 @@ export class EventService {
         tattoo,
         from: { node: process.env.HOSTNAME, context, island: this.serviceName, type }
       },
-      timestamp: +new Date()
+      timestamp: +event.publishedAt || +new Date()
     };
     return Promise.resolve(Bluebird.try(() => new Buffer(JSON.stringify(event.args), 'utf8'))
       .then(content => {

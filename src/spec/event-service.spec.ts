@@ -1,16 +1,10 @@
 import { AmqpChannelPoolService } from '../services/amqp-channel-pool-service';
 import { EventHookType, EventService } from '../services/event-service';
-import { Event, PatternSubscriber } from '../services/event-subscriber';
+import { BaseEvent, DebugEvent, PatternSubscriber } from '../services/event-subscriber';
 import { jasmineAsyncAdapter as spec } from '../utils/jasmine-async-support';
 import { TraceLog } from '../utils/tracelog';
 
 import Bluebird = require('bluebird');
-
-class BaseEvent<T> implements Event<T> {
-  publishedAt: Date;
-  constructor(public key: string, public args: T) {
-  }
-}
 
 class TestEvent extends BaseEvent<string> {
   constructor(args: string) {
@@ -50,6 +44,15 @@ describe('EventService', () => {
       setTimeout(done, 500);
     })
       .then(() => eventService.publishEvent(new TestEvent('bbb')))
+      .catch(done.fail);
+  });
+
+  it('can change publishedAt for debug', done => {
+    eventService.subscribeEvent(TestEvent, (event: TestEvent) => {
+      expect(event.args).toBe('bbb');
+      setTimeout(done, 500);
+    })
+      .then(() => eventService.publishEvent(new DebugEvent(new TestEvent('bbb'), new Date(1004))))
       .catch(done.fail);
   });
 
