@@ -55,7 +55,7 @@ export interface EndpointSchemaOptions {
 
 type PrimitiveTypeNames = 'string' | 'number' | 'integer' | 'boolean' | 'null';
 type ObjectTypeNames = 'date' | 'object' | 'array' | 'any';
-type CustomTypeNames = '$oid' | '$cider' | '$numberOrQuery';
+type CustomTypeNames = '$oid' | '$cider' | '$numberOrQuery' | '$html';
 
 type SchemaInspectorProperty = {
   optional?: boolean;
