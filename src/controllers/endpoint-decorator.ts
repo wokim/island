@@ -319,6 +319,9 @@ export namespace validate {
   // tslint:disable-next-line class-name
   export interface _Any { $validate: Symbol; };
   export const Any: _Any = { $validate: Symbol() };
+  // tslint:disable-next-line class-name
+  export interface _Html { $validate: Symbol; };
+  export const Html: _Html = { $validate: Symbol() };
 
   // tslint:disable-next-line class-name
   export interface __Number {
@@ -424,7 +427,7 @@ export namespace validate {
     typeof global.String | string | _String |
     typeof global.Number | number | _Number |
     typeof Boolean | typeof Date | _Object | _Array | _Any |
-    _ObjectId | _Cider | _NumberOrQuery;
+    _ObjectId | _Cider | _NumberOrQuery | _Html;
 
   // tslint:disable-next-line cyclomatic-complexity
   function parseValidation(property: SchemaInspectorProperty, value: ValidatePropertyTypes) {
@@ -456,6 +459,8 @@ export namespace validate {
       property.type = '$cider';
     } else if (value === NumberOrQuery) {
       property.type = '$numberOrQuery';
+    } else if (value === Html) {
+      property.type = '$html';
     }
     return _.omitBy(property, _.isUndefined);
   }
