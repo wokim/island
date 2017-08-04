@@ -234,10 +234,12 @@ describe('validate', () => {
 
   it('should support array options - minLength', () => {
     const result = v.validate(v.Array([Number], {minLength: 5 }));
+    console.log(JSON.stringify(result));
     expect(result).toEqual({
       type: 'array',
+      minLength: 5,
+      optional: false,
       items: {type : 'number',
-              minLength: 5,
               optional: false
              }
     });
@@ -247,8 +249,9 @@ describe('validate', () => {
     const result = v.validate(v.Array([Number], {maxLength: 10 }));
     expect(result).toEqual({
       type: 'array',
+      maxLength: 10,
+      optional: false,
       items: {type : 'number',
-              maxLength: 10,
               optional: false
              }
     });
@@ -258,9 +261,10 @@ describe('validate', () => {
     const result = v.validate(v.Array([Number], {minLength: 5 , maxLength: 10 }));
     expect(result).toEqual({
       type: 'array',
+      minLength: 5,
+      maxLength: 10,
+      optional: false,
       items: {type : 'number',
-              minLength: 5,
-              maxLength: 10,
               optional: false
              }
     });

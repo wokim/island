@@ -411,7 +411,7 @@ export namespace validate {
     minLength?: number;
     maxLength?: number;
 
-    constructor(items: [ValidatePropertyTypes] | undefined, opts?: __Array | undefined) {
+    constructor(items: [ValidatePropertyTypes] | undefined, opts: __Array | undefined) {
       opts = opts || {};
       this.items = items;
       this.minLength = opts.minLength;
@@ -450,7 +450,7 @@ export namespace validate {
       property.properties = validateAsObject(value.properties);
     } else if (value instanceof _Array) {
       property.type = 'array';
-      property.items = validateAsArrayWithOptions(value);
+      _.merge(property, validateAsArrayWithOptions(value));
     } else if (value === Any) {
       property.type = 'any';
     } else if (value === ObjectId) {
@@ -480,12 +480,12 @@ export namespace validate {
   function validateAsArrayWithOptions(obj?: {items?: [ValidatePropertyTypes], opts?: __Array }) {
     obj = obj || {};
     if (!obj.items) return;
-    const item = obj.items[0];
-    let property: SchemaInspectorProperty = { optional: false };
+    const item = obj.items;
+    const property: SchemaInspectorProperty = { optional: false };
 
     _.each(obj, (value, key: string) => {
       if (key === 'items') {
-        property = parseValidation(property, item);
+        property.items = validateAsArray(item);
       } else {
         property[key] = value;
       }
