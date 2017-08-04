@@ -87,6 +87,23 @@ describe('Schema-types test:', () => {
   });
   */
 
+  it('schema-type test #5: $html', done => {
+    const schema = {
+      type: '$html'
+    };
+    const target = {type: 'string'};
+
+    return Bluebird.try(() => {
+      translateSchemaType(schema);
+    })
+      .then(() => expect(schema).toEqual(target))
+      .catch(err => {
+        console.log('schema-type test : ', err);
+        return;
+      })
+      .then(done, done.fail);
+  });
+
   it(`should convert query sanitization`, () => {
     const result = sanitize(island.sanitize.sanitize({
       'aid?': island.sanitize.ObjectId,

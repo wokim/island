@@ -55,7 +55,7 @@ export interface EndpointSchemaOptions {
 
 type PrimitiveTypeNames = 'string' | 'number' | 'integer' | 'boolean' | 'null';
 type ObjectTypeNames = 'date' | 'object' | 'array' | 'any';
-type CustomTypeNames = '$oid' | '$cider' | '$numberOrQuery';
+type CustomTypeNames = '$oid' | '$cider' | '$numberOrQuery' | '$html';
 
 type SchemaInspectorProperty = {
   optional?: boolean;
@@ -319,6 +319,9 @@ export namespace validate {
   // tslint:disable-next-line class-name
   export interface _Any { $validate: Symbol; };
   export const Any: _Any = { $validate: Symbol() };
+  // tslint:disable-next-line class-name
+  export interface _Html { $validate: Symbol; };
+  export const Html: _Html = { $validate: Symbol() };
 
   // tslint:disable-next-line class-name
   export interface __Number {
@@ -397,23 +400,34 @@ export namespace validate {
   }
 
   // tslint:disable-next-line class-name
+  export interface __Array {
+    minLength?: number;
+    maxLength?: number;
+  }
+
+  // tslint:disable-next-line class-name
   export class _Array {
     items: [ValidatePropertyTypes] | undefined;
+    minLength?: number;
+    maxLength?: number;
 
-    constructor(items: [ValidatePropertyTypes] | undefined) {
+    constructor(items: [ValidatePropertyTypes] | undefined, opts: __Array | undefined) {
+      opts = opts || {};
       this.items = items;
+      this.minLength = opts.minLength;
+      this.maxLength = opts.maxLength;
     }
   }
 
-  export function Array(items?: [ValidatePropertyTypes]) {
-    return new _Array(items);
+  export function Array(items?: [ValidatePropertyTypes], opts?: __Array) {
+    return new _Array(items, opts);
   }
 
   export type ValidatePropertyTypes =
     typeof global.String | string | _String |
     typeof global.Number | number | _Number |
     typeof Boolean | typeof Date | _Object | _Array | _Any |
-    _ObjectId | _Cider | _NumberOrQuery;
+    _ObjectId | _Cider | _NumberOrQuery | _Html;
 
   // tslint:disable-next-line cyclomatic-complexity
   function parseValidation(property: SchemaInspectorProperty, value: ValidatePropertyTypes) {
@@ -436,7 +450,7 @@ export namespace validate {
       property.properties = validateAsObject(value.properties);
     } else if (value instanceof _Array) {
       property.type = 'array';
-      property.items = validateAsArray(value.items);
+      _.merge(property, validateAsArrayWithOptions(value));
     } else if (value === Any) {
       property.type = 'any';
     } else if (value === ObjectId) {
@@ -445,6 +459,8 @@ export namespace validate {
       property.type = '$cider';
     } else if (value === NumberOrQuery) {
       property.type = '$numberOrQuery';
+    } else if (value === Html) {
+      property.type = '$html';
     }
     return _.omitBy(property, _.isUndefined);
   }
@@ -460,6 +476,22 @@ export namespace validate {
     return parseValidation(property, item);
   }
 
+  // v.Array로 선언되어 Option이 있는 경우 이 함수가 사용된다.
+  function validateAsArrayWithOptions(obj?: {items?: [ValidatePropertyTypes], opts?: __Array }) {
+    obj = obj || {};
+    if (!obj.items) return;
+    const item = obj.items;
+    const property: SchemaInspectorProperty = { optional: false };
+
+    _.each(obj, (value, key: string) => {
+      if (key === 'items') {
+        property.items = validateAsArray(item);
+      } else {
+        property[key] = value;
+      }
+    });
+    return parseValidation(property, item);
+  }
   // validation의 optional의 기본값은 false
   // https://github.com/Atinux/schema-inspector#v_optional
   // 헷갈리니까 생략하면 기본값, !는 required, ?는 optional로 양쪽에서 동일한 규칙을 쓰도록 한다
@@ -512,6 +544,7 @@ export namespace validate {
     { [key: string]: ValidatePropertyTypes } |
     [ValidatePropertyTypes]): any {
     if (global.Array.isArray(target)) {
+      // 여기에서 체크된 Array는 option이 없는 경우이다.
       return {
         items: validateAsArray(target),
         type: 'array'
