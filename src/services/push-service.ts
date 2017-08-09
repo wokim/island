@@ -1,14 +1,21 @@
+import * as _ from 'lodash';
 import { ISLAND, LogicError } from '../utils/error';
 import { logger } from '../utils/logger';
 import MessagePack from '../utils/msgpack';
 import { AmqpChannelPoolService } from './amqp-channel-pool-service';
 
 const SERIALIZE_FORMAT_PUSH = process.env.SERIALIZE_FORMAT_PUSH;
+export type BroadcastTargetType = 'all' | 'pc' | 'mobile';
+export const BroadcastTargetTypes = ['all', 'pc', 'mobile'];
 
 export default class PushService {
   // Exchange to broadcast to the entire users.
   public static broadcastExchange = {
-    name: 'PUSH_FANOUT_EXCHANGE',
+    name: {
+      all: 'PUSH_FANOUT_EXCHANGE',
+      pc: 'PUSH_PC_FANOUT_EXCHANGE',
+      mobile: 'PUSH_MOBILE_FANOUT_EXCHANGE'
+    },
     options: {
       durable: true
     },
@@ -80,11 +87,16 @@ export default class PushService {
     this.channelPool = channelPool;
 
     await this.channelPool.usingChannel(async channel => {
-      const globalFanoutX = PushService.broadcastExchange;
       const playerPushX = PushService.playerPushExchange;
-      await channel.assertExchange(globalFanoutX.name, globalFanoutX.type, globalFanoutX.options);
+      const broadcastExchange = PushService.broadcastExchange;
+      _.forEach(broadcastExchange.name, async name => {
+        await channel.assertExchange(name,
+          broadcastExchange.type, PushService.broadcastExchange.options);
+      });
       await channel.assertExchange(playerPushX.name, playerPushX.type, playerPushX.options);
       await channel.assertQueue(PushService.autoDeleteTriggerQueue.name, PushService.autoDeleteTriggerQueue.options);
+      await channel.bindExchange(PushService.broadcastExchange.name.pc, PushService.broadcastExchange.name.all, '');
+      await channel.bindExchange(PushService.broadcastExchange.name.mobile, PushService.broadcastExchange.name.all, '');
     });
   }
 
@@ -185,7 +197,8 @@ export default class PushService {
    */
   async broadcast(msg: any, options?: any): Promise<any> {
     return this.channelPool.usingChannel(async channel => {
-      const fanout = PushService.broadcastExchange.name;
+      const target: BroadcastTargetType = options && options.target || 'all';
+      const fanout = PushService.broadcastExchange.name[target];
       return channel.publish(fanout, '', PushService.encode(msg), options);
     });
   }
