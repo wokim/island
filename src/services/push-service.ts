@@ -5,8 +5,8 @@ import MessagePack from '../utils/msgpack';
 import { AmqpChannelPoolService } from './amqp-channel-pool-service';
 
 const SERIALIZE_FORMAT_PUSH = process.env.SERIALIZE_FORMAT_PUSH;
-export type BroadcastTargetType = 'all' | 'pc' | 'mobile';
-export const BroadcastTargetTypes = ['all', 'pc', 'mobile'];
+export type BroadcastTarget = 'all' | 'pc' | 'mobile';
+export const BroadcastTargets = ['all', 'pc', 'mobile'];
 
 export default class PushService {
   // Exchange to broadcast to the entire users.
@@ -197,7 +197,7 @@ export default class PushService {
    */
   async broadcast(msg: any, options?: any): Promise<any> {
     return this.channelPool.usingChannel(async channel => {
-      const target: BroadcastTargetType = options && options.target || 'all';
+      const target: BroadcastTarget = options && options.BroadcastTarget || 'all';
       const fanout = PushService.broadcastExchange.name[target];
       return channel.publish(fanout, '', PushService.encode(msg), options);
     });
