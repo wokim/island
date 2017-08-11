@@ -197,7 +197,7 @@ export default class PushService {
    */
   async broadcast(msg: any, options?: any): Promise<any> {
     return this.channelPool.usingChannel(async channel => {
-      const target: BroadcastTarget = options && options.BroadcastTarget || 'all';
+      const target: BroadcastTarget = options && options.broadcastTarget || 'all';
       const fanout = PushService.broadcastExchange.name[target];
       return channel.publish(fanout, '', PushService.encode(msg), options);
     });
