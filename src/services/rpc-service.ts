@@ -174,10 +174,11 @@ export default class RPCService {
 
       const startExecutedAt = +new Date();
       const tattoo = headers && headers.tattoo;
+      const extra = headers && headers.extra;
       const timestamp = msg.properties.timestamp || 0;
       const log = createTraceLog({ tattoo, timestamp, msg, headers, rpcName, serviceName: this.serviceName });
       exporter.collectRequestAndReceivedTime(type, +new Date() - timestamp);
-      return this.enterCLS(tattoo, rpcName, async () => {
+      return this.enterCLS(tattoo, rpcName, extra, async () => {
         const options = { correlationId, headers };
         const parsed = JSON.parse(msg.content.toString('utf8'), reviver);
         try {
@@ -356,10 +357,14 @@ export default class RPCService {
     const tattoo = ns.get('RequestTrackId');
     const context = ns.get('Context');
     const type = ns.get('Type');
+    const sessionType = ns.get('sessionType');
     const correlationId = uuid.v4();
     const headers = {
       tattoo,
-      from: { node: process.env.HOSTNAME, context, island: this.serviceName, type }
+      from: { node: process.env.HOSTNAME, context, island: this.serviceName, type },
+      extra: {
+        sessionType
+      }
     };
     return {
       correlationId,
@@ -405,8 +410,8 @@ export default class RPCService {
   }
 
   // enter continuation-local-storage scope
-  private enterCLS(tattoo, rpcName, func) {
-    const properties = { RequestTrackId: tattoo, Context: rpcName, Type: 'rpc' };
+  private enterCLS(tattoo, rpcName, extra, func) {
+    const properties = _.merge({ RequestTrackId: tattoo, Context: rpcName, Type: 'rpc' }, extra);
     return new Promise((resolve, reject) => {
       const ns = cls.getNamespace('app');
       ns.run(() => {
