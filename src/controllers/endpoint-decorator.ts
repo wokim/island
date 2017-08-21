@@ -450,7 +450,7 @@ export namespace validate {
       property.properties = validateAsObject(value.properties);
     } else if (value instanceof _Array) {
       property.type = 'array';
-      _.merge(property, validateAsArrayWithOptions(value));
+      _.defaults(property, validateAsArrayWithOptions(value));
     } else if (value === Any) {
       property.type = 'any';
     } else if (value === ObjectId) {

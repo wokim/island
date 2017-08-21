@@ -71,12 +71,14 @@ describe('validate', () => {
   it('should override value by key with ?', () => {
     const result = v.validate({
       'jti?': v.String({ exactLength: 32 }),
+      'session_types?': v.Array([String]),
       limit: v.Number({ lte: 100 }),
       offset: Number
     });
     expect(result).toEqual({
       properties: {
         jti: { type: 'string', exactLength: 32, optional: true },
+        session_types: { type: 'array', items: { type: 'string', optional: false }, optional: true },
         limit: { type: 'number', lte: 100, optional: false },
         offset: { type: 'number', optional: false }
       },
@@ -234,7 +236,6 @@ describe('validate', () => {
 
   it('should support array options - minLength', () => {
     const result = v.validate(v.Array([Number], {minLength: 5 }));
-    console.log(JSON.stringify(result));
     expect(result).toEqual({
       type: 'array',
       minLength: 5,
