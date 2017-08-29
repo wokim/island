@@ -403,6 +403,7 @@ export namespace validate {
   export interface __Array {
     minLength?: number;
     maxLength?: number;
+    exactLength?: number;
   }
 
   // tslint:disable-next-line class-name
@@ -410,12 +411,14 @@ export namespace validate {
     items: [ValidatePropertyTypes] | undefined;
     minLength?: number;
     maxLength?: number;
+    exactLength?: number;
 
     constructor(items: [ValidatePropertyTypes] | undefined, opts: __Array | undefined) {
       opts = opts || {};
       this.items = items;
       this.minLength = opts.minLength;
       this.maxLength = opts.maxLength;
+      this.exactLength = opts.exactLength;
     }
   }
 
