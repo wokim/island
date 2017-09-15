@@ -267,7 +267,7 @@ export default class RPCService {
   protected async _consume(key: string, handler: (msg) => Promise<any>): Promise<IConsumerInfo> {
     const channel = await this.channelPool.acquireChannel();
     const prefetchCount = await this.channelPool.getPrefetchCount();
-    await channel.prefetch(prefetchCount || +process.env.RPC_PREFETCH || 1000);
+    await channel.prefetch(prefetchCount || +process.env.RPC_PREFETCH || 100);
 
     const consumer = async msg => {
       try {
