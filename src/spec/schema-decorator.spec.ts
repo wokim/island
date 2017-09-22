@@ -258,12 +258,25 @@ describe('validate', () => {
     });
   });
 
+  it('should support array options - exactLength', () => {
+    const result = v.validate(v.Array([Number], {exactLength: 10 }));
+    expect(result).toEqual({
+      type: 'array',
+      exactLength: 10,
+      optional: false,
+      items: {type : 'number',
+              optional: false
+             }
+    });
+  });
+
   it('should support array options', () => {
-    const result = v.validate(v.Array([Number], {minLength: 5 , maxLength: 10 }));
+    const result = v.validate(v.Array([Number], {minLength: 5 , maxLength: 10, exactLength: 15  }));
     expect(result).toEqual({
       type: 'array',
       minLength: 5,
       maxLength: 10,
+      exactLength: 15,
       optional: false,
       items: {type : 'number',
               optional: false
