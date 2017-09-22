@@ -94,6 +94,8 @@ function nackWithDelay(channel, msg) {
 
 type DeferredResponse = { resolve: (msg: Message) => any, reject: (e: Error) => any };
 
+const NO_REVIVER = process.env.NO_REVIVER === 'true';
+
 export default class RPCService {
   private consumerInfosMap: { [name: string]: IConsumerInfo } = {};
   private responseQueueName: string;
@@ -113,7 +115,7 @@ export default class RPCService {
   }
 
   public async initialize(channelPool: AmqpChannelPoolService, opts?: InitializeOptions): Promise<any> {
-    if (opts && opts.noReviver) {
+    if (NO_REVIVER || opts && opts.noReviver) {
       RpcResponse.reviver = undefined;
     } else {
       RpcResponse.reviver = reviver;
