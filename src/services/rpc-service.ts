@@ -180,7 +180,7 @@ export default class RPCService {
       exporter.collectRequestAndReceivedTime(type, +new Date() - timestamp);
       return this.enterCLS(tattoo, rpcName, extra, async () => {
         const options = { correlationId, headers };
-        const parsed = JSON.parse(msg.content.toString('utf8'), reviver);
+        const parsed = JSON.parse(msg.content.toString('utf8'), RpcResponse.reviver);
         try {
           this.onGoingRpcRequestCount++;
           await Bluebird.resolve()
