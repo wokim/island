@@ -299,11 +299,12 @@ export namespace sanitize {
     return parseSanitization({}, target as SanitizePropertyTypes);
   }
 
-  export const query = makeDecorator<SanitizePropertyTypes>(sanitize, 'sanitization', 'query');
   export const body = makeDecorator<SanitizePropertyTypes>(sanitize, 'sanitization', 'body');
   export const params = makeDecorator<SanitizePropertyTypes>(sanitize, 'sanitization', 'params');
-  export const session = makeDecorator<SanitizePropertyTypes>(sanitize, 'sanitization', 'session');
+  export const query = makeDecorator<SanitizePropertyTypes>(sanitize, 'sanitization', 'query');
   export const result = makeDecorator<SanitizePropertyTypes>(sanitize, 'sanitization', 'result');
+  export const session = makeDecorator<SanitizePropertyTypes>(sanitize, 'sanitization', 'session');
+  export const user = makeDecorator<SanitizePropertyTypes>(sanitize, 'sanitization', 'user');
 }
 
 export namespace validate {
@@ -563,11 +564,12 @@ export namespace validate {
     return parseValidation({}, target as ValidatePropertyTypes);
   }
 
-  export const query = makeDecorator<ValidatePropertyTypes>(validate, 'validation', 'query');
   export const body = makeDecorator<ValidatePropertyTypes>(validate, 'validation', 'body');
   export const params = makeDecorator<ValidatePropertyTypes>(validate, 'validation', 'params');
-  export const session = makeDecorator<ValidatePropertyTypes>(validate, 'validation', 'session');
+  export const query = makeDecorator<ValidatePropertyTypes>(validate, 'validation', 'query');
   export const result = makeDecorator<ValidatePropertyTypes>(validate, 'validation', 'result');
+  export const session = makeDecorator<ValidatePropertyTypes>(validate, 'validation', 'session');
+  export const user = makeDecorator<ValidatePropertyTypes>(validate, 'validation', 'user');
 }
 
 // Login ensure 레벨을 지정
