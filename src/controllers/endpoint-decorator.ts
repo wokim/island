@@ -151,23 +151,25 @@ export namespace sanitize {
     return new _String({ def, rules, minLength, maxLength, strict });
   }
 
-  export interface ObjectOpts {
+  // tslint:disable-next-line
+  export interface __Object {
     def?: Object;
   }
 
   // tslint:disable-next-line
   export class _Object {
     properties: { [key: string]: SanitizePropertyTypes } | undefined;
-    opts: ObjectOpts | undefined;
+    def?: Object;
 
-    constructor(obj?: { [key: string]: SanitizePropertyTypes }, opts?: ObjectOpts) {
+    constructor(obj?: { [key: string]: SanitizePropertyTypes }, opts?: __Object | undefined) {
+      opts = opts || {};
       this.properties = obj;
-      this.opts = opts;
+      this.def = opts.def;
     }
   }
 
   // tslint:disable-next-line
-  export function Object(obj: { [key: string]: SanitizePropertyTypes }, opts?: ObjectOpts) {
+  export function Object(obj: { [key: string]: SanitizePropertyTypes }, opts?: __Object) {
     return new _Object(obj, opts);
   }
 
@@ -217,7 +219,7 @@ export namespace sanitize {
     } else if (value instanceof _Object) {
       property.type = 'object';
       property.properties = sanitizeAsObject(value.properties);
-      _.merge(property, value.opts);
+      _.defaults(property, value);
     } else if (value instanceof _Array) {
       property.type = 'array';
       property.items = sanitizeAsArray(value.items);
