@@ -152,17 +152,25 @@ export namespace sanitize {
   }
 
   // tslint:disable-next-line
+  export interface __Object {
+    def?: Object;
+  }
+
+  // tslint:disable-next-line
   export class _Object {
     properties: { [key: string]: SanitizePropertyTypes } | undefined;
+    def?: Object;
 
-    constructor(obj?: { [key: string]: SanitizePropertyTypes }) {
+    constructor(obj?: { [key: string]: SanitizePropertyTypes }, opts?: __Object | undefined) {
+      opts = opts || {};
       this.properties = obj;
+      this.def = opts.def;
     }
   }
 
   // tslint:disable-next-line
-  export function Object(obj: { [key: string]: SanitizePropertyTypes }) {
-    return new _Object(obj);
+  export function Object(obj: { [key: string]: SanitizePropertyTypes }, opts?: __Object) {
+    return new _Object(obj, opts);
   }
 
   // tslint:disable-next-line
@@ -211,6 +219,7 @@ export namespace sanitize {
     } else if (value instanceof _Object) {
       property.type = 'object';
       property.properties = sanitizeAsObject(value.properties);
+      _.defaults(property, value);
     } else if (value instanceof _Array) {
       property.type = 'array';
       property.items = sanitizeAsArray(value.items);

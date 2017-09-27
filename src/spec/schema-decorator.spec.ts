@@ -439,6 +439,17 @@ describe('sanitize', () => {
       type: 'object'
     });
   });
+
+  it('should support default value of object', () => {
+    const result = island.sanitize.sanitize({
+      a: s.Object({ b: Number }, { def: { b: 1 } }),
+      c: s.Object({
+        d: s.Object({ e: String })
+      }, { def: { d: { e: 'string' } } })
+    });
+    expect(result.properties.a.def).toEqual({ b: 1 });
+    expect(result.properties.c.def).toEqual({ d: { e: 'string' } });
+  });
 });
 
 describe('__langid', () => {
