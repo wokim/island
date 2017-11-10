@@ -801,9 +801,11 @@ function makeEndpointDecorator(method?: string) {
   };
 }
 
-export function endpointController(registerer?: { registerEndpoint: (name: string, value: any) => Promise<any> }) {
+export function endpointController(registerer?: { registerEndpoint: (name: string, value: any) => Promise<any>,
+         saveEndpoint: () => Promise<any> }) {
   return target => {
     const _onInitialized = target.prototype.onInitialized;
+    const _listen = target.prototype._server.listen;
     // tslint:disable-next-line
     target.prototype.onInitialized = async function () {
       await Promise.all(_.map(target._endpointMethods, (v: Endpoint) => {
@@ -811,7 +813,6 @@ export function endpointController(registerer?: { registerEndpoint: (name: strin
         if (developmentOnly && process.env.NODE_ENV !== 'development') return Promise.resolve();
 
         v.name = mangle(v.name);
-
         return this.server.register(v.name, v.handler.bind(this), 'endpoint').then(() => {
           return registerer && registerer.registerEndpoint(v.name, v.options || {}) || Promise.resolve();
         }).catch(e => {
@@ -820,5 +821,16 @@ export function endpointController(registerer?: { registerEndpoint: (name: strin
       }));
       return _onInitialized.apply(this);
     };
+
+    if (_listen && !_listen.isRegister) {
+      // tslint:disable-next-line
+      target.prototype._server.listen = async function () {
+        if ( registerer ) {
+          await registerer.saveEndpoint();
+        }
+        return _listen.apply(this);
+      };
+      target.prototype._server.listen.isRegister = true;
+    }
   };
 }
