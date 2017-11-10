@@ -801,7 +801,7 @@ function makeEndpointDecorator(method?: string) {
   };
 }
 
-export function endpointController(registerer?: { registerEndpoint: (name: string, value: any) => Promise<any>,
+export function endpointController(registerer?: { registerEndpoint: (name: string, value: any) => void,
          saveEndpoint: () => Promise<any> }) {
   return target => {
     const _onInitialized = target.prototype.onInitialized;
