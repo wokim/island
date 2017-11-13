@@ -22,7 +22,7 @@ export interface EndpointOptions {
   ensure?: number;
   quota?: EndpointUserQuotaOptions;
   serviceQuota?: EndpointServiceQuotaOptions;
-  extra?: {[key: string]: any};
+  extra?: { [key: string]: any };
 }
 
 export interface EndpointUserQuotaOptions {
@@ -113,7 +113,7 @@ export namespace sanitize {
     max?: number;
     strict?: boolean;
 
-    constructor({def, min, max, strict}: __Number) {
+    constructor({ def, min, max, strict }: __Number) {
       this.def = def;
       this.min = min;
       this.max = max;
@@ -121,7 +121,7 @@ export namespace sanitize {
     }
   }
 
-  export function Number({def, min, max, strict}: __Number) {
+  export function Number({ def, min, max, strict }: __Number) {
     return new _Number({ def, min, max, strict });
   }
 
@@ -144,7 +144,7 @@ export namespace sanitize {
     maxLength?: number;
     strict?: boolean;
 
-    constructor({def, rules, minLength, maxLength, strict}: __String) {
+    constructor({ def, rules, minLength, maxLength, strict }: __String) {
       this.def = def;
       this.rules = rules;
       this.minLength = minLength;
@@ -153,7 +153,7 @@ export namespace sanitize {
     }
   }
 
-  export function String({def, rules, minLength, maxLength, strict}: __String) {
+  export function String({ def, rules, minLength, maxLength, strict }: __String) {
     return new _String({ def, rules, minLength, maxLength, strict });
   }
 
@@ -358,7 +358,7 @@ export namespace validate {
     eq?: number | number[];
     ne?: number;
 
-    constructor({lt, lte, gt, gte, eq, ne}: __Number) {
+    constructor({ lt, lte, gt, gte, eq, ne }: __Number) {
       this.lt = lt;
       this.lte = lte;
       this.gt = gt;
@@ -368,7 +368,7 @@ export namespace validate {
     }
   }
 
-  export function Number({lt, lte, gt, gte, eq, ne}: __Number) {
+  export function Number({ lt, lte, gt, gte, eq, ne }: __Number) {
     return new _Number({ lt, lte, gt, gte, eq, ne });
   }
 
@@ -398,7 +398,7 @@ export namespace validate {
     }
   }
 
-  export function String({minLength, maxLength, exactLength, eq, ne}: __String) {
+  export function String({ minLength, maxLength, exactLength, eq, ne }: __String) {
     return new _String({ minLength, maxLength, exactLength, eq, ne });
   }
 
@@ -496,7 +496,7 @@ export namespace validate {
   }
 
   // v.Array로 선언되어 Option이 있는 경우 이 함수가 사용된다.
-  function validateAsArrayWithOptions(obj?: {items?: [ValidatePropertyTypes], opts?: __Array }) {
+  function validateAsArrayWithOptions(obj?: { items?: [ValidatePropertyTypes], opts?: __Array }) {
     obj = obj || {};
     if (!obj.items) return;
     const item = obj.items;
@@ -663,7 +663,7 @@ export function admin(target, key, desc) {
 // @island.auth(0)
 // @island.extra({internal: true})
 // @island.endpoint('GET /v2/c', {})
-export function extra(extra: {[key: string]: any}) {
+export function extra(extra: { [key: string]: any }) {
   return (target, key, desc: PropertyDescriptor) => {
     const options = desc.value.options = (desc.value.options || {}) as EndpointOptions;
     options.extra = extra || {};
@@ -801,11 +801,29 @@ function makeEndpointDecorator(method?: string) {
   };
 }
 
-export function endpointController(registerer?: { registerEndpoint: (name: string, value: any) => void,
-         saveEndpoint: () => Promise<any> }) {
+export function endpointController(registerer?: {
+  registerEndpoint: (name: string, value: any) => void,
+  saveEndpoint: () => Promise<any>
+}) {
   return target => {
+    const _initialize = target.prototype.initialize;
     const _onInitialized = target.prototype.onInitialized;
-    const _listen = target.prototype._server.listen;
+
+    // tslint:disable-next-line
+    target.prototype.initialize = async function () {
+      const _listen = this._server.listen;
+      if (_listen && !_listen.isRegister) {
+        // tslint:disable-next-line
+        this._server.listen = async function () {
+          if (registerer) {
+            await registerer.saveEndpoint();
+          }
+          return _listen.apply(this);
+        };
+        this._server.listen.isRegister = true;
+      }
+      return _initialize.apply(this);
+    };
     // tslint:disable-next-line
     target.prototype.onInitialized = async function () {
       await Promise.all(_.map(target._endpointMethods, (v: Endpoint) => {
@@ -822,15 +840,5 @@ export function endpointController(registerer?: { registerEndpoint: (name: strin
       return _onInitialized.apply(this);
     };
 
-    if (_listen && !_listen.isRegister) {
-      // tslint:disable-next-line
-      target.prototype._server.listen = async function () {
-        if ( registerer ) {
-          await registerer.saveEndpoint();
-        }
-        return _listen.apply(this);
-      };
-      target.prototype._server.listen.isRegister = true;
-    }
   };
 }
