@@ -1,22 +1,39 @@
+import { map } from 'lodash';
+import { AmqpChannelPoolService } from '../../services/amqp-channel-pool-service';
 import PushService from '../../services/push-service';
 import { FatalError, ISLAND } from '../../utils/error';
 import ListenableAdapter from '../listenable-adapter';
 import { AmqpChannelPoolAdapter } from './amqp-channel-pool-adapter';
 
 export interface PushAdapterOptions {
-  amqpChannelPoolAdapter: AmqpChannelPoolAdapter;
+  urls?: string[];
+  poolSize?: number;
+  prefetchCount?: number;
+  amqpChannelPoolAdapter?: AmqpChannelPoolAdapter;
 }
 
 export default class PushAdapter extends ListenableAdapter<PushService, PushAdapterOptions> {
   async initialize(): Promise<void> {
     if (!this.options) throw new FatalError(ISLAND.FATAL.F0025_MISSING_ADAPTER_OPTIONS);
-    this._adaptee = new PushService();
-    const amqpChannelPoolService = this.options.amqpChannelPoolAdapter.adaptee;
-    if (!amqpChannelPoolService) {
-      throw new FatalError(ISLAND.FATAL.F0008_AMQP_CHANNEL_POOL_REQUIRED, 'AmqpChannelPoolService required');
+    const { urls, poolSize, prefetchCount, amqpChannelPoolAdapter } = this.options;
+    let channelPools: AmqpChannelPoolService[];
+    if (!amqpChannelPoolAdapter) {
+      if (!urls) {
+        throw new FatalError(ISLAND.FATAL.F0025_MISSING_ADAPTER_OPTIONS);
+      }
+      channelPools = await Promise.all(map(urls, async url => {
+        const pool = new AmqpChannelPoolService();
+        await pool.initialize({ url, poolSize, prefetchCount });
+        await pool.waitForInit();
+        return pool;
+      }));
+    } else {
+      const channelPoolService = amqpChannelPoolAdapter.adaptee;
+      await channelPoolService.waitForInit();
+      channelPools = [channelPoolService];
     }
-    await amqpChannelPoolService.waitForInit();
-    return this._adaptee.initialize(amqpChannelPoolService);
+    this._adaptee = new PushService();
+    return this._adaptee.initialize(channelPools);
   }
 
   listen(): Promise<void> {
