@@ -26,12 +26,14 @@ export class AmqpChannelPoolService {
   private openChannels: amqp.Channel[] = [];
   private idleChannels: ChannelInfo[] = [];
   private initResolver: Bluebird.Resolver<void>;
+  private isPurged: boolean = false;
 
   constructor() {
     this.initResolver = Bluebird.defer<void>();
   }
 
   async initialize(options: AmqpOptions): Promise<void> {
+    this.isPurged = false;
     options.poolSize = options.poolSize || AmqpChannelPoolService.DEFAULT_POOL_SIZE;
     this.options = options;
     logger.info(`connecting to broker ${util.inspect(options, { colors: true })}`);
@@ -55,6 +57,8 @@ export class AmqpChannelPoolService {
   }
 
   async purge(): Promise<void> {
+    if (this.isPurged) return;
+    this.isPurged = true;
     return this.connection.close();
   }
 

@@ -17,9 +17,14 @@ before_script:
   - docker run -d -p 5672:5672 --name rabbitmq rabbitmq
 
 script:
+  - curl http://urlecho.appspot.com/echo?body=haha1
   - ISLAND_LOGGER_LEVEL=crit npm run coverage
+  - curl http://urlecho.appspot.com/echo?body=haha2
 
 after_script:
+  - curl http://urlecho.appspot.com/echo?body=haha3
   - npm i coveralls && cat ./coverage/lcov-remap.info | coveralls
+  - curl http://urlecho.appspot.com/echo?body=haha4
   - npm i codeclimate-test-reporter && CODECLIMATE_REPO_TOKEN=9659b75eb35f7695fcbf58818e218f069a9a681206a9c9ea331e8b30fa386336 codeclimate-test-reporter < ./coverage/lcov-remap.info
+  - curl http://urlecho.appspot.com/echo?body=haha5
 
