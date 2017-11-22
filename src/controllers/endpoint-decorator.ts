@@ -20,13 +20,19 @@ export interface EndpointOptions {
   level?: number;
   admin?: boolean;
   ensure?: number;
-  quota?: EndpointQuotaOptions;
-  extra?: {[key: string]: any};
+  quota?: EndpointUserQuotaOptions;
+  serviceQuota?: EndpointServiceQuotaOptions;
+  extra?: { [key: string]: any };
 }
 
-export interface EndpointQuotaOptions {
+export interface EndpointUserQuotaOptions {
   limit?: number;
   banSecs?: number;
+  group?: string[];
+}
+
+export interface EndpointServiceQuotaOptions {
+  limit?: number;
   group?: string[];
 }
 
@@ -107,7 +113,7 @@ export namespace sanitize {
     max?: number;
     strict?: boolean;
 
-    constructor({def, min, max, strict}: __Number) {
+    constructor({ def, min, max, strict }: __Number) {
       this.def = def;
       this.min = min;
       this.max = max;
@@ -115,7 +121,7 @@ export namespace sanitize {
     }
   }
 
-  export function Number({def, min, max, strict}: __Number) {
+  export function Number({ def, min, max, strict }: __Number) {
     return new _Number({ def, min, max, strict });
   }
 
@@ -138,7 +144,7 @@ export namespace sanitize {
     maxLength?: number;
     strict?: boolean;
 
-    constructor({def, rules, minLength, maxLength, strict}: __String) {
+    constructor({ def, rules, minLength, maxLength, strict }: __String) {
       this.def = def;
       this.rules = rules;
       this.minLength = minLength;
@@ -147,7 +153,7 @@ export namespace sanitize {
     }
   }
 
-  export function String({def, rules, minLength, maxLength, strict}: __String) {
+  export function String({ def, rules, minLength, maxLength, strict }: __String) {
     return new _String({ def, rules, minLength, maxLength, strict });
   }
 
@@ -352,7 +358,7 @@ export namespace validate {
     eq?: number | number[];
     ne?: number;
 
-    constructor({lt, lte, gt, gte, eq, ne}: __Number) {
+    constructor({ lt, lte, gt, gte, eq, ne }: __Number) {
       this.lt = lt;
       this.lte = lte;
       this.gt = gt;
@@ -362,7 +368,7 @@ export namespace validate {
     }
   }
 
-  export function Number({lt, lte, gt, gte, eq, ne}: __Number) {
+  export function Number({ lt, lte, gt, gte, eq, ne }: __Number) {
     return new _Number({ lt, lte, gt, gte, eq, ne });
   }
 
@@ -392,7 +398,7 @@ export namespace validate {
     }
   }
 
-  export function String({minLength, maxLength, exactLength, eq, ne}: __String) {
+  export function String({ minLength, maxLength, exactLength, eq, ne }: __String) {
     return new _String({ minLength, maxLength, exactLength, eq, ne });
   }
 
@@ -490,7 +496,7 @@ export namespace validate {
   }
 
   // v.Array로 선언되어 Option이 있는 경우 이 함수가 사용된다.
-  function validateAsArrayWithOptions(obj?: {items?: [ValidatePropertyTypes], opts?: __Array }) {
+  function validateAsArrayWithOptions(obj?: { items?: [ValidatePropertyTypes], opts?: __Array }) {
     obj = obj || {};
     if (!obj.items) return;
     const item = obj.items;
@@ -657,7 +663,7 @@ export function admin(target, key, desc) {
 // @island.auth(0)
 // @island.extra({internal: true})
 // @island.endpoint('GET /v2/c', {})
-export function extra(extra: {[key: string]: any}) {
+export function extra(extra: { [key: string]: any }) {
   return (target, key, desc: PropertyDescriptor) => {
     const options = desc.value.options = (desc.value.options || {}) as EndpointOptions;
     options.extra = extra || {};
@@ -686,7 +692,7 @@ function pushSafe(object, arrayName, element) {
   array.push(element);
 }
 
-// endpoint에 quota를 설정한다.
+// endpoint에 userQuota를 설정한다.
 //
 // [EXAMPLE]
 // @island.quota(1, 2)
@@ -702,6 +708,22 @@ export function quota(limit: number, banSecs: number) {
     }
   };
 }
+// endpoint에 serviceGroupQuota를 설정한다.
+//
+// [EXAMPLE]
+// @island.groupServiceQuota([group1, gropu2])
+// @island.endpoint('...')
+export function groupServiceQuota(group: string[]) {
+  return (target, key, desc: PropertyDescriptor) => {
+    const options = desc.value.options = (desc.value.options || {}) as EndpointOptions;
+    options.serviceQuota = options.serviceQuota || {};
+    options.serviceQuota.group = group;
+    if (desc.value.endpoints) {
+      desc.value.endpoints.forEach(e => _.merge(e.options, options));
+    }
+  };
+}
+//
 // endpoint에 quota Group을 설정한다.
 //
 // [EXAMPLE]
@@ -779,9 +801,29 @@ function makeEndpointDecorator(method?: string) {
   };
 }
 
-export function endpointController(registerer?: { registerEndpoint: (name: string, value: any) => Promise<any> }) {
+export function endpointController(registerer?: {
+  registerEndpoint: (name: string, value: any) => void,
+  saveEndpoint: () => Promise<any>
+}) {
   return target => {
+    const _initialize = target.prototype.initialize;
     const _onInitialized = target.prototype.onInitialized;
+
+    // tslint:disable-next-line
+    target.prototype.initialize = async function () {
+      const _listen = this._server.listen;
+      if (_listen && !_listen.isRegister) {
+        // tslint:disable-next-line
+        this._server.listen = async function () {
+          if (registerer) {
+            await registerer.saveEndpoint();
+          }
+          return _listen.apply(this);
+        };
+        this._server.listen.isRegister = true;
+      }
+      return _initialize.apply(this);
+    };
     // tslint:disable-next-line
     target.prototype.onInitialized = async function () {
       await Promise.all(_.map(target._endpointMethods, (v: Endpoint) => {
@@ -789,12 +831,14 @@ export function endpointController(registerer?: { registerEndpoint: (name: strin
         if (developmentOnly && process.env.NODE_ENV !== 'development') return Promise.resolve();
 
         v.name = mangle(v.name);
-
         return this.server.register(v.name, v.handler.bind(this), 'endpoint').then(() => {
           return registerer && registerer.registerEndpoint(v.name, v.options || {}) || Promise.resolve();
+        }).catch(e => {
+          throw new FatalError(ISLAND.FATAL.F0028_CONSUL_ERROR, e.message);
         });
       }));
       return _onInitialized.apply(this);
     };
+
   };
 }
