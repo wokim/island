@@ -61,7 +61,7 @@ export default class AbstractBrokerService {
           await handler(msg);
           channel.ack(msg);
         } catch (error) {
-          if (error.type && parseInt(error.type, 10) === 503) {
+          if (error.statusCode && parseInt(error.statusCode, 10) === 503) {
             setTimeout(() => {
               channel.nack(msg);
             }, 1000);
