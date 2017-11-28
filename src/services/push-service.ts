@@ -5,7 +5,6 @@ import MessagePack from '../utils/msgpack';
 import { AmqpChannelPoolService } from './amqp-channel-pool-service';
 
 const SERIALIZE_FORMAT_PUSH = process.env.SERIALIZE_FORMAT_PUSH;
-const FORMALIZATION_FORMAT_PUSH = process.env.FORMALIZATION_FORMAT_PUSH;
 export type BroadcastTarget = 'all' | 'pc' | 'mobile';
 export const BroadcastTargets = ['all', 'pc', 'mobile'];
 
@@ -35,9 +34,6 @@ export default class PushService {
 
   public static encode(obj): Buffer {
     try {
-      if (FORMALIZATION_FORMAT_PUSH) {
-        obj = JSON.parse(global.eval('`' + FORMALIZATION_FORMAT_PUSH + '`'));
-      }
       let buf;
       switch (SERIALIZE_FORMAT_PUSH) {
         case 'json':
