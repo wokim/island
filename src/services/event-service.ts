@@ -87,6 +87,7 @@ export class EventService {
 
   async purge(): Promise<any> {
     this.hooks = {};
+    if (!this.consumerInfosMap) return Promise.resolve();
     return Promise.all(_.map(this.consumerInfosMap, (consumerInfo: IEventConsumerInfo) => {
       logger.info(`stop consuming : ${consumerInfo.queue}`);
       return consumerInfo.channel.cancel(consumerInfo.consumerTag);
@@ -98,6 +99,16 @@ export class EventService {
         }
         return Promise.resolve();
       });
+  }
+
+  public unsubscribe(subscriber: Subscriber) {
+    const queue = subscriber.getQueue();
+    if (!queue) return;
+    return this.channelPool.usingChannel(channel => {
+      if (queue === this.roundRobinQ)
+        return channel.unbindExchange(queue, EventService.EXCHANGE_NAME, subscriber.getRoutingPattern());
+      return channel.unbindQueue(queue, EventService.EXCHANGE_NAME, subscriber.getRoutingPattern());
+    });
   }
 
   subscribeEvent<T extends Event<U>, U>(eventClass: new (args: U) => T,
