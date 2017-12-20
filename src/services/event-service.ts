@@ -101,16 +101,6 @@ export class EventService {
       });
   }
 
-  public unsubscribe(subscriber: Subscriber) {
-    const queue = subscriber.getQueue();
-    if (!queue) return;
-    return this.channelPool.usingChannel(channel => {
-      if (queue === this.roundRobinQ)
-        return channel.unbindExchange(queue, EventService.EXCHANGE_NAME, subscriber.getRoutingPattern());
-      return channel.unbindQueue(queue, EventService.EXCHANGE_NAME, subscriber.getRoutingPattern());
-    });
-  }
-
   subscribeEvent<T extends Event<U>, U>(eventClass: new (args: U) => T,
                                         handler: EventHandler<T>,
                                         options?: SubscriptionOptions): Promise<void> {
