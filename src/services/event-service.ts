@@ -29,6 +29,12 @@ export enum EventHookType {
   ERROR
 }
 
+export interface IEventConsumerInfo {
+  channel: amqp.Channel;
+  consumerTag: string;
+  queue: string;
+}
+
 function enterScope(properties: any, func): Promise<any> {
   return new Promise((resolve, reject) => {
     const ns = cls.getNamespace('app');
@@ -51,6 +57,7 @@ export class EventService {
   private hooks: { [key: string]: EventHook[] } = {};
   private onGoingEventRequestCount: number = 0;
   private purging: Function | null = null;
+  private consumerInfosMap: { [name: string]: IEventConsumerInfo } = {};
 
   constructor(serviceName: string) {
     this.serviceName = serviceName;
@@ -80,10 +87,10 @@ export class EventService {
 
   async purge(): Promise<any> {
     this.hooks = {};
-    if (!this.subscribers) return Promise.resolve();
-    return Promise.all(_.map(this.subscribers, async subscriber => {
-      logger.info('stop consuming', subscriber.getRoutingPattern());
-      await this.unsubscribe(subscriber);
+    if (!this.consumerInfosMap) return Promise.resolve();
+    return Promise.all(_.map(this.consumerInfosMap, (consumerInfo: IEventConsumerInfo) => {
+      logger.info(`stop consuming : ${consumerInfo.queue}`);
+      return consumerInfo.channel.cancel(consumerInfo.consumerTag);
     }))
       .then((): Promise<any> => {
         this.subscribers = [];
@@ -168,8 +175,12 @@ export class EventService {
             // todo: fix me. we're doing ACK always even if promise rejected.
             // todo: how can we handle the case subscribers succeeds or fails partially
           });
-      }));
-    // TODO: save channel and consumer tag
+      }))
+      .then((consumerInfo: IEventConsumerInfo) => {
+        consumerInfo.channel = channel;
+        consumerInfo.queue = queue;
+        this.consumerInfosMap[queue] = consumerInfo;
+      });
   }
 
   private async sendErrorLog(err: Error, msg: Message): Promise<any> {
@@ -256,16 +267,6 @@ export class EventService {
   private _publish(exchange: string, routingKey: string, content, options): Promise<any> {
     return this.channelPool.usingChannel(channel => {
       return Promise.resolve(channel.publish(exchange, routingKey, content, options));
-    });
-  }
-
-  private unsubscribe(subscriber: Subscriber) {
-    const queue = subscriber.getQueue();
-    if (!queue) return;
-    return this.channelPool.usingChannel(channel => {
-      if (queue === this.roundRobinQ)
-        return channel.unbindExchange(queue, EventService.EXCHANGE_NAME, subscriber.getRoutingPattern());
-      return channel.unbindQueue(queue, EventService.EXCHANGE_NAME, subscriber.getRoutingPattern());
     });
   }
 }
