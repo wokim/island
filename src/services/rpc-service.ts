@@ -23,6 +23,7 @@ export { IRpcResponse, RpcRequest, RpcResponse };
 const RPC_EXEC_TIMEOUT_MS = parseInt(process.env.ISLAND_RPC_EXEC_TIMEOUT_MS, 10) || 25000;
 const RPC_WAIT_TIMEOUT_MS = parseInt(process.env.ISLAND_RPC_WAIT_TIMEOUT_MS, 10) || 60000;
 const SERVICE_LOAD_TIME_MS = parseInt(process.env.ISLAND_SERVICE_LOAD_TIME_MS, 10) || 60000;
+const RPC_RES_NOACK = process.env.ISLAND_RPC_RES_NOACK === 'true';
 const RPC_QUEUE_EXPIRES_MS = RPC_WAIT_TIMEOUT_MS + SERVICE_LOAD_TIME_MS;
 
 export type RpcType = 'rpc' | 'endpoint';
@@ -282,22 +283,27 @@ export default class RPCService {
   // There are two kind of consumes - get requested / get a response
   // * get-requested consumers can be multiple per a node and they shares a RPC queue between island nodes
   // * get-a-response consumer is only one per a node and it has an exclusive queue
-  protected async _consume(key: string, handler: (msg) => Promise<any>): Promise<IConsumerInfo> {
+  protected async _consume(key: string, handler: (msg) => Promise<any>, noAck?: boolean): Promise<IConsumerInfo> {
     const channel = await this.channelPool.acquireChannel();
     const prefetchCount = await this.channelPool.getPrefetchCount();
+    noAck = noAck || false;
     await channel.prefetch(prefetchCount || +process.env.RPC_PREFETCH || 100);
 
     const consumer = async msg => {
       try {
         await handler(msg);
-        channel.ack(msg);
+        if (!noAck) channel.ack(msg);
       } catch (error) {
         if (this.is503(error)) return nackWithDelay(channel, msg);
         if (this.isCritical(error)) return this.shutdown();
-        channel.ack(msg);
+        if (!noAck) channel.ack(msg);
       }
     };
-    const result = await channel.consume(key, consumer);
+    const opts = {} as amqp.Options.Consume;
+    if (noAck) {
+      opts.noAck = noAck;
+    }
+    const result = await channel.consume(key, consumer, opts);
     return { channel, tag: result.consumerTag, key, consumer };
   }
 
@@ -355,7 +361,7 @@ export default class RPCService {
       }
       delete this.waitingResponse[correlationId];
       return waiting.resolve(msg);
-    });
+    }, RPC_RES_NOACK);
   }
 
   private waitResponse(corrId: string, handleResponse: (msg: Message) => any) {
