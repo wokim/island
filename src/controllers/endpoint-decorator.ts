@@ -1,5 +1,5 @@
 import * as _ from 'lodash';
-
+import { Environments } from '../utils/environments';
 import { FatalError, ISLAND } from '../utils/error';
 
 export enum EnsureOptions {
@@ -828,7 +828,7 @@ export function endpointController(registerer?: {
     target.prototype.onInitialized = async function () {
       await Promise.all(_.map(target._endpointMethods, (v: Endpoint) => {
         const developmentOnly = _.get(v, 'options.developmentOnly');
-        if (developmentOnly && process.env.NODE_ENV !== 'development') return Promise.resolve();
+        if (developmentOnly && !Environments.isDevMode()) return Promise.resolve();
 
         v.name = mangle(v.name);
         return this.server.register(v.name, v.handler.bind(this), 'endpoint').then(() => {

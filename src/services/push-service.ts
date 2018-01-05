@@ -1,10 +1,11 @@
 import * as _ from 'lodash';
+import { Environments } from '../utils/environments';
 import { ISLAND, LogicError } from '../utils/error';
 import { logger } from '../utils/logger';
 import MessagePack from '../utils/msgpack';
 import { AmqpChannelPoolService } from './amqp-channel-pool-service';
 
-const SERIALIZE_FORMAT_PUSH = process.env.SERIALIZE_FORMAT_PUSH;
+const SERIALIZE_FORMAT_PUSH = Environments.getSerializeFormatPush();
 export type BroadcastTarget = 'all' | 'pc' | 'mobile';
 export const BroadcastTargets = ['all', 'pc', 'mobile'];
 
