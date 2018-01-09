@@ -86,6 +86,7 @@ export { EventService } from './services/event-service';
 export { Event, BaseEvent } from './services/event-subscriber';
 
 // utils
+export { Environments } from './utils/environments';
 export { TraceLog } from './utils/tracelog';
 export { ScopeExit } from './utils/scope-exit';
 export { ResourcePush } from './utils/resource-push';

@@ -9,6 +9,7 @@ import uuid = require('uuid');
 
 import { RpcOptions } from '../controllers/rpc-decorator';
 import { sanitize, validate } from '../middleware/schema.middleware';
+import { Environments } from '../utils/environments';
 import { AbstractError, FatalError, ISLAND, LogicError, mergeIslandJsError } from '../utils/error';
 import { logger } from '../utils/logger';
 import reviver from '../utils/reviver';
@@ -20,10 +21,10 @@ import { AmqpChannelPoolService } from './amqp-channel-pool-service';
 
 export { IRpcResponse, RpcRequest, RpcResponse };
 
-const RPC_EXEC_TIMEOUT_MS = parseInt(process.env.ISLAND_RPC_EXEC_TIMEOUT_MS, 10) || 25000;
-const RPC_WAIT_TIMEOUT_MS = parseInt(process.env.ISLAND_RPC_WAIT_TIMEOUT_MS, 10) || 60000;
-const SERVICE_LOAD_TIME_MS = parseInt(process.env.ISLAND_SERVICE_LOAD_TIME_MS, 10) || 60000;
-const RPC_RES_NOACK = process.env.ISLAND_RPC_RES_NOACK === 'true';
+const RPC_EXEC_TIMEOUT_MS = Environments.getIslandRpcExecTimeoutMs();
+const RPC_WAIT_TIMEOUT_MS = Environments.getIslandRpcWaitTimeoutMs();
+const SERVICE_LOAD_TIME_MS = Environments.getIslandServiceLoadTimeMs();
+const RPC_RES_NOACK = Environments.isIslandRpcResNoack();
 const RPC_QUEUE_EXPIRES_MS = RPC_WAIT_TIMEOUT_MS + SERVICE_LOAD_TIME_MS;
 
 export type RpcType = 'rpc' | 'endpoint';
@@ -62,7 +63,7 @@ function createTraceLog({ tattoo, timestamp, msg, headers, rpcName, serviceName 
   const log = new TraceLog(tattoo, timestamp);
   log.size = msg.content.byteLength;
   log.from = headers.from;
-  log.to = { node: process.env.HOSTNAME, context: rpcName, island: serviceName, type: 'rpc' };
+  log.to = { node: Environments.getHostName(), context: rpcName, island: serviceName, type: 'rpc' };
   return log;
 }
 
@@ -97,7 +98,7 @@ function nackWithDelay(channel, msg) {
 
 type DeferredResponse = { resolve: (msg: Message) => any, reject: (e: Error) => any };
 
-const NO_REVIVER = process.env.NO_REVIVER === 'true';
+const NO_REVIVER = Environments.isNoReviver();
 
 export default class RPCService {
   private consumerInfosMap: { [name: string]: IConsumerInfo } = {};
@@ -287,7 +288,7 @@ export default class RPCService {
     const channel = await this.channelPool.acquireChannel();
     const prefetchCount = await this.channelPool.getPrefetchCount();
     noAck = noAck || false;
-    await channel.prefetch(prefetchCount || +process.env.RPC_PREFETCH || 100);
+    await channel.prefetch(prefetchCount || Environments.getRpcPrefetch());
 
     const consumer = async msg => {
       try {
@@ -385,7 +386,7 @@ export default class RPCService {
     const correlationId = uuid.v4();
     const headers = {
       tattoo,
-      from: { node: process.env.HOSTNAME, context, island: this.serviceName, type },
+      from: { node: Environments.getHostName(), context, island: this.serviceName, type },
       extra: {
         sessionType
       }

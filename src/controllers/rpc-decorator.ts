@@ -1,5 +1,5 @@
 import * as _ from 'lodash';
-
+import { Environments } from '../utils/environments';
 import { FatalError, ISLAND } from '../utils/error';
 
 export interface RpcOptions {
@@ -49,7 +49,7 @@ export function rpcController(registerer?: {registerRpc: (name: string, value: a
     target.prototype.onInitialized = async function () {
       await Promise.all(_.map(target._endpointMethods, (v: Rpc) => {
         const developmentOnly = _.get(v, 'options.developmentOnly');
-        if (developmentOnly && process.env.NODE_ENV !== 'development') return Promise.resolve();
+        if (developmentOnly && !Environments.isDevMode()) return Promise.resolve();
 
         return this.server.register(v.name, v.handler.bind(this), 'rpc', v.options).then(() => {
           return registerer && registerer.registerRpc(v.name, v.options || {}) || Promise.resolve();

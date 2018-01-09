@@ -5,6 +5,7 @@ import * as Bluebird from 'bluebird';
 import * as _ from 'lodash';
 import * as uuid from 'uuid';
 
+import { Environments } from '../utils/environments';
 import { Events } from '../utils/event';
 import { logger } from '../utils/logger';
 import reviver from '../utils/reviver';
@@ -135,7 +136,7 @@ export class EventService {
     const options = {
       headers: {
         tattoo,
-        from: { node: process.env.HOSTNAME, context, island: this.serviceName, type },
+        from: { node: Environments.getHostName(), context, island: this.serviceName, type },
         extra: { sessionType }
       },
       timestamp: +event.publishedAt || +new Date()
@@ -153,7 +154,7 @@ export class EventService {
 
   private registerConsumer(channel: amqp.Channel, queue: string): Promise<any> {
     const prefetchCount = this.channelPool.getPrefetchCount();
-    return Promise.resolve(channel.prefetch(prefetchCount || +process.env.EVENT_PREFETCH || 100))
+    return Promise.resolve(channel.prefetch(prefetchCount || Environments.getEventPrefetch()))
       .then(() => channel.consume(queue, msg => {
         if (!msg) {
           logger.error(`consume was canceled unexpectedly`);
@@ -225,7 +226,7 @@ export class EventService {
         log.to = {
           context: msg.fields.routingKey,
           island: this.serviceName,
-          node: process.env.HOSTNAME,
+          node: Environments.getHostName(),
           type: 'event'
         };
 
