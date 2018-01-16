@@ -2,7 +2,9 @@ import * as Bluebird from 'bluebird';
 import * as dns from 'dns';
 import * as mongodbUri from 'mongodb-uri';
 import * as mongoose from 'mongoose';
+import * as util from 'util';
 
+import { logger } from '../../utils/logger';
 import { FatalError, ISLAND } from '../../utils/error';
 import AbstractAdapter from '../abstract-adapter';
 
@@ -30,13 +32,16 @@ export default class MongooseAdapter extends AbstractAdapter<mongoose.Connection
       const uri = this.options.uri;
       const connectionOptions = this.options.connectionOptions;
       this.dnsLookup(uri).then(address => {
+        logger.info(`connecting to mongo ${address} with ${util.inspect(connectionOptions, { colors: true })}`);
         const connection = mongoose.createConnection(address, connectionOptions);
         connection.once('open', () => {
+          logger.info(`connected to mongo ${address} with ${util.inspect(connectionOptions, { colors: true })}`);
           this._adaptee = connection;
           connection.removeAllListeners();
           resolve();
         });
         connection.once('error', err => {
+          logger.info(`connection error on mongo ${address} with ${util.inspect(connectionOptions, { colors: true })}`);
           reject(err);
         });
       });
