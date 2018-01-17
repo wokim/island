@@ -4,8 +4,8 @@ import * as mongodbUri from 'mongodb-uri';
 import * as mongoose from 'mongoose';
 import * as util from 'util';
 
-import { logger } from '../../utils/logger';
 import { FatalError, ISLAND } from '../../utils/error';
+import { logger } from '../../utils/logger';
 import AbstractAdapter from '../abstract-adapter';
 
 export interface MongooseAdapterOptions {

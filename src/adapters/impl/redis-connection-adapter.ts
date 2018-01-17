@@ -2,8 +2,8 @@ import Promise = require('bluebird');
 import redis = require('redis-bluebird');
 import * as util from 'util';
 
-import { logger } from '../../utils/logger';
 import { FatalError, ISLAND } from '../../utils/error';
+import { logger } from '../../utils/logger';
 import AbstractAdapter from '../abstract-adapter';
 
 export interface RedisAdapterOptions {
