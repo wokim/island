@@ -50,4 +50,8 @@ export default class RPCAdapter extends ListenableAdapter<RPCService, RPCAdapter
   registerHook(type: RpcHookType, hook: RpcHook) {
     this.hooks.push({type, hook});
   }
+
+  async sigInfo(): Promise<void> {
+    await this.adaptee.sigInfo();
+  }
 }

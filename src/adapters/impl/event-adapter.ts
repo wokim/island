@@ -28,4 +28,8 @@ export class EventAdapter extends ListenableAdapter<EventService, EventAdapterOp
     await super.destroy();
     return this.adaptee.purge();
   }
+
+  async sigInfo(): Promise<void> {
+    await this.adaptee.sigInfo();
+  }
 }

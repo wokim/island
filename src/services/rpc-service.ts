@@ -112,7 +112,9 @@ export default class RPCService {
   private consumerChannelPool: AmqpChannelPoolService;
   private serviceName: string;
   private hooks: { [key: string]: RpcHook[] };
-  private onGoingRpcRequestCount: number = 0;
+  private onGoingRequest: {
+      count: number, details: Map<string, number>
+    } = { count : 0, details : new Map() };
   private purging: Function | null = null;
   private rpcEntities: {
     [rpcName: string]: {
@@ -167,7 +169,7 @@ export default class RPCService {
       delete this.rpcEntities[consumerInfo.key];
     }))
       .then(async () => {
-        if (this.onGoingRpcRequestCount > 0) {
+        if (this.onGoingRequest.count > 0) {
           return new Promise((res, rej) => { this.purging = res; });
         }
       })
@@ -176,6 +178,14 @@ export default class RPCService {
         this.timedOut = {};
         this.timedOutOrdered = [];
       });
+  }
+
+  public async sigInfo() {
+    logger.info(`RPC Service onGoingRequestCount : ${this.onGoingRequest.count}`);
+    this.onGoingRequest.details.forEach((v, k) => {
+      if (v < 1) return;
+      logger.info(`RPC Service ${k} : ${v}`);
+    });
   }
 
   public registerHook(type: RpcHookType, hook: RpcHook) {
@@ -210,7 +220,7 @@ export default class RPCService {
           const options = { correlationId, headers };
           const parsed = JSON.parse(msg.content.toString('utf8'), RpcResponse.reviver);
           try {
-            this.onGoingRpcRequestCount++;
+            this.increaseRequest(rpcName, 1);
             await Bluebird.resolve()
               .then(()  => sanitizeAndValidate(parsed, rpcOptions))
               .tap (req => logger.debug(`Got ${rpcName} with ${JSON.stringify(req)}`))
@@ -235,7 +245,8 @@ export default class RPCService {
             throw err;
           } finally {
             log.shoot();
-            if (--this.onGoingRpcRequestCount < 1 && this.purging) {
+            this.increaseRequest(rpcName, -1);
+            if (this.purging && this.onGoingRequest.count < 1) {
               this.purging();
             }
           }
@@ -472,5 +483,11 @@ export default class RPCService {
     const hook = this.hooks[hookType];
     if (!hook) return value;
     return Bluebird.reduce(this.hooks[hookType], (value, hook) => hook(value), value);
+  }
+
+  private increaseRequest(name: string, count: number) {
+    this.onGoingRequest.count += count;
+    const requestCount = (this.onGoingRequest.details.get(name) || 0) + count;
+    this.onGoingRequest.details.set(name, requestCount);
   }
 }

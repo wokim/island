@@ -56,7 +56,9 @@ export class EventService {
   private subscribers: Subscriber[] = [];
   private serviceName: string;
   private hooks: { [key: string]: EventHook[] } = {};
-  private onGoingEventRequestCount: number = 0;
+  private onGoingRequest: {
+      count: number, details: Map<string, number>
+    } = { count : 0, details : new Map() };
   private purging: Function | null = null;
   private consumerInfosMap: { [name: string]: IEventConsumerInfo } = {};
 
@@ -95,11 +97,19 @@ export class EventService {
     }))
       .then((): Promise<any> => {
         this.subscribers = [];
-        if (this.onGoingEventRequestCount > 0) {
+        if (this.onGoingRequest.count > 0) {
           return new Promise((res, rej) => { this.purging = res; });
         }
         return Promise.resolve();
       });
+  }
+
+  public async sigInfo() {
+    logger.info(`Event Service onGoingRequestCount : ${this.onGoingRequest.count}`);
+    await this.onGoingRequest.details.forEach((v, k) => {
+      if (v < 1) return;
+      logger.info(`Event Service ${k} : ${v}`);
+    });
   }
 
   subscribeEvent<T extends Event<U>, U>(eventClass: new (args: U) => T,
@@ -164,13 +174,14 @@ export class EventService {
         const timestamp = msg.properties && msg.properties.timestamp;
         const startedAt = +new Date();
         exporter.collectRequestAndReceivedTime('event', startedAt - timestamp);
-        this.onGoingEventRequestCount++;
+        this.increaseRequest(msg.fields.routingKey, 1);
         Bluebird.resolve(this.handleMessage(msg))
           .tap(() => exporter.collectExecutedCountAndExecutedTime('event', +new Date() - startedAt))
           .catch(e => this.sendErrorLog(e, msg))
           .finally(() => {
             channel.ack(msg);
-            if (--this.onGoingEventRequestCount < 1 && this.purging) {
+            this.increaseRequest(msg.fields.routingKey, -1);
+            if (this.purging && this.onGoingRequest.count < 1 ) {
               this.purging();
             }
             // todo: fix me. we're doing ACK always even if promise rejected.
@@ -229,7 +240,6 @@ export class EventService {
           node: Environments.getHostName(),
           type: 'event'
         };
-
         return Bluebird.resolve(subscriber.handleEvent(content, msg))
           .then(() => {
             log.end();
@@ -269,6 +279,12 @@ export class EventService {
     return this.channelPool.usingChannel(channel => {
       return Promise.resolve(channel.publish(exchange, routingKey, content, options));
     });
+  }
+
+  private increaseRequest(name: string, count: number) {
+    this.onGoingRequest.count += count;
+    const requestCount = (this.onGoingRequest.details.get(name) || 0) + count;
+    this.onGoingRequest.details.set(name, requestCount);
   }
 }
 
