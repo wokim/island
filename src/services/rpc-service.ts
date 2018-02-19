@@ -57,6 +57,7 @@ export enum RpcHookType {
 
 export interface InitializeOptions {
   noReviver?: boolean;
+  consumerAmqpChannelPool?: AmqpChannelPoolService;
 }
 
 function createTraceLog({ tattoo, timestamp, msg, headers, rpcName, serviceName }) {
@@ -108,6 +109,7 @@ export default class RPCService {
   private timedOut: { [corrId: string]: string } = {};
   private timedOutOrdered: string[] = [];
   private channelPool: AmqpChannelPoolService;
+  private consumerChannelPool: AmqpChannelPoolService;
   private serviceName: string;
   private hooks: { [key: string]: RpcHook[] };
   private onGoingRpcRequestCount: number = 0;
@@ -131,13 +133,21 @@ export default class RPCService {
     } else {
       RpcResponse.reviver = reviver;
     }
+    if (opts && opts.consumerAmqpChannelPool) {
+      this.consumerChannelPool = opts.consumerAmqpChannelPool;
+      logger.info(`pub/sub channelPool connection splitted`);
+    } else {
+      this.consumerChannelPool = channelPool;
+    }
     this.responseQueueName = this.makeResponseQueueName();
     logger.info(`consuming ${this.responseQueueName}`);
 
     await TraceLog.initialize();
 
     this.channelPool = channelPool;
-    await channelPool.usingChannel(channel => channel.assertQueue(this.responseQueueName, { exclusive: true }));
+    await this.consumerChannelPool.usingChannel(
+      channel => channel.assertQueue(this.responseQueueName, { exclusive: true })
+    );
 
     this.responseConsumerInfo = await this.consumeForResponse();
   }
@@ -178,7 +188,7 @@ export default class RPCService {
                         type: RpcType,
                         rpcOptions?: RpcOptions): Promise<void> {
     this.rpcEntities[rpcName] = { handler, type, rpcOptions };
-    await this.channelPool.usingChannel(channel => channel.assertQueue(rpcName, {
+    await this.consumerChannelPool.usingChannel(channel => channel.assertQueue(rpcName, {
       arguments : {'x-expires': RPC_QUEUE_EXPIRES_MS},
       durable   : false
     }));
@@ -285,8 +295,8 @@ export default class RPCService {
   // * get-requested consumers can be multiple per a node and they shares a RPC queue between island nodes
   // * get-a-response consumer is only one per a node and it has an exclusive queue
   protected async _consume(key: string, handler: (msg) => Promise<any>, noAck?: boolean): Promise<IConsumerInfo> {
-    const channel = await this.channelPool.acquireChannel();
-    const prefetchCount = await this.channelPool.getPrefetchCount();
+    const channel = await this.consumerChannelPool.acquireChannel();
+    const prefetchCount = await this.consumerChannelPool.getPrefetchCount();
     noAck = noAck || false;
     await channel.prefetch(prefetchCount || Environments.getRpcPrefetch());
 
@@ -310,7 +320,7 @@ export default class RPCService {
 
   protected async _cancel(consumerInfo: IConsumerInfo): Promise<void> {
     await consumerInfo.channel.cancel(consumerInfo.tag);
-    await this.channelPool.releaseChannel(consumerInfo.channel);
+    await this.consumerChannelPool.releaseChannel(consumerInfo.channel);
   }
 
   private throwTimeout(name, corrId: string) {
