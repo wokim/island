@@ -24,6 +24,9 @@ import {
   Subscriber
 } from './event-subscriber';
 
+const ignoreEventLogRegexp = Environments.getIgnoreEventLogRegexp() &&
+  new RegExp(Environments.getIgnoreEventLogRegexp(), 'g');
+
 export type EventHook = (obj) => Promise<any>;
 export enum EventHookType {
   EVENT,
@@ -59,7 +62,6 @@ export class EventService {
   private onGoingEventRequestCount: number = 0;
   private purging: Function | null = null;
   private consumerInfosMap: { [name: string]: IEventConsumerInfo } = {};
-  private cronRegex = new RegExp(/cron/g);
 
   constructor(serviceName: string) {
     this.serviceName = serviceName;
@@ -220,7 +222,7 @@ export class EventService {
       const clsProperties = _.merge({ RequestTrackId: tattoo, Context: msg.fields.routingKey, Type: 'event' },
                                     extra);
       return enterScope(clsProperties, () => {
-        if (Environments.getIslandLoggerCron() || !msg.fields.routingKey.match(this.cronRegex)) {
+        if (!ignoreEventLogRegexp || !msg.fields.routingKey.match(ignoreEventLogRegexp)) {
           logger.debug(`${msg.fields.routingKey}`, content, msg.properties.headers);
         }
         const log = new TraceLog(tattoo, msg.properties.timestamp || 0);
