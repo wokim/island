@@ -143,6 +143,7 @@ $ RABBITMQ_HOST=localhost npm test
 | `ISLAND_RPC_WAIT_TIMEOUT_MS` | Timeout during call (Defaults to 60000)                           |
 | `ISLAND_SERVICE_LOAD_TIME_MS`| Time to load service (Defaults to 60000)                          |
 | `ISLAND_LOGGER_LEVEL`        | Logger level of category `island`                                 |
+| `ISLAND_LOGGER_CRON`         | If it is `true`, console log output for cron (Default to `false`) |
 | `ISLAND_TRACEMQ_HOST`        | MQ(formatted by amqp URI) for TraceLog. If omitted it doesn't log |
 | `ISLAND_TRACEMQ_QUEUE`       | A queue name to log TraceLog                                      |
 | `SERIALIZE_FORMAT_PUSH`      | currently able Push format json and msgpack (Default to msgpack)  |

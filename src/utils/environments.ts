@@ -65,4 +65,8 @@ export class Environments {
   static getIslandTracemqQueue(): string {
     return process.env.ISLAND_TRACEMQ_QUEUE || 'trace';
   }
+
+  static getIslandLoggerCron(): boolean {
+    return process.env.ISLAND_LOGGER_CRON === 'true';
+  }
 }
