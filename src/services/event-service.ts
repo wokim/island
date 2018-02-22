@@ -59,6 +59,7 @@ export class EventService {
   private onGoingEventRequestCount: number = 0;
   private purging: Function | null = null;
   private consumerInfosMap: { [name: string]: IEventConsumerInfo } = {};
+  private cronRegex = new RegExp(/cron/g);
 
   constructor(serviceName: string) {
     this.serviceName = serviceName;
@@ -219,7 +220,9 @@ export class EventService {
       const clsProperties = _.merge({ RequestTrackId: tattoo, Context: msg.fields.routingKey, Type: 'event' },
                                     extra);
       return enterScope(clsProperties, () => {
-        logger.debug(`${msg.fields.routingKey}`, content, msg.properties.headers);
+        if (Environments.getIslandLoggerCron() || !msg.fields.routingKey.match(this.cronRegex)) {
+          logger.debug(`${msg.fields.routingKey}`, content, msg.properties.headers);
+        }
         const log = new TraceLog(tattoo, msg.properties.timestamp || 0);
         log.size = msg.content.byteLength;
         log.from = headers.from;
