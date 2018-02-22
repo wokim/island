@@ -23,7 +23,6 @@ import {
   PatternSubscriber,
   Subscriber
 } from './event-subscriber';
-
 export type EventHook = (obj) => Promise<any>;
 export enum EventHookType {
   EVENT,
@@ -59,6 +58,7 @@ export class EventService {
   private onGoingEventRequestCount: number = 0;
   private purging: Function | null = null;
   private consumerInfosMap: { [name: string]: IEventConsumerInfo } = {};
+  private ignoreEventLogRegexp: RegExp | null = null;
 
   constructor(serviceName: string) {
     this.serviceName = serviceName;
@@ -68,6 +68,8 @@ export class EventService {
 
   async initialize(channelPool: AmqpChannelPoolService): Promise<any> {
     await TraceLog.initialize();
+    this.ignoreEventLogRegexp = (Environments.getIgnoreEventLogRegexp() &&
+      new RegExp(Environments.getIgnoreEventLogRegexp(), 'g')) as RegExp;
 
     this.channelPool = channelPool;
     return channelPool.usingChannel(channel => {
@@ -219,7 +221,9 @@ export class EventService {
       const clsProperties = _.merge({ RequestTrackId: tattoo, Context: msg.fields.routingKey, Type: 'event' },
                                     extra);
       return enterScope(clsProperties, () => {
-        logger.debug(`${msg.fields.routingKey}`, content, msg.properties.headers);
+        if (!this.ignoreEventLogRegexp || !msg.fields.routingKey.match(this.ignoreEventLogRegexp)) {
+          logger.debug(`subscribe event : ${msg.fields.routingKey}`, content, msg.properties.headers);
+        }
         const log = new TraceLog(tattoo, msg.properties.timestamp || 0);
         log.size = msg.content.byteLength;
         log.from = headers.from;
