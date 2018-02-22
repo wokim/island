@@ -66,7 +66,7 @@ export class Environments {
     return process.env.ISLAND_TRACEMQ_QUEUE || 'trace';
   }
 
-  static getIslandLoggerCron(): boolean {
-    return process.env.ISLAND_LOGGER_CRON === 'true';
+  static getIgnoreEventLogRegexp(): string {
+    return (process.env.ISLAND_IGNORE_EVENT_LOG || '').split(',').join('|');
   }
 }
