@@ -23,6 +23,7 @@ export interface EndpointOptions {
   quota?: EndpointUserQuotaOptions;
   serviceQuota?: EndpointServiceQuotaOptions;
   extra?: { [key: string]: any };
+  sessionGroups?: string[];
 }
 
 export interface EndpointUserQuotaOptions {
@@ -739,7 +740,21 @@ export function groupQuota(group: string[]) {
     }
   };
 }
-
+// endpoint에 sessionGroup을 설정한다. sessionGroup이 설정된 endpoint는 해당 sessionGroup에 해당하는 session 정보만을 전달받게 된다.
+//
+// [EXAMPLE]
+// @island.sessionGroup([group1, gropu2])
+// @island.endpoint('...')
+export function sessionGroup(group: string[]) {
+  return (target, key, desc: PropertyDescriptor) => {
+    const options = desc.value.options = (desc.value.options || {}) as EndpointOptions;
+    options.sessionGroups = options.sessionGroups || [];
+    options.sessionGroups = options.sessionGroups.concat(group);
+    if (desc.value.endpoints) {
+      desc.value.endpoints.forEach(e => _.merge(e.options, options));
+    }
+  };
+}
 interface Endpoint {
   name: string;
   options: EndpointOptions;
