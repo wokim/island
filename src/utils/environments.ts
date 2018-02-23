@@ -65,4 +65,8 @@ export class Environments {
   static getIslandTracemqQueue(): string {
     return process.env.ISLAND_TRACEMQ_QUEUE || 'trace';
   }
+
+  static getIgnoreEventLogRegexp(): string {
+    return (process.env.ISLAND_IGNORE_EVENT_LOG || '').split(',').join('|');
+  }
 }

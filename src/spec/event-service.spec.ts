@@ -1,6 +1,7 @@
 import { AmqpChannelPoolService } from '../services/amqp-channel-pool-service';
 import { EventHookType, EventService } from '../services/event-service';
 import { BaseEvent, DebugEvent, PatternSubscriber } from '../services/event-subscriber';
+import { Environments } from '../utils/environments';
 import { jasmineAsyncAdapter as spec } from '../utils/jasmine-async-support';
 import { TraceLog } from '../utils/tracelog';
 
@@ -78,6 +79,33 @@ describe('EventService', () => {
       .then(() => eventService.publishEvent(new TestPatternEvent('wildcard')))
       .catch(done.fail);
   });
+
+  it('can log when ISLAND_IGNORE_EVENT_LOG is not set', spec(async () => {
+    process.env.ISLAND_IGNORE_EVENT_LOG = '';
+    const eventRoutingKey1 = 'print.pattern';
+    const eventRoutingKey2 = 'test.pattern';
+    const eventRoutingKey3 = 'event.pattern';
+    const ignoreEventLogRegexp = (Environments.getIgnoreEventLogRegexp() &&
+      new RegExp(Environments.getIgnoreEventLogRegexp(), 'g')) as RegExp;
+
+    expect(!ignoreEventLogRegexp || !eventRoutingKey1.match(ignoreEventLogRegexp)).toBe(true);
+    expect(!ignoreEventLogRegexp || !eventRoutingKey2.match(ignoreEventLogRegexp)).toBe(true);
+    expect(!ignoreEventLogRegexp || !eventRoutingKey3.match(ignoreEventLogRegexp)).toBe(true);
+  }));
+
+  it('If ISLAND_IGNORE_EVENT_LOG is set, the special Event Log can be ignored', spec(async () => {
+    process.env.ISLAND_IGNORE_EVENT_LOG = 'test,event';
+    const eventRoutingKey1 = 'print.pattern';
+    const eventRoutingKey2 = 'test.pattern';
+    const eventRoutingKey3 = 'event.pattern';
+    const ignoreEventLogRegexp = (Environments.getIgnoreEventLogRegexp() &&
+      new RegExp(Environments.getIgnoreEventLogRegexp(), 'g')) as RegExp;
+
+    expect(!ignoreEventLogRegexp || !eventRoutingKey1.match(ignoreEventLogRegexp)).toBe(true);
+    expect(!ignoreEventLogRegexp || !eventRoutingKey2.match(ignoreEventLogRegexp)).toBe(false);
+    expect(!ignoreEventLogRegexp || !eventRoutingKey3.match(ignoreEventLogRegexp)).toBe(false);
+    process.env.ISLAND_IGNORE_EVENT_LOG = '';
+  }));
 
   afterAll(done => {
     Bluebird.delay(500)
