@@ -205,8 +205,9 @@ export default class RPCService {
         const extra = headers && headers.extra || {};
         const timestamp = msg.properties.timestamp || 0;
         const log = createTraceLog({ tattoo, timestamp, msg, headers, rpcName, serviceName: this.serviceName });
+        const rpcstack = headers && headers.rpcstack || [];
         exporter.collectRequestAndReceivedTime(type, +new Date() - timestamp);
-        return this.enterCLS(tattoo, rpcName, extra, async () => {
+        return this.enterCLS(tattoo, rpcstack, rpcName, extra, async () => {
           const options = { correlationId, headers };
           const parsed = JSON.parse(msg.content.toString('utf8'), RpcResponse.reviver);
           try {
@@ -269,6 +270,8 @@ export default class RPCService {
   public async invoke(name: string, msg: any, opts?: {withRawdata: boolean}): Promise<any> {
     const option = this.makeInvokeOption();
     const p = this.waitResponse(option.correlationId!, (msg: Message) => {
+      const ns = cls.getNamespace('app');
+      ns.set('RpcStack', msg.properties.headers.rpcstack);
       const res = RpcResponse.decode(msg.content);
       if (res.result === false) throw res.body;
       if (opts && opts.withRawdata) return { body: res.body, raw: msg.content };
@@ -393,9 +396,12 @@ export default class RPCService {
     const context = ns.get('Context');
     const type = ns.get('Type');
     const sessionType = ns.get('sessionType');
+    const rpcstack = ns.get('RpcStack') || [];
+    rpcstack.push({ node: Environments.getHostName(), context, island: this.serviceName, type });
     const correlationId = uuid.v4();
     const headers = {
       tattoo,
+      rpcstack,
       from: { node: Environments.getHostName(), context, island: this.serviceName, type },
       extra: {
         sessionType
@@ -438,6 +444,10 @@ export default class RPCService {
 
   // returns value again for convenience
   private async reply(replyTo: string, value: any, options: amqp.Options.Publish) {
+    const ns = cls.getNamespace('app');
+    const rpcstack = ns.get('RpcStack') || [];
+    rpcstack.push({ node: Environments.getHostName(), replyto: replyTo, island: this.serviceName, type: 'rpc' });
+    options.headers.rpcstack = rpcstack;
     await this.channelPool.usingChannel(async channel => {
       return channel.sendToQueue(replyTo, RpcResponse.encode(value), options);
     });
@@ -445,8 +455,8 @@ export default class RPCService {
   }
 
   // enter continuation-local-storage scope
-  private enterCLS(tattoo, rpcName, extra, func) {
-    const properties = _.merge({ RequestTrackId: tattoo, Context: rpcName, Type: 'rpc' }, extra);
+  private enterCLS(tattoo, rpcstack, rpcName, extra, func) {
+    const properties = _.merge({ RequestTrackId: tattoo, Context: rpcName, Type: 'rpc', RpcStack: rpcstack }, extra);
     return new Promise((resolve, reject) => {
       const ns = cls.getNamespace('app');
       ns.run(() => {
