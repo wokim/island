@@ -54,7 +54,8 @@ export {
   endpointController,
   quota,
   groupServiceQuota,
-  groupQuota
+  groupQuota,
+  sessionGroup
 } from './controllers/endpoint-decorator';
 export {
   rpc,
