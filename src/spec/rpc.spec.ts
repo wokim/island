@@ -632,4 +632,13 @@ describe('RPC-hook', () => {
     await fs.unlinkSync(fileName);
     expect(json.instanceId).toBeDefined('test');
   }));
+
+  it('could check the onGoingRequest', spec(async () => {
+    rpcService.registerHook(RpcHookType.PRE_RPC, content => Promise.resolve('hi, ' + content));
+    await rpcService.register('testMethod', msg => Promise.resolve(msg + ' world'), 'rpc');
+    await rpcService.listen();
+    const res = await rpcService.invoke('testMethod', 'hello');
+    expect(res).toEqual('hi, hello world');
+    await rpcService.sigInfo();
+  }));
 });

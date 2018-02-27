@@ -106,6 +106,7 @@ export default class Islet {
       await this.onPrepare();
       await Promise.all(_.values<IAbstractAdapter>(this.adapters).map(adapter => adapter.initialize()));
       process.once('SIGTERM', this.destroy.bind(this));
+      process.on('SIGUSR2', this.sigInfo.bind(this));
       bindImpliedServices(this.adapters);
       await this.onInitialized();
       const adapters = _.values<IListenableAdapter>(this.adapters)
@@ -139,5 +140,13 @@ export default class Islet {
       await adapter.destroy();
     }));
     await this.onDestroy();
+  }
+
+  private async sigInfo() {
+    logger.info('Waiting for a check to process status');
+    await Promise.all(_.map(this.listenAdapters, async (adapter: IListenableAdapter, key) => {
+      logger.debug('sigInfo : ', key);
+      await adapter.sigInfo();
+    }));
   }
 }
