@@ -66,6 +66,10 @@ export class Environments {
     return process.env.ISLAND_TRACEMQ_QUEUE || 'trace';
   }
 
+  static isUsingTraceHeaderLog(): boolean {
+    return process.env.ISLAND_TRACE_HEADER_LOG === 'true';
+  }
+
   static getIgnoreEventLogRegexp(): string {
     return (process.env.ISLAND_IGNORE_EVENT_LOG || '').split(',').join('|');
   }
