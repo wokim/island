@@ -73,4 +73,8 @@ export class Environments {
   static getIgnoreEventLogRegexp(): string {
     return (process.env.ISLAND_IGNORE_EVENT_LOG || '').split(',').join('|');
   }
+
+  static getEndpointSessionGroup(): string {
+    return process.env.ENDPOINT_SESSION_GROUP;
+  }
 }

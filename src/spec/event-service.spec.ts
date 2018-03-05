@@ -188,4 +188,14 @@ describe('Event-hook', () => {
     await eventService.publishEvent(new TestEvent('bbb'));
   }));
 
+  it('could check the onGoingRequest', spec(async () => {
+    eventService.registerHook(EventHookType.EVENT, p => {
+      return Promise.resolve('x' + p);
+    });
+    await eventService.subscribeEvent(TestEvent, (event: TestEvent) => {
+      expect(event.args).toBe('xbbb');
+    });
+    await eventService.publishEvent(new TestEvent('bbb'));
+    await eventService.sigInfo();
+  }));
 });
