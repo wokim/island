@@ -1,5 +1,4 @@
 import * as cls from 'continuation-local-storage';
-
 import * as amqp from 'amqplib';
 import * as Bluebird from 'bluebird';
 import deprecated from 'deprecated-decorator';
@@ -16,7 +15,6 @@ import reviver from '../utils/reviver';
 import { RpcRequest } from '../utils/rpc-request';
 import { IRpcResponse, RpcResponse } from '../utils/rpc-response';
 import { exporter } from '../utils/status-exporter';
-import { TraceLog } from '../utils/tracelog';
 import { AmqpChannelPoolService } from './amqp-channel-pool-service';
 
 export { IRpcResponse, RpcRequest, RpcResponse };
@@ -30,7 +28,6 @@ const NO_REVIVER = Environments.isNoReviver();
 const USE_TRACE_HEADER_LOG = Environments.isUsingTraceHeaderLog();
 
 export type RpcType = 'rpc' | 'endpoint';
-
 export interface IConsumerInfo {
   channel: amqp.Channel;
   tag: string;
@@ -60,14 +57,6 @@ export enum RpcHookType {
 export interface InitializeOptions {
   noReviver?: boolean;
   consumerAmqpChannelPool?: AmqpChannelPoolService;
-}
-
-function createTraceLog({ tattoo, timestamp, msg, headers, rpcName, serviceName }) {
-  const log = new TraceLog(tattoo, timestamp);
-  log.size = msg.content.byteLength;
-  log.from = headers.from;
-  log.to = { node: Environments.getHostName(), context: rpcName, island: serviceName, type: 'rpc' };
-  return log;
 }
 
 function sanitizeAndValidate(content, rpcOptions) {
@@ -144,8 +133,6 @@ export default class RPCService {
     this.responseQueueName = this.makeResponseQueueName();
     logger.info(`consuming ${this.responseQueueName}`);
 
-    await TraceLog.initialize();
-
     this.channelPool = channelPool;
     await this.consumerChannelPool.usingChannel(
       channel => channel.assertQueue(this.responseQueueName, { exclusive: true })
@@ -214,7 +201,6 @@ export default class RPCService {
         const tattoo = headers && headers.tattoo;
         const extra = headers && headers.extra || {};
         const timestamp = msg.properties.timestamp || 0;
-        const log = createTraceLog({ tattoo, timestamp, msg, headers, rpcName, serviceName: this.serviceName });
         if (USE_TRACE_HEADER_LOG && !extra.mqstack) {
           extra.mqstack = [];
         }
@@ -232,14 +218,12 @@ export default class RPCService {
               .then(res => this.dohook('post', type, res))
               .then(res => sanitizeAndValidateResult(res, rpcOptions))
               .then(res => this.reply(replyTo, res, options))
-              .tap (()  => log.end())
               .tap (() => exporter.collectExecutedCountAndExecutedTime(type, +new Date() - startExecutedAt))
               .tap (res => logger.debug(`responses ${JSON.stringify(res)} ${type}, ${rpcName}`))
               .timeout(RPC_EXEC_TIMEOUT_MS);
           } catch (err) {
             await Bluebird.resolve(err)
               .then(err => this.earlyThrowWith503(rpcName, err, msg))
-              .tap (err => log.end(err))
               .then(err => this.dohook('pre-error', type, err))
               .then(err => this.attachExtraError(err, rpcName, parsed))
               .then(err => this.reply(replyTo, err, options))
@@ -247,7 +231,6 @@ export default class RPCService {
               .tap (err => this.logRpcError(err));
             throw err;
           } finally {
-            log.shoot();
             this.increaseRequest(rpcName, -1);
             if (this.purging && this.onGoingRequest.count < 1) {
               this.purging();
