@@ -1,6 +1,6 @@
-import * as cls from 'continuation-local-storage';
 import * as amqp from 'amqplib';
 import * as Bluebird from 'bluebird';
+import * as cls from 'continuation-local-storage';
 import deprecated from 'deprecated-decorator';
 import * as _ from 'lodash';
 import * as os from 'os';
