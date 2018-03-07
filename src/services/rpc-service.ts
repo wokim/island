@@ -453,7 +453,6 @@ export default class RPCService {
         options.headers.extra.mqstack = mqstack;
       }
     }
-    logger.info(`${JSON.stringify(options, null, 4)}`);
     await this.channelPool.usingChannel(async channel => {
       return channel.sendToQueue(replyTo, RpcResponse.encode(value), options);
     });
