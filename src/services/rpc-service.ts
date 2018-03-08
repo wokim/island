@@ -1,7 +1,6 @@
-import * as cls from 'continuation-local-storage';
-
 import * as amqp from 'amqplib';
 import * as Bluebird from 'bluebird';
+import * as cls from 'continuation-local-storage';
 import deprecated from 'deprecated-decorator';
 import * as _ from 'lodash';
 import * as os from 'os';
@@ -16,7 +15,6 @@ import reviver from '../utils/reviver';
 import { RpcRequest } from '../utils/rpc-request';
 import { IRpcResponse, RpcResponse } from '../utils/rpc-response';
 import { exporter } from '../utils/status-exporter';
-import { TraceLog } from '../utils/tracelog';
 import { AmqpChannelPoolService } from './amqp-channel-pool-service';
 
 export { IRpcResponse, RpcRequest, RpcResponse };
@@ -26,9 +24,10 @@ const RPC_WAIT_TIMEOUT_MS = Environments.getIslandRpcWaitTimeoutMs();
 const SERVICE_LOAD_TIME_MS = Environments.getIslandServiceLoadTimeMs();
 const RPC_RES_NOACK = Environments.isIslandRpcResNoack();
 const RPC_QUEUE_EXPIRES_MS = RPC_WAIT_TIMEOUT_MS + SERVICE_LOAD_TIME_MS;
+const NO_REVIVER = Environments.isNoReviver();
+const USE_TRACE_HEADER_LOG = Environments.isUsingTraceHeaderLog();
 
 export type RpcType = 'rpc' | 'endpoint';
-
 export interface IConsumerInfo {
   channel: amqp.Channel;
   tag: string;
@@ -58,14 +57,6 @@ export enum RpcHookType {
 export interface InitializeOptions {
   noReviver?: boolean;
   consumerAmqpChannelPool?: AmqpChannelPoolService;
-}
-
-function createTraceLog({ tattoo, timestamp, msg, headers, rpcName, serviceName }) {
-  const log = new TraceLog(tattoo, timestamp);
-  log.size = msg.content.byteLength;
-  log.from = headers.from;
-  log.to = { node: Environments.getHostName(), context: rpcName, island: serviceName, type: 'rpc' };
-  return log;
 }
 
 function sanitizeAndValidate(content, rpcOptions) {
@@ -98,8 +89,6 @@ function nackWithDelay(channel, msg) {
 }
 
 type DeferredResponse = { resolve: (msg: Message) => any, reject: (e: Error) => any };
-
-const NO_REVIVER = Environments.isNoReviver();
 
 export default class RPCService {
   private consumerInfosMap: { [name: string]: IConsumerInfo } = {};
@@ -143,8 +132,6 @@ export default class RPCService {
     }
     this.responseQueueName = this.makeResponseQueueName();
     logger.info(`consuming ${this.responseQueueName}`);
-
-    await TraceLog.initialize();
 
     this.channelPool = channelPool;
     await this.consumerChannelPool.usingChannel(
@@ -214,7 +201,9 @@ export default class RPCService {
         const tattoo = headers && headers.tattoo;
         const extra = headers && headers.extra || {};
         const timestamp = msg.properties.timestamp || 0;
-        const log = createTraceLog({ tattoo, timestamp, msg, headers, rpcName, serviceName: this.serviceName });
+        if (USE_TRACE_HEADER_LOG && !extra.mqstack) {
+          extra.mqstack = [];
+        }
         exporter.collectRequestAndReceivedTime(type, +new Date() - timestamp);
         return this.enterCLS(tattoo, rpcName, extra, async () => {
           const options = { correlationId, headers };
@@ -229,14 +218,12 @@ export default class RPCService {
               .then(res => this.dohook('post', type, res))
               .then(res => sanitizeAndValidateResult(res, rpcOptions))
               .then(res => this.reply(replyTo, res, options))
-              .tap (()  => log.end())
               .tap (() => exporter.collectExecutedCountAndExecutedTime(type, +new Date() - startExecutedAt))
               .tap (res => logger.debug(`responses ${JSON.stringify(res)} ${type}, ${rpcName}`))
               .timeout(RPC_EXEC_TIMEOUT_MS);
           } catch (err) {
             await Bluebird.resolve(err)
               .then(err => this.earlyThrowWith503(rpcName, err, msg))
-              .tap (err => log.end(err))
               .then(err => this.dohook('pre-error', type, err))
               .then(err => this.attachExtraError(err, rpcName, parsed))
               .then(err => this.reply(replyTo, err, options))
@@ -244,7 +231,6 @@ export default class RPCService {
               .tap (err => this.logRpcError(err));
             throw err;
           } finally {
-            log.shoot();
             this.increaseRequest(rpcName, -1);
             if (this.purging && this.onGoingRequest.count < 1) {
               this.purging();
@@ -280,6 +266,10 @@ export default class RPCService {
   public async invoke(name: string, msg: any, opts?: {withRawdata: boolean}): Promise<any> {
     const option = this.makeInvokeOption();
     const p = this.waitResponse(option.correlationId!, (msg: Message) => {
+      const ns = cls.getNamespace('app');
+      if (msg.properties.headers.extra.mqstack) {
+        ns.set('mqstack', msg.properties.headers.extra.mqstack);
+      }
       const res = RpcResponse.decode(msg.content);
       if (res.result === false) throw res.body;
       if (opts && opts.withRawdata) return { body: res.body, raw: msg.content };
@@ -404,12 +394,18 @@ export default class RPCService {
     const context = ns.get('Context');
     const type = ns.get('Type');
     const sessionType = ns.get('sessionType');
+    let mqstack = ns.get('mqstack');
+    if (USE_TRACE_HEADER_LOG || mqstack) {
+      mqstack = mqstack || [];
+      mqstack.push({ node: Environments.getHostName(), context, island: this.serviceName, type });
+    }
     const correlationId = uuid.v4();
     const headers = {
       tattoo,
       from: { node: Environments.getHostName(), context, island: this.serviceName, type },
       extra: {
-        sessionType
+        sessionType,
+        mqstack
       }
     };
     return {
@@ -449,6 +445,14 @@ export default class RPCService {
 
   // returns value again for convenience
   private async reply(replyTo: string, value: any, options: amqp.Options.Publish) {
+    const ns = cls.getNamespace('app');
+    const mqstack = ns.get('mqstack');
+    if (mqstack) {
+      mqstack.push({ node: Environments.getHostName(), replyto: replyTo, island: this.serviceName, type: 'rpc' });
+      if (options.headers && options.headers.extra) {
+        options.headers.extra.mqstack = mqstack;
+      }
+    }
     await this.channelPool.usingChannel(async channel => {
       return channel.sendToQueue(replyTo, RpcResponse.encode(value), options);
     });
