@@ -1,6 +1,8 @@
+// cls should be placed on top
+import * as cls from 'continuation-local-storage';
+
 import * as amqp from 'amqplib';
 import * as Bluebird from 'bluebird';
-import * as cls from 'continuation-local-storage';
 import deprecated from 'deprecated-decorator';
 import * as _ from 'lodash';
 import * as os from 'os';
@@ -26,6 +28,7 @@ const RPC_RES_NOACK = Environments.isIslandRpcResNoack();
 const RPC_QUEUE_EXPIRES_MS = RPC_WAIT_TIMEOUT_MS + SERVICE_LOAD_TIME_MS;
 const NO_REVIVER = Environments.isNoReviver();
 const USE_TRACE_HEADER_LOG = Environments.isUsingTraceHeaderLog();
+const RPC_QUEUE_DISTRIB_SIZE = 16;
 
 export type RpcType = 'rpc' | 'endpoint';
 export interface IConsumerInfo {
@@ -39,6 +42,7 @@ export interface IConsumerInfo {
 
 interface Message {
   content: Buffer;
+  fields: {[key: string]: any; exchange: string};
   properties: amqp.Options.Publish;
 }
 
@@ -91,7 +95,7 @@ function nackWithDelay(channel, msg) {
 type DeferredResponse = { resolve: (msg: Message) => any, reject: (e: Error) => any };
 
 export default class RPCService {
-  private consumerInfosMap: { [name: string]: IConsumerInfo } = {};
+  private requestConsumerInfo: IConsumerInfo[] = [];
   private responseQueueName: string;
   private responseConsumerInfo: IConsumerInfo;
   private waitingResponse: { [corrId: string]: DeferredResponse } = {};
@@ -135,7 +139,9 @@ export default class RPCService {
 
     this.channelPool = channelPool;
     await this.consumerChannelPool.usingChannel(
-      channel => channel.assertQueue(this.responseQueueName, { exclusive: true })
+      channel => channel.assertQueue(this.responseQueueName, {
+        durable: false, exclusive: true, expires: RPC_QUEUE_EXPIRES_MS
+      })
     );
 
     this.responseConsumerInfo = await this.consumeForResponse();
@@ -149,22 +155,18 @@ export default class RPCService {
   }
 
   public async purge() {
-    return Promise.all(_.map(this.consumerInfosMap, async consumerInfo => {
-      logger.info('stop serving', consumerInfo.key);
-      await this.pause(consumerInfo.key);
-      delete this.consumerInfosMap[consumerInfo.key];
-      delete this.rpcEntities[consumerInfo.key];
-    }))
-      .then(async () => {
-        if (this.onGoingRequest.count > 0) {
-          return new Promise((res, rej) => { this.purging = res; });
-        }
-      })
-      .then(() => {
-        this.hooks = {};
-        this.timedOut = {};
-        this.timedOutOrdered = [];
-      });
+    logger.info('stop serving');
+    await this.unregisterAll();
+
+    let precondition = Promise.resolve();
+    if (0 < this.onGoingRequest.count) {
+      precondition = new Promise<void>(res => this.purging = res);
+    }
+    await precondition;
+
+    this.hooks = {};
+    this.timedOut = {};
+    this.timedOutOrdered = [];
   }
 
   public async sigInfo() {
@@ -185,81 +187,123 @@ export default class RPCService {
                         type: RpcType,
                         rpcOptions?: RpcOptions): Promise<void> {
     this.rpcEntities[rpcName] = { handler, type, rpcOptions };
-    await this.consumerChannelPool.usingChannel(channel => channel.assertQueue(rpcName, {
-      arguments : {'x-expires': RPC_QUEUE_EXPIRES_MS},
-      durable   : false
-    }));
   }
 
   public async listen() {
-    await Promise.all(_.map(this.rpcEntities, async ({type, handler, rpcOptions}, rpcName: string) => {
-      this.consumerInfosMap[rpcName] = await this._consume(rpcName, (msg: Message) => {
-        const { replyTo, headers, correlationId } = msg.properties;
-        if (!replyTo) throw ISLAND.FATAL.F0026_MISSING_REPLYTO_IN_RPC;
+    await this.consumerChannelPool.usingChannel(async channel => {
+      await Promise.all(_.map(this.rpcEntities, async ({ type, handler, rpcOptions }, rpcName: string) => {
+        await channel.assertExchange(rpcName, 'direct', { autoDelete: true, durable: false });
+      }));
+    });
 
-        const startExecutedAt = +new Date();
-        const tattoo = headers && headers.tattoo;
-        const extra = headers && headers.extra || {};
-        const timestamp = msg.properties.timestamp || 0;
-        if (USE_TRACE_HEADER_LOG && !extra.mqstack) {
-          extra.mqstack = [];
-        }
-        exporter.collectRequestAndReceivedTime(type, +new Date() - timestamp);
-        return this.enterCLS(tattoo, rpcName, extra, async () => {
-          const options = { correlationId, headers };
-          const parsed = JSON.parse(msg.content.toString('utf8'), RpcResponse.reviver);
-          try {
-            this.increaseRequest(rpcName, 1);
-            await Bluebird.resolve()
-              .then(()  => sanitizeAndValidate(parsed, rpcOptions))
-              .tap (req => logger.debug(`Got ${rpcName} with ${JSON.stringify(req)}`))
-              .then(req => this.dohook('pre', type, req))
-              .then(req => handler(req))
-              .then(res => this.dohook('post', type, res))
-              .then(res => sanitizeAndValidateResult(res, rpcOptions))
-              .then(res => this.reply(replyTo, res, options))
-              .tap (() => exporter.collectExecutedCountAndExecutedTime(type, +new Date() - startExecutedAt))
-              .tap (res => logger.debug(`responses ${JSON.stringify(res)} ${type}, ${rpcName}`))
-              .timeout(RPC_EXEC_TIMEOUT_MS);
-          } catch (err) {
-            await Bluebird.resolve(err)
-              .then(err => this.earlyThrowWith503(rpcName, err, msg))
-              .then(err => this.dohook('pre-error', type, err))
-              .then(err => this.attachExtraError(err, rpcName, parsed))
-              .then(err => this.reply(replyTo, err, options))
-              .then(err => this.dohook('post-error', type, err))
-              .tap (err => this.logRpcError(err));
-            throw err;
-          } finally {
-            this.increaseRequest(rpcName, -1);
-            if (this.purging && this.onGoingRequest.count < 1) {
-              this.purging();
-            }
-          }
+    await this.consumerChannelPool.usingChannel(async channel => {
+      await Bluebird.each(_.range(RPC_QUEUE_DISTRIB_SIZE), async shard => {
+        const RPC_QUEUE_NAME = this.makeRequestQueueName(shard);
+
+        await channel.assertQueue(RPC_QUEUE_NAME, {
+          durable: false,
+          expires: RPC_QUEUE_EXPIRES_MS
         });
+        const consumerInfo = await this._consume(RPC_QUEUE_NAME, async (msg: Message) => {
+          const rpcName = msg.fields.exchange;
+          if (!this.rpcEntities[rpcName]) {
+            logger.warning('no such RPC found', rpcName);
+            return;
+          }
+          const { type, handler, rpcOptions } = this.rpcEntities[rpcName];
+          const { replyTo, headers, correlationId } = msg.properties;
+          if (!replyTo) throw ISLAND.FATAL.F0026_MISSING_REPLYTO_IN_RPC;
+
+          const startExecutedAt = +new Date();
+          const tattoo = headers && headers.tattoo;
+          const extra = headers && headers.extra || {};
+          const timestamp = msg.properties.timestamp || 0;
+          if (USE_TRACE_HEADER_LOG && !extra.mqstack) {
+            extra.mqstack = [];
+          }
+          exporter.collectRequestAndReceivedTime(type, +new Date() - timestamp);
+          return this.enterCLS(tattoo, rpcName, extra, async () => {
+            const options = { correlationId, headers };
+            const parsed = JSON.parse(msg.content.toString('utf8'), RpcResponse.reviver);
+            try {
+              this.increaseRequest(rpcName, 1);
+              await Bluebird.resolve()
+                .then(()  => sanitizeAndValidate(parsed, rpcOptions))
+                .tap (req => logger.debug(`Got ${rpcName} with ${JSON.stringify(req)}`))
+                .then(req => this.dohook('pre', type, req))
+                .then(req => handler(req))
+                .then(res => this.dohook('post', type, res))
+                .then(res => sanitizeAndValidateResult(res, rpcOptions))
+                .then(res => this.reply(replyTo, res, options))
+                .tap (() => exporter.collectExecutedCountAndExecutedTime(type, +new Date() - startExecutedAt))
+                .tap (res => logger.debug(`responses ${JSON.stringify(res)} ${type}, ${rpcName}`))
+                .timeout(RPC_EXEC_TIMEOUT_MS);
+            } catch (err) {
+              await Bluebird.resolve(err)
+                .then(err => this.earlyThrowWith503(rpcName, err, msg))
+                .then(err => this.dohook('pre-error', type, err))
+                .then(err => this.attachExtraError(err, rpcName, parsed))
+                .then(err => this.reply(replyTo, err, options))
+                .then(err => this.dohook('post-error', type, err))
+                .tap (err => this.logRpcError(err));
+              throw err;
+            } finally {
+              this.increaseRequest(rpcName, -1);
+              if (this.purging && this.onGoingRequest.count < 1) {
+                this.purging();
+              }
+            }
+          });
+        });
+        this.requestConsumerInfo.push(consumerInfo);
       });
-    }));
+    });
+    await this.consumerChannelPool.usingChannel(async channel => {
+      await Promise.all(_.map(this.rpcEntities, async ({ type, handler, rpcOptions }, rpcName: string) => {
+        await Bluebird.each(_.range(16), async shard => {
+          const RPC_QUEUE_NAME = this.makeRequestQueueName(shard);
+          await channel.bindQueue(RPC_QUEUE_NAME, rpcName, '' + shard);
+        });
+      }));
+    });
   }
 
+  @deprecated()
   public async pause(name: string) {
-    const consumerInfo = this.consumerInfosMap[name];
-    if (!consumerInfo) return;
-    await consumerInfo.channel.cancel(consumerInfo.tag);
+    logger.warning('RPCService no longer supports to pause a specific RPC', name);
   }
 
+  public async pauseAll() {
+    if (this.requestConsumerInfo.length === 0) return;
+    await Promise.all(this.requestConsumerInfo.map(ci => ci.channel.cancel(ci.tag)));
+  }
+
+  @deprecated()
   public async resume(name: string) {
-    const consumerInfo = this.consumerInfosMap[name];
-    if (!consumerInfo) return;
-    await consumerInfo.channel.consume(consumerInfo.key, consumerInfo.consumer);
+    logger.warning('RPCService no longer supports to resume a specific RPC', name);
   }
 
-  public async unregister(name: string) {
-    const consumerInfo = this.consumerInfosMap[name];
-    if (!consumerInfo) return;
+  public async resumeAll() {
+    if (this.requestConsumerInfo.length === 0) return;
+    await Promise.all(this.requestConsumerInfo.map(ci => ci.channel.consume(ci.key, ci.consumer)));
+  }
 
-    await this._cancel(consumerInfo);
-    delete this.consumerInfosMap[name];
-    delete this.rpcEntities[name];
+  @deprecated()
+  public async unregister(name: string) {
+    logger.warning('RPCService no longer supports to unregister a specific RPC', name);
+  }
+
+  public async unregisterAll() {
+    if (this.requestConsumerInfo.length === 0) return;
+    await Promise.all(this.requestConsumerInfo.map(async ci => {
+      try {
+        await ci.channel.cancel(ci.tag);
+      } catch (e) {
+        // ignore against an already closed channel
+      }
+    }));
+    this.requestConsumerInfo = [];
+    this.rpcEntities = {};
   }
 
   public async invoke<T, U>(name: string, msg: T, opts?: {withRawdata: boolean}): Promise<U>;
@@ -284,7 +328,8 @@ export default class RPCService {
 
     const content = new Buffer(JSON.stringify(msg), 'utf8');
     try {
-      await this.channelPool.usingChannel(async chan => chan.sendToQueue(name, content, option));
+      const routingKey = '' + _.random(0, RPC_QUEUE_DISTRIB_SIZE - 1);
+      await this.channelPool.usingChannel(async chan => chan.publish(name, routingKey, content, option));
     } catch (e) {
       this.waitingResponse[option.correlationId!].reject(e);
       delete this.waitingResponse[option.correlationId!];
@@ -311,17 +356,14 @@ export default class RPCService {
         if (!noAck) channel.ack(msg);
       }
     };
-    const opts = {} as amqp.Options.Consume;
+    const opts = {
+      consumerTag: [this.serviceName, os.hostname(), key].join('.')
+    } as amqp.Options.Consume;
     if (noAck) {
       opts.noAck = noAck;
     }
     const result = await channel.consume(key, consumer, opts);
     return { channel, tag: result.consumerTag, key, consumer };
-  }
-
-  protected async _cancel(consumerInfo: IConsumerInfo): Promise<void> {
-    await consumerInfo.channel.cancel(consumerInfo.tag);
-    await this.consumerChannelPool.releaseChannel(consumerInfo.channel);
   }
 
   private throwTimeout(name, corrId: string) {
@@ -339,6 +381,10 @@ export default class RPCService {
 
   private shutdown() {
     process.emit('SIGTERM');
+  }
+
+  private makeRequestQueueName(shard: number) {
+    return `rpc.req.${this.serviceName}.${shard}`;
   }
 
   private makeResponseQueueName() {
