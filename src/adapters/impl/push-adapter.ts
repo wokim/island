@@ -27,4 +27,9 @@ export default class PushAdapter extends ListenableAdapter<PushService, PushAdap
     await super.destroy();
     return this.adaptee.purge();
   }
+
+  async sigInfo(): Promise<void> {
+    // If it is not overridden, abstractAdapter.sigInfo will be
+    // called and throw an error "F0004_NOT_IMPLEMENTED_ERROR"
+  }
 }
