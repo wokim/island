@@ -77,4 +77,8 @@ export class Environments {
   static getEndpointSessionGroup(): string {
     return process.env.ENDPOINT_SESSION_GROUP;
   }
+
+  static getRpcDistribSize(): number {
+    return parseInt(process.env.ISLAND_RPC_DISTRIB_SIZE, 10) || 16;
+  }
 }

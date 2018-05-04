@@ -28,7 +28,6 @@ const RPC_RES_NOACK = Environments.isIslandRpcResNoack();
 const RPC_QUEUE_EXPIRES_MS = RPC_WAIT_TIMEOUT_MS + SERVICE_LOAD_TIME_MS;
 const NO_REVIVER = Environments.isNoReviver();
 const USE_TRACE_HEADER_LOG = Environments.isUsingTraceHeaderLog();
-const RPC_QUEUE_DISTRIB_SIZE = 16;
 
 export type RpcType = 'rpc' | 'endpoint';
 export interface IConsumerInfo {
@@ -197,7 +196,7 @@ export default class RPCService {
     });
 
     await this.consumerChannelPool.usingChannel(async channel => {
-      await Bluebird.each(_.range(RPC_QUEUE_DISTRIB_SIZE), async shard => {
+      await Bluebird.each(_.range(Environments.getRpcDistribSize()), async shard => {
         const RPC_QUEUE_NAME = this.makeRequestQueueName(shard);
 
         await channel.assertQueue(RPC_QUEUE_NAME, {
@@ -260,7 +259,7 @@ export default class RPCService {
     });
     await this.consumerChannelPool.usingChannel(async channel => {
       await Promise.all(_.map(this.rpcEntities, async ({ type, handler, rpcOptions }, rpcName: string) => {
-        await Bluebird.each(_.range(16), async shard => {
+        await Bluebird.each(_.range(Environments.getRpcDistribSize()), async shard => {
           const RPC_QUEUE_NAME = this.makeRequestQueueName(shard);
           await channel.bindQueue(RPC_QUEUE_NAME, rpcName, '' + shard);
         });
@@ -328,7 +327,7 @@ export default class RPCService {
 
     const content = new Buffer(JSON.stringify(msg), 'utf8');
     try {
-      const routingKey = '' + _.random(0, RPC_QUEUE_DISTRIB_SIZE - 1);
+      const routingKey = '' + _.random(0, Environments.getRpcDistribSize() - 1);
       await this.channelPool.usingChannel(async chan => chan.publish(name, routingKey, content, option));
     } catch (e) {
       this.waitingResponse[option.correlationId!].reject(e);
