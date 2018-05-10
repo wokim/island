@@ -81,4 +81,8 @@ export class Environments {
   static getRpcDistribSize(): number {
     return parseInt(process.env.ISLAND_RPC_DISTRIB_SIZE, 10) || 16;
   }
+
+  static getFlowModeDelay(): number {
+    return parseInt(process.env.ISLAND_FLOWMODE_DELAY, 10) || 10000;
+  }
 }

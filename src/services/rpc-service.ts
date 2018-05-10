@@ -115,6 +115,7 @@ export default class RPCService {
       rpcOptions?: RpcOptions;
     }
   } = {};
+  private queuesAvailableSince = _.range(Environments.getRpcDistribSize()).map(o => +new Date());
 
   constructor(serviceName?: string) {
     this.serviceName = serviceName || 'unknown';
@@ -217,6 +218,10 @@ export default class RPCService {
           const tattoo = headers && headers.tattoo;
           const extra = headers && headers.extra || {};
           const timestamp = msg.properties.timestamp || 0;
+          if (startExecutedAt - timestamp > 300) {
+            logger.notice(`RPC queue.${shard} behinds ${startExecutedAt - timestamp}ms by flow control`);
+            extra.flow = true;
+          }
           if (USE_TRACE_HEADER_LOG && !extra.mqstack) {
             extra.mqstack = [];
           }
@@ -307,11 +312,16 @@ export default class RPCService {
 
   public async invoke<T, U>(name: string, msg: T, opts?: {withRawdata: boolean}): Promise<U>;
   public async invoke(name: string, msg: any, opts?: {withRawdata: boolean}): Promise<any> {
+    const routingKey = this.makeRoutingKey();
     const option = this.makeInvokeOption();
     const p = this.waitResponse(option.correlationId!, (msg: Message) => {
       const ns = cls.getNamespace('app');
       if (msg.properties.headers.extra.mqstack) {
         ns.set('mqstack', msg.properties.headers.extra.mqstack);
+      }
+      if (msg.properties.headers.extra.flow) {
+        logger.notice(`RPC(${name}) responses extra.flow by the queue.${routingKey}`);
+        this.queuesAvailableSince[routingKey] = +new Date() + Environments.getFlowModeDelay();
       }
       const res = RpcResponse.decode(msg.content);
       if (res.result === false) throw res.body;
@@ -327,7 +337,6 @@ export default class RPCService {
 
     const content = new Buffer(JSON.stringify(msg), 'utf8');
     try {
-      const routingKey = '' + _.random(0, Environments.getRpcDistribSize() - 1);
       await this.channelPool.usingChannel(async chan => chan.publish(name, routingKey, content, option));
     } catch (e) {
       this.waitingResponse[option.correlationId!].reject(e);
@@ -380,6 +389,19 @@ export default class RPCService {
 
   private shutdown() {
     process.emit('SIGTERM');
+  }
+
+  private makeRoutingKey(): string {
+    const now = +new Date();
+    const routingKeys = _.keys(_.pickBy(_.mapValues(this.queuesAvailableSince, d => d < now), Boolean));
+    if (routingKeys.length < Math.floor(Environments.getRpcDistribSize() * 0.4)) {
+      logger.warning(`Availability of RPC queues are under 40%`);
+      // We should send this request anyway
+      return _.sample(_.keys(this.queuesAvailableSince));
+    } else if (routingKeys.length < Math.floor(Environments.getRpcDistribSize() * 0.7)) {
+      logger.notice(`Availability of RPC queues are under 70%`);
+    }
+    return _.sample(routingKeys);
   }
 
   private makeRequestQueueName(shard: number) {
