@@ -205,6 +205,7 @@ export default class RPCService {
           expires: RPC_QUEUE_EXPIRES_MS
         });
         const consumerInfo = await this._consume(RPC_QUEUE_NAME, async (msg: Message) => {
+          this.assertMessage(msg);
           const rpcName = msg.fields.exchange;
           if (!this.rpcEntities[rpcName]) {
             logger.warning('no such RPC found', rpcName);
@@ -361,7 +362,7 @@ export default class RPCService {
       } catch (error) {
         if (this.is503(error)) return nackWithDelay(channel, msg);
         if (this.isCritical(error)) return this.shutdown();
-        if (!noAck) channel.ack(msg);
+        if (!noAck && msg) channel.ack(msg);
       }
     };
     const opts = {
@@ -560,5 +561,11 @@ export default class RPCService {
     this.onGoingRequest.count += count;
     const requestCount = (this.onGoingRequest.details.get(name) || 0) + count;
     this.onGoingRequest.details.set(name, requestCount);
+  }
+
+  private assertMessage(msg: Message) {
+    if (msg) return;
+    logger.crit(`The RPC request queue is canceled - https://goo.gl/HIgy4D`);
+    throw new FatalError(ISLAND.FATAL.F0027_CONSUMER_IS_CANCELED);
   }
 }

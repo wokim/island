@@ -171,9 +171,9 @@ export class EventService {
     return Promise.resolve(channel.prefetch(prefetchCount || Environments.getEventPrefetch()))
       .then(() => channel.consume(queue, msg => {
         if (!msg) {
-          logger.error(`consume was canceled unexpectedly`);
+          logger.crit(`The event queue is canceled unexpectedly`);
           // TODO: handle unexpected cancel
-          return;
+          return this.shutdown();
         }
         const timestamp = msg.properties && msg.properties.timestamp;
         const startedAt = +new Date();
@@ -291,6 +291,10 @@ export class EventService {
     this.onGoingRequest.count += count;
     const requestCount = (this.onGoingRequest.details.get(name) || 0) + count;
     this.onGoingRequest.details.set(name, requestCount);
+  }
+
+  private shutdown() {
+    process.emit('SIGTERM');
   }
 }
 
