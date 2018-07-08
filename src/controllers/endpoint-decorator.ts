@@ -8,6 +8,15 @@ export enum EnsureOptions {
   CONNECTION = 3
 }
 
+export interface RequestOptions {
+  headers: { [key: string]: boolean };
+  body: { rawBody: boolean };
+}
+
+export interface ResponseOptions {
+  extended: boolean;
+}
+
 export interface EndpointOptions {
   scope?: {
     resource: number;
@@ -24,6 +33,8 @@ export interface EndpointOptions {
   serviceQuota?: EndpointServiceQuotaOptions;
   extra?: { [key: string]: any };
   sessionGroup?: string;
+  request: RequestOptions;
+  response: ResponseOptions;
 }
 
 export interface EndpointUserQuotaOptions {
@@ -755,6 +766,66 @@ export function sessionGroup(group: string) {
     }
   };
 }
+
+// endpoint 에서 요구하는 custom header 와 body를 설정할 수 있다
+// 대소문자 구분하지 않는다
+//
+// [EXAMPLE]
+// endpoint 에서는 req.headers['content-type'] 으로 접근할 수 있다
+// @island.request.headers({authorization: true, 'content-type': true})
+// endpoint 에서는 req.rawBody 로 접근할 수 있다
+// @island.request.body({rawBody: true})
+export namespace request {
+  export function headers(allowedHeaders: {[key: string]: boolean}) {
+    return (target, key, desc: PropertyDescriptor) => {
+      const options = desc.value.options = (desc.value.options || {}) as EndpointOptions;
+      options.request = options.request || {};
+      options.request.headers = options.request.headers || {};
+      _.merge(options.request.headers, allowedHeaders);
+      if (desc.value.endpoints) {
+        desc.value.endpoints.forEach(e => _.merge(e.options, options));
+      }
+    };
+  }
+
+  export function body(options: {rawBody: boolean}) {
+    return (target, key, desc: PropertyDescriptor) => {
+      const options = desc.value.options = (desc.value.options || {}) as EndpointOptions;
+      options.request = options.request || {};
+      options.request.body = options.request.body || {};
+      _.merge(options.request.body, options);
+      if (desc.value.endpoints) {
+        desc.value.endpoints.forEach(e => _.merge(e.options, options));
+      }
+    };
+  }
+}
+
+// 확장 형태의 endpoint response body를 허용한다. endpoint 의 response 형식은 다음과 같다
+// {
+//   code: 200,
+//   rawBody: <response body>,
+//   headers: {
+//     'content-length': 15,
+//     'content-type': 'application/json,
+//     'WWW-Authenticate': 'Signature 4a58f3421c5f9c1c637dc46942'
+//     ...
+//   }
+// }
+//
+// [EXAMPLE]
+// @island.response({extended: true})
+export function response(options: ResponseOptions) {
+  return (target, key, desc: PropertyDescriptor) => {
+    const options = desc.value.options = (desc.value.options || {}) as EndpointOptions;
+    options.response = options.response || {};
+    _.merge(options.response, options);
+    if (desc.value.endpoints) {
+      desc.value.endpoints.forEach(e => _.merge(e.options, options));
+    }
+  };
+}
+
 interface Endpoint {
   name: string;
   options: EndpointOptions;
